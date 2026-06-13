@@ -1,0 +1,59 @@
+name: Unit Tests (Simulator)
+
+# Runs the gamification/logic unit tests on an iOS Simulator.
+# Dispatch-only to conserve free macOS minutes; the IPA build is the routine job.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run unit tests
+    runs-on: macos-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          # Choose the first available iPhone simulator on the runner.
+          NAME=$(xcrun simctl list devices available | grep -Eo 'iPhone [0-9]+( Pro)?( Max)?' | head -1)
+          if [ -z "$NAME" ]; then NAME="iPhone 16"; fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "Using simulator: $NAME"
+
+      - name: Run tests
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project DailyLoop.xcodeproj \
+            -scheme DailyLoop \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            CODE_SIGNING_ALLOWED=NO
