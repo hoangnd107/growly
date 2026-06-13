@@ -63,7 +63,7 @@ struct OnboardingView: View {
       VStack(alignment: .leading, spacing: DLSpace.md) {
         perk("bolt.fill", DLColor.xpGold, "Complete your review for +50 XP")
         perk("flame.fill", DLColor.streakEnd, "Build streaks for XP multipliers")
-        perk("rosette", .tint, "Unlock badges, levels & themes")
+        perk("rosette", Color(hexString: accentHex), "Unlock badges, levels & themes")
       }
       .padding(.horizontal, DLSpace.lg)
       Spacer()

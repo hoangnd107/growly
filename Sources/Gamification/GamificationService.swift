@@ -27,8 +27,8 @@ struct ReviewResult: Equatable {
 }
 
 /// Orchestrates XP, streaks and badge unlocks. Pure-ish: it mutates the passed
-/// `UserProgress` and inserts records into the given `ModelContext`.
-@MainActor
+/// `UserProgress` and inserts records into the given `ModelContext`. Called from
+/// the main actor in practice (SwiftUI), but not annotated so it composes freely.
 enum GamificationService {
   static func completeReview(
     entry: Entry,
