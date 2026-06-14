@@ -93,6 +93,26 @@ struct BackupProgress: Codable {
   var reminderMinute: Int
 }
 
+struct BackupSleep: Codable {
+  var date: Date
+  var bedTime: Date
+  var wakeTime: Date
+  var quality: Int
+  var note: String
+}
+
+struct BackupGoal: Codable {
+  var title: String
+  var detail: String
+  var unit: String
+  var targetValue: Double
+  var currentValue: Double
+  var deadline: Date?
+  var createdAt: Date
+  var isCompleted: Bool
+  var colorHex: String?
+}
+
 struct BackupFile: Codable {
   var version: Int
   var exportedAt: Date
@@ -102,6 +122,8 @@ struct BackupFile: Codable {
   var habits: [BackupHabit]
   var badges: [BackupBadge]
   var xp: [BackupXP]
+  var sleeps: [BackupSleep]?
+  var goals: [BackupGoal]?
 }
 
 // MARK: - Service
@@ -145,6 +167,8 @@ enum BackupService {
       let habits = try context.fetch(FetchDescriptor<Habit>())
       let badges = try context.fetch(FetchDescriptor<BadgeRecord>())
       let xp = try context.fetch(FetchDescriptor<XPTransaction>())
+      let sleeps = try context.fetch(FetchDescriptor<SleepLog>())
+      let goals = try context.fetch(FetchDescriptor<SmartGoal>())
       let progress = try context.fetch(FetchDescriptor<UserProgress>()).first
 
       let file = BackupFile(
@@ -155,7 +179,9 @@ enum BackupService {
         notes: notes.map(snapshot(note:)),
         habits: habits.map(snapshot(habit:)),
         badges: badges.map { BackupBadge(badgeID: $0.badgeID, earnedAt: $0.earnedAt) },
-        xp: xp.map { BackupXP(date: $0.date, amount: $0.amount, reasonRaw: $0.reasonRaw, multiplier: $0.multiplier) }
+        xp: xp.map { BackupXP(date: $0.date, amount: $0.amount, reasonRaw: $0.reasonRaw, multiplier: $0.multiplier) },
+        sleeps: sleeps.map { BackupSleep(date: $0.date, bedTime: $0.bedTime, wakeTime: $0.wakeTime, quality: $0.quality, note: $0.note) },
+        goals: goals.map { BackupGoal(title: $0.title, detail: $0.detail, unit: $0.unit, targetValue: $0.targetValue, currentValue: $0.currentValue, deadline: $0.deadline, createdAt: $0.createdAt, isCompleted: $0.isCompleted, colorHex: $0.colorHex) }
       )
 
       try encoder.encode(file).write(to: fileURL, options: .atomic)
@@ -223,6 +249,15 @@ enum BackupService {
     for b in file.badges { context.insert(BadgeRecord(badgeID: b.badgeID, earnedAt: b.earnedAt)) }
     for x in file.xp {
       context.insert(XPTransaction(amount: x.amount, reason: XPReason(rawValue: x.reasonRaw) ?? .dailyReview, multiplier: x.multiplier, date: x.date))
+    }
+    for s in file.sleeps ?? [] {
+      context.insert(SleepLog(date: s.date, bedTime: s.bedTime, wakeTime: s.wakeTime, quality: s.quality, note: s.note))
+    }
+    for g in file.goals ?? [] {
+      let goal = SmartGoal(title: g.title, detail: g.detail, unit: g.unit, targetValue: g.targetValue, currentValue: g.currentValue, deadline: g.deadline, colorHex: g.colorHex)
+      goal.createdAt = g.createdAt
+      goal.isCompleted = g.isCompleted
+      context.insert(goal)
     }
 
     let progress = UserProgress()
@@ -315,6 +350,8 @@ enum BackupService {
     deleteAll(Habit.self)
     deleteAll(BadgeRecord.self)
     deleteAll(XPTransaction.self)
+    deleteAll(SleepLog.self)
+    deleteAll(SmartGoal.self)
     deleteAll(UserProgress.self)
   }
 }

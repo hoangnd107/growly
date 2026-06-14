@@ -11,6 +11,8 @@ enum AppModelContainer {
     BadgeRecord.self,
     DayNote.self,
     MediaAttachment.self,
+    SleepLog.self,
+    SmartGoal.self,
   ])
 
   static let shared: ModelContainer = {
