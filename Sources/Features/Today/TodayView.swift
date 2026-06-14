@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import PhotosUI
 
 struct TodayView: View {
   @Environment(\.modelContext) private var context
@@ -35,7 +34,7 @@ struct TodayView: View {
           ProgressView()
         }
       }
-      .navigationTitle("Today")
+      .navigationTitle(L("Today"))
       .navigationBarTitleDisplayMode(.inline)
     }
     .onAppear(perform: ensureTodayEntry)
@@ -62,16 +61,17 @@ private struct TodayContent: View {
   @State private var mode: Mode = .evening
   @State private var showCelebration = false
   @State private var result: ReviewResult = .none
-  @State private var photoItem: PhotosPickerItem?
 
   var body: some View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
         LevelHeader(progress: progress, todayXP: entry.xpAwarded)
 
-        Picker("Mode", selection: $mode) {
-          Text("Evening").tag(Mode.evening)
-          Text("Morning").tag(Mode.morning)
+        quoteCard
+
+        Picker(L("Today"), selection: $mode) {
+          Text(L("Evening")).tag(Mode.evening)
+          Text(L("Morning")).tag(Mode.morning)
         }
         .pickerStyle(.segmented)
 
@@ -84,6 +84,7 @@ private struct TodayContent: View {
       .padding(DLSpace.md)
     }
     .scrollDismissesKeyboard(.interactively)
+    .keyboardDismissButton()
     .overlay {
       if showCelebration {
         CompletionCelebration(result: result, isPresented: $showCelebration)
@@ -92,15 +93,24 @@ private struct TodayContent: View {
     .onAppear {
       mode = Calendar.current.component(.hour, from: Date()) < 12 ? .morning : .evening
     }
-    .onChange(of: photoItem) { _, newItem in
-      guard let newItem else { return }
-      Task {
-        if let data = try? await newItem.loadTransferable(type: Data.self) {
-          entry.photo = data
-          try? context.save()
-        }
+  }
+
+  // MARK: Quote
+
+  private var quoteCard: some View {
+    GlassCard {
+      HStack(alignment: .top, spacing: DLSpace.sm) {
+        Image(systemName: "quote.opening")
+          .font(.system(size: 18, weight: .semibold))
+          .foregroundStyle(DLColor.xpGold)
+        Text(AICoach.quote())
+          .font(.dl(.subheadline, weight: .medium))
+          .foregroundStyle(DLColor.textPrimary)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(L("Quote of the day"))
   }
 
   // MARK: Evening
@@ -113,12 +123,12 @@ private struct TodayContent: View {
 
     MoodEnergyCard(moodRaw: $entry.moodRaw, energy: $entry.energy)
 
-    photoCard
+    mediaCard
 
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
         HStack {
-          Text("Completion")
+          Text(L("Completion"))
             .font(.dl(.subheadline, weight: .semibold))
             .foregroundStyle(DLColor.textPrimary)
           Spacer()
@@ -132,46 +142,27 @@ private struct TodayContent: View {
     }
 
     if entry.xpAwarded > 0 {
-      Label("Day complete · +\(entry.xpAwarded) XP earned", systemImage: "checkmark.seal.fill")
+      Label(Lf("Day complete · +%d XP earned", entry.xpAwarded), systemImage: "checkmark.seal.fill")
         .font(.dl(.headline, weight: .semibold))
         .foregroundStyle(DLColor.success)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
         .background(DLColor.success.opacity(0.12), in: RoundedRectangle(cornerRadius: DLRadius.small))
     } else {
-      PrimaryButton("Complete the day", systemImage: "sparkles", isEnabled: entry.isComplete) {
+      PrimaryButton(L("Complete the day"), systemImage: "sparkles", isEnabled: entry.isComplete) {
         saveAndComplete()
       }
     }
   }
 
-  private var photoCard: some View {
+  private var mediaCard: some View {
     GlassCard {
-      HStack {
-        if let data = entry.photo, let uiImage = UIImage(data: data) {
-          Image(uiImage: uiImage)
-            .resizable()
-            .scaledToFill()
-            .frame(width: 56, height: 56)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-          Text("Photo attached")
-            .font(.dl(.subheadline))
-            .foregroundStyle(DLColor.textSecondary)
-          Spacer()
-          Button(role: .destructive) {
-            entry.photo = nil
-            try? context.save()
-          } label: {
-            Image(systemName: "trash")
-          }
-        } else {
-          PhotosPicker(selection: $photoItem, matching: .images) {
-            Label("Attach a photo", systemImage: "photo.badge.plus")
-              .font(.dl(.subheadline, weight: .medium))
-              .foregroundStyle(Color.accentColor)
-          }
-        }
-      }
+      MediaPickerField(
+        attachments: entry.sortedAttachments,
+        onAddImage: { data in addAttachment(data: data, type: .image, ext: "jpg") },
+        onAddVideo: { data, ext in addAttachment(data: data, type: .video, ext: ext) },
+        onDelete: deleteAttachment
+      )
     }
   }
 
@@ -181,7 +172,7 @@ private struct TodayContent: View {
   private var morningSection: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Label("Yesterday's adjustment", systemImage: "arrow.triangle.2.circlepath")
+        Label(L("Yesterday's adjustment"), systemImage: "arrow.triangle.2.circlepath")
           .font(.dl(.subheadline, weight: .semibold))
           .foregroundStyle(ReflectionKind.adjustment.accent)
         if let yesterday = yesterdayEntry, !yesterday.adjustment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -192,7 +183,7 @@ private struct TodayContent: View {
           }
           .toggleStyle(.switch)
         } else {
-          Text("No adjustment from yesterday yet. Tonight, set one to carry forward.")
+          Text(L("No adjustment from yesterday yet. Tonight, set one to carry forward."))
             .font(.dl(.subheadline))
             .foregroundStyle(DLColor.textSecondary)
         }
@@ -201,10 +192,10 @@ private struct TodayContent: View {
 
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Label("Today's intention", systemImage: "target")
+        Label(L("Today's intention"), systemImage: "target")
           .font(.dl(.subheadline, weight: .semibold))
           .foregroundStyle(Color.accentColor)
-        TextField("What's the one thing that matters today?", text: $entry.morningIntention, axis: .vertical)
+        TextField(L("What's the one thing that matters today?"), text: $entry.morningIntention, axis: .vertical)
           .lineLimit(1...4)
           .font(.dl(.body))
           .foregroundStyle(DLColor.textPrimary)
@@ -213,7 +204,7 @@ private struct TodayContent: View {
 
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Label("Morning prompt", systemImage: "sparkles")
+        Label(L("Morning prompt"), systemImage: "sparkles")
           .font(.dl(.subheadline, weight: .semibold))
           .foregroundStyle(DLColor.xpGold)
         Text(AICoach.morningPrompt())
@@ -224,11 +215,11 @@ private struct TodayContent: View {
 
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Text("Habits")
+        Text(L("Habits"))
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)
         if habits.isEmpty {
-          Text("Add habits in onboarding to track them here.")
+          Text(L("Add habits in onboarding to track them here."))
             .font(.dl(.subheadline))
             .foregroundStyle(DLColor.textSecondary)
         } else {
@@ -261,6 +252,8 @@ private struct TodayContent: View {
       .padding(.vertical, 4)
     }
     .buttonStyle(.plain)
+    .accessibilityLabel(habit.name)
+    .accessibilityValue(done ? L("Done") : "")
   }
 
   // MARK: Bindings & actions
@@ -277,6 +270,20 @@ private struct TodayContent: View {
       get: { target.adjustmentDone },
       set: { target.adjustmentDone = $0; try? context.save() }
     )
+  }
+
+  private func addAttachment(data: Data, type: MediaType, ext: String) {
+    guard let fileName = MediaStore.save(data, ext: ext) else { return }
+    let attachment = MediaAttachment(fileName: fileName, type: type, order: entry.attachments.count)
+    attachment.entry = entry
+    context.insert(attachment)
+    try? context.save()
+  }
+
+  private func deleteAttachment(_ attachment: MediaAttachment) {
+    MediaStore.delete(attachment.fileName)
+    context.delete(attachment)
+    try? context.save()
   }
 
   private func toggleHabit(_ habit: Habit) {

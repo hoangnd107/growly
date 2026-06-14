@@ -9,6 +9,9 @@ struct XPHistoryChart: View {
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+  /// Tap-selected day on the x-axis (bound to `.chartXSelection`).
+  @State private var selectedDate: Date?
+
   private let dayCount = 30
 
   /// One bucket per day for the last `dayCount` days (oldest -> newest),
@@ -32,6 +35,18 @@ struct XPHistoryChart: View {
 
   private var totalXP: Int { dailyXP.reduce(0) { $0 + $1.xp } }
   private var bestDay: Int { dailyXP.map(\.xp).max() ?? 0 }
+
+  /// The day bucket closest to the current selection, if any.
+  private var selectedDay: DayXP? {
+    guard let selectedDate else { return nil }
+    let calendar = Calendar.current
+    if let exact = dailyXP.first(where: { calendar.isDate($0.day, inSameDayAs: selectedDate) }) {
+      return exact
+    }
+    return dailyXP.min {
+      abs($0.day.timeIntervalSince(selectedDate)) < abs($1.day.timeIntervalSince(selectedDate))
+    }
+  }
 
   var body: some View {
     GlassCard {
@@ -64,20 +79,57 @@ struct XPHistoryChart: View {
   }
 
   private var chart: some View {
-    Chart(dailyXP) { item in
-      BarMark(
-        x: .value("Day", item.day, unit: .day),
-        y: .value("XP", item.xp)
-      )
-      .foregroundStyle(
-        LinearGradient(
-          colors: [DLColor.xpGold, DLColor.streakStart],
-          startPoint: .bottom,
-          endPoint: .top
+    Chart {
+      ForEach(dailyXP) { item in
+        BarMark(
+          x: .value("Day", item.day, unit: .day),
+          y: .value("XP", item.xp)
         )
-      )
-      .cornerRadius(3)
+        .foregroundStyle(
+          LinearGradient(
+            colors: [DLColor.xpGold, DLColor.streakStart],
+            startPoint: .bottom,
+            endPoint: .top
+          )
+        )
+        .cornerRadius(3)
+      }
+
+      // Tapped marker: a vertical rule plus an annotation bubble with the XP.
+      if let selected = selectedDay {
+        RuleMark(x: .value("Day", selected.day, unit: .day))
+          .foregroundStyle(DLColor.textTertiary.opacity(0.5))
+          .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+          .annotation(
+            position: .top,
+            spacing: 6,
+            overflowResolution: .init(x: .fit(to: .chart), y: .disabled)
+          ) {
+            VStack(alignment: .leading, spacing: 2) {
+              Text(selected.day, format: .dateTime.month(.abbreviated).day())
+                .font(.dl(.caption2))
+                .foregroundStyle(DLColor.textSecondary)
+              Text("\(selected.xp) XP")
+                .font(.dl(.caption, weight: .semibold))
+                .foregroundStyle(DLColor.xpGold)
+                .monospacedDigit()
+            }
+            .padding(.horizontal, DLSpace.sm)
+            .padding(.vertical, DLSpace.xs)
+            .background(
+              RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+                .fill(.ultraThinMaterial)
+            )
+            .overlay(
+              RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+                .strokeBorder(DLColor.separator.opacity(0.6), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
+            .fixedSize()
+          }
+      }
     }
+    .chartXSelection(value: $selectedDate)
     .chartYAxis {
       AxisMarks(position: .leading) { value in
         AxisGridLine().foregroundStyle(DLColor.separator.opacity(0.4))
@@ -99,6 +151,7 @@ struct XPHistoryChart: View {
       }
     }
     .animation(reduceMotion ? nil : DLAnim.standard, value: dailyXP)
+    .animation(reduceMotion ? nil : DLAnim.quick, value: selectedDate)
   }
 }
 

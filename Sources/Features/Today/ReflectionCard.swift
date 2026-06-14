@@ -20,10 +20,10 @@ struct ReflectionCard: View {
               .foregroundStyle(kind.accent)
           }
           VStack(alignment: .leading, spacing: 1) {
-            Text(kind.title)
+            Text(L(kind.title))
               .font(.dl(.headline, weight: .semibold))
               .foregroundStyle(DLColor.textPrimary)
-            Text(kind.prompt)
+            Text(L(kind.prompt))
               .font(.dl(.caption))
               .foregroundStyle(DLColor.textSecondary)
           }
@@ -35,7 +35,7 @@ struct ReflectionCard: View {
           }
         }
 
-        TextField(kind.prompt, text: $text, axis: .vertical)
+        TextField(L(kind.prompt), text: $text, axis: .vertical)
           .lineLimit(2...6)
           .font(.dl(.body))
           .foregroundStyle(DLColor.textPrimary)

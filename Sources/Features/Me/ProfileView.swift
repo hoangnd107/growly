@@ -52,13 +52,13 @@ struct ProfileView: View {
   private func statsStrip(_ progress: UserProgress) -> some View {
     GlassCard {
       HStack(spacing: 0) {
-        statCell(value: "\(progress.totalXP)", label: "Total XP", tint: DLColor.xpGold)
+        statCell(value: "\(progress.totalXP)", label: L("Total XP"), tint: DLColor.xpGold)
         statDivider
-        statCell(value: "\(progress.currentStreak)", label: "Streak", tint: DLColor.streakStart)
+        statCell(value: "\(progress.currentStreak)", label: L("Streak"), tint: DLColor.streakStart)
         statDivider
-        statCell(value: "\(progress.longestStreak)", label: "Longest", tint: DLColor.streakEnd)
+        statCell(value: "\(progress.longestStreak)", label: L("Longest"), tint: DLColor.streakEnd)
         statDivider
-        statCell(value: "\(Int(progress.growthScore))", label: "Growth", tint: DLColor.success)
+        statCell(value: "\(Int(progress.growthScore))", label: L("Growth"), tint: DLColor.success)
       }
     }
   }
@@ -93,7 +93,7 @@ struct ProfileView: View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
         HStack {
-          Text("Badges")
+          Text(L("Badges"))
             .font(.dl(.headline, weight: .semibold))
             .foregroundStyle(DLColor.textPrimary)
           Spacer()
@@ -154,7 +154,7 @@ struct ProfileView: View {
         .lineLimit(2)
 
       if earned {
-        Text("Earned")
+        Text(L("Earned"))
           .font(.dl(.caption2, weight: .semibold))
           .foregroundStyle(badge.color)
       } else {
@@ -182,8 +182,8 @@ struct ProfileView: View {
         CustomizationShopView(progress: progress)
       } label: {
         navRow(
-          title: "Customize",
-          subtitle: "Unlock accent colors by level",
+          title: L("Customize"),
+          subtitle: L("Unlock accent colors by level"),
           systemImage: "paintpalette.fill",
           tint: progress.accentColor
         )
@@ -194,8 +194,8 @@ struct ProfileView: View {
         SettingsView(progress: progress, entries: entries)
       } label: {
         navRow(
-          title: "Settings",
-          subtitle: "Theme, Face ID, export & about",
+          title: L("Settings"),
+          subtitle: L("Theme, Face ID, export & about"),
           systemImage: "gearshape.fill",
           tint: DLColor.textSecondary
         )

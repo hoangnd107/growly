@@ -15,22 +15,22 @@ struct CompletionCelebration: View {
       ConfettiView(isActive: appear)
 
       VStack(spacing: DLSpace.md) {
-        Text(result.leveledUp ? "Level Up!" : "Day complete!")
+        Text(result.leveledUp ? L("Level Up!") : L("Day complete!"))
           .font(.dl(.largeTitle, weight: .bold))
           .foregroundStyle(.white)
 
-        Label("+\(result.xpGained) XP", systemImage: "bolt.fill")
+        Label(Lf("+%d XP", result.xpGained), systemImage: "bolt.fill")
           .font(.dl(.title2, weight: .bold))
           .foregroundStyle(DLColor.xpGold)
 
         if result.multiplier > 1 {
-          Text(String(format: "Streak bonus ×%.1f", result.multiplier))
+          Text(Lf("Streak bonus ×%.1f", result.multiplier))
             .font(.dl(.subheadline, weight: .semibold))
             .foregroundStyle(DLColor.streakEnd)
         }
 
         if result.leveledUp {
-          Text("You reached level \(result.newLevel) · \(LevelSystem.title(for: result.newLevel))")
+          Text(Lf("You reached level %d · %@", result.newLevel, LevelSystem.title(for: result.newLevel)))
             .font(.dl(.subheadline))
             .foregroundStyle(.white.opacity(0.9))
             .multilineTextAlignment(.center)
@@ -38,7 +38,7 @@ struct CompletionCelebration: View {
 
         if !result.newBadges.isEmpty {
           VStack(spacing: DLSpace.sm) {
-            Text(result.newBadges.count > 1 ? "New badges" : "New badge")
+            Text(result.newBadges.count > 1 ? L("New badges") : L("New badge"))
               .font(.dl(.subheadline, weight: .semibold))
               .foregroundStyle(.white)
             HStack(spacing: DLSpace.md) {
@@ -65,7 +65,7 @@ struct CompletionCelebration: View {
           .padding(.horizontal, DLSpace.lg)
           .padding(.top, 4)
 
-        Button("Continue") { dismiss() }
+        Button(L("Continue")) { dismiss() }
           .font(.dl(.headline, weight: .semibold))
           .padding(.horizontal, DLSpace.xl)
           .padding(.vertical, 12)

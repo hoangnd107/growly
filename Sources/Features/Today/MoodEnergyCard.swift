@@ -7,7 +7,7 @@ struct MoodEnergyCard: View {
   var body: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        Text("Mood & Energy")
+        Text(L("Mood & Energy"))
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)
 

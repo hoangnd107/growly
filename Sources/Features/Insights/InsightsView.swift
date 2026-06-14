@@ -39,15 +39,15 @@ struct InsightsView: View {
           content
         }
       }
-      .navigationTitle("Insights")
+      .navigationTitle(L("Insights"))
     }
   }
 
   private var emptyState: some View {
     ContentUnavailableView {
-      Label("No insights yet", systemImage: "chart.line.uptrend.xyaxis")
+      Label(L("No insights yet"), systemImage: "chart.line.uptrend.xyaxis")
     } description: {
-      Text("Complete a daily review to start seeing your mood, XP, and growth trends here.")
+      Text(L("Complete a daily review to start seeing your mood, XP, and growth trends here."))
     }
   }
 
@@ -58,6 +58,7 @@ struct InsightsView: View {
         moodTrendCard
         xpPerDayCard
         moodDistributionCard
+        moodCalendarCard
         growthScoreCard
         challengesCard
       }
@@ -70,7 +71,7 @@ struct InsightsView: View {
   private var coachCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Label("Weekly coach", systemImage: "sparkles")
+        Label(L("Weekly coach"), systemImage: "sparkles")
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(Color.accentColor)
         Text(AICoach.weeklySummary(entries: entries))
@@ -86,9 +87,9 @@ struct InsightsView: View {
   private var moodTrendCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        chartHeader("Mood over time", subtitle: "Last 14 days", icon: "face.smiling")
+        chartHeader(L("Mood over time"), subtitle: L("Last 14 days"), icon: "face.smiling")
         MoodTrendChart(points: moodPoints, animate: animate)
-          .accessibilityLabel("Mood trend over the last 14 days")
+          .accessibilityLabel(L("Mood trend over the last 14 days"))
       }
     }
   }
@@ -98,9 +99,9 @@ struct InsightsView: View {
   private var xpPerDayCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        chartHeader("XP per day", subtitle: "Last 14 days", icon: "bolt.fill", tint: DLColor.xpGold)
+        chartHeader(L("XP per day"), subtitle: L("Last 14 days"), icon: "bolt.fill", tint: DLColor.xpGold)
         XPPerDayChart(points: xpPoints, animate: animate)
-          .accessibilityLabel("Experience points earned per day over the last 14 days")
+          .accessibilityLabel(L("Experience points earned per day over the last 14 days"))
       }
     }
   }
@@ -110,9 +111,20 @@ struct InsightsView: View {
   private var moodDistributionCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        chartHeader("Mood distribution", subtitle: "All entries", icon: "chart.bar.fill")
+        chartHeader(L("Mood distribution"), subtitle: L("All entries"), icon: "chart.bar.fill")
         MoodDistributionChart(points: moodCountPoints, animate: animate)
-          .accessibilityLabel("How often each mood was logged across all entries")
+          .accessibilityLabel(L("How often each mood was logged across all entries"))
+      }
+    }
+  }
+
+  // MARK: 4b — Mood calendar (heatmap)
+
+  private var moodCalendarCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        chartHeader(L("Mood calendar"), subtitle: L("Last 16 weeks"), icon: "calendar")
+        MoodHeatmap(entries: entries)
       }
     }
   }
@@ -122,7 +134,7 @@ struct InsightsView: View {
   private var growthScoreCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        Label("Growth score", systemImage: "chart.line.uptrend.xyaxis")
+        Label(L("Growth score"), systemImage: "chart.line.uptrend.xyaxis")
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(DLColor.success)
 
@@ -131,22 +143,22 @@ struct InsightsView: View {
             .font(.system(.largeTitle, design: .rounded).weight(.bold))
             .monospacedDigit()
             .foregroundStyle(DLColor.textPrimary)
-          Text("pts")
+          Text(L("pts"))
             .font(.dl(.title3, weight: .semibold))
             .foregroundStyle(DLColor.textSecondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Growth score \(growthScoreText) points")
+        .accessibilityLabel(Lf("Growth score %@ points", growthScoreText))
 
-        Text("A compound score of your consistency and depth — it accelerates the more reviews you stack.")
+        Text(L("A compound score of your consistency and depth — it accelerates the more reviews you stack."))
           .font(.dl(.caption))
           .foregroundStyle(DLColor.textSecondary)
           .fixedSize(horizontal: false, vertical: true)
 
         if cumulativePoints.count > 1 {
           GrowthCurveChart(points: cumulativePoints, animate: animate)
-            .accessibilityLabel("Cumulative reviews completed over time")
-          Text("Cumulative reviews completed")
+            .accessibilityLabel(L("Cumulative reviews completed over time"))
+          Text(L("Cumulative reviews completed"))
             .font(.dl(.caption2))
             .foregroundStyle(DLColor.textTertiary)
         }
@@ -159,7 +171,7 @@ struct InsightsView: View {
   private var challengesCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        Label("Challenges", systemImage: "flag.checkered")
+        Label(L("Challenges"), systemImage: "flag.checkered")
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(Color.accentColor)
 

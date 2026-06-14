@@ -2,8 +2,10 @@ import SwiftUI
 import SwiftData
 import UIKit
 
-/// App preferences: appearance theme, Face ID lock, accent display, data export,
-/// and an About section. Toggles bind directly to `UserProgress` via `@Bindable`.
+/// App preferences: appearance theme, language, Face ID lock, daily reminders,
+/// testing unlocks, local backup/restore, JSON export, and an About section.
+/// Controls bind directly to `UserProgress` via `@Bindable`, persisting through
+/// `context.save()` with light haptics on every change.
 struct SettingsView: View {
   @Environment(\.modelContext) private var context
   @Bindable var progress: UserProgress
@@ -12,6 +14,9 @@ struct SettingsView: View {
   let entries: [Entry]
 
   @State private var exportConfirmed = false
+  @State private var backupConfirmed = false
+  @State private var showRestoreDialog = false
+  @State private var lastBackupDisplay: Date?
 
   var body: some View {
     ZStack {
@@ -19,15 +24,29 @@ struct SettingsView: View {
       ScrollView {
         VStack(spacing: DLSpace.lg) {
           appearanceCard
+          languageCard
           securityCard
+          remindersCard
+          testingCard
           dataCard
           aboutCard
         }
         .padding(DLSpace.md)
       }
     }
-    .navigationTitle("Settings")
+    .navigationTitle(L("Settings"))
     .navigationBarTitleDisplayMode(.inline)
+    .onAppear { lastBackupDisplay = progress.lastBackupAt ?? BackupService.lastModified }
+    .confirmationDialog(
+      L("Restore from backup"),
+      isPresented: $showRestoreDialog,
+      titleVisibility: .visible
+    ) {
+      Button(L("Restore from backup"), role: .destructive, action: restoreBackup)
+      Button(L("Cancel"), role: .cancel) {}
+    } message: {
+      Text(L("This replaces all current data with the last backup."))
+    }
   }
 
   // MARK: Appearance
@@ -35,15 +54,15 @@ struct SettingsView: View {
   private var appearanceCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        sectionHeader("Appearance", systemImage: "paintbrush.fill", tint: progress.accentColor)
+        sectionHeader(L("Appearance"), systemImage: "paintbrush.fill", tint: progress.accentColor)
 
         VStack(alignment: .leading, spacing: DLSpace.sm) {
-          Text("Theme")
+          Text(L("Theme"))
             .font(.dl(.subheadline, weight: .medium))
             .foregroundStyle(DLColor.textPrimary)
-          Picker("Theme", selection: themeBinding) {
+          Picker(L("Theme"), selection: themeBinding) {
             ForEach(ThemePreference.allCases) { theme in
-              Text(theme.label).tag(theme)
+              Text(L(theme.label)).tag(theme)
             }
           }
           .pickerStyle(.segmented)
@@ -56,7 +75,7 @@ struct SettingsView: View {
             .fill(progress.accentColor)
             .frame(width: 28, height: 28)
             .overlay(Circle().strokeBorder(DLColor.separator, lineWidth: 1))
-          Text("Accent color")
+          Text(L("Accent color"))
             .font(.dl(.body))
             .foregroundStyle(DLColor.textPrimary)
           Spacer()
@@ -65,7 +84,7 @@ struct SettingsView: View {
             .foregroundStyle(DLColor.textSecondary)
             .monospacedDigit()
         }
-        Text("Change your accent in Customize on the Me tab.")
+        Text(L("Change your accent in Customize on the Me tab."))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
       }
@@ -84,18 +103,52 @@ struct SettingsView: View {
     )
   }
 
+  // MARK: Language
+
+  private var languageCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        sectionHeader(L("Language"), systemImage: "globe", tint: progress.accentColor)
+        Picker(L("Language"), selection: languageBinding) {
+          ForEach(AppLanguage.allCases) { lang in
+            Text("\(lang.flag)  \(lang.displayName)").tag(lang)
+          }
+        }
+        .pickerStyle(.menu)
+        .tint(progress.accentColor)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        Text(L("The app re-localizes instantly when you change this."))
+          .font(.dl(.caption2))
+          .foregroundStyle(DLColor.textTertiary)
+      }
+    }
+  }
+
+  /// Reads/writes the stored `languageCode` as a strongly-typed `AppLanguage`.
+  /// RootView observes `languageCode` and rebuilds, so the UI re-localizes.
+  private var languageBinding: Binding<AppLanguage> {
+    Binding(
+      get: { AppLanguage(rawValue: progress.languageCode) ?? .system },
+      set: {
+        progress.languageCode = $0.rawValue
+        try? context.save()
+        Haptics.selection()
+      }
+    )
+  }
+
   // MARK: Security
 
   private var securityCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        sectionHeader("Security", systemImage: "lock.shield.fill", tint: DLColor.success)
+        sectionHeader(L("Security"), systemImage: "lock.shield.fill", tint: DLColor.success)
         Toggle(isOn: faceIDBinding) {
           VStack(alignment: .leading, spacing: 2) {
-            Text("Require Face ID")
+            Text(L("Require Face ID"))
               .font(.dl(.body))
               .foregroundStyle(DLColor.textPrimary)
-            Text("Lock the app behind Face ID when it opens.")
+            Text(L("Lock the app behind Face ID when it opens."))
               .font(.dl(.caption2))
               .foregroundStyle(DLColor.textSecondary)
           }
@@ -116,36 +169,222 @@ struct SettingsView: View {
     )
   }
 
+  // MARK: Reminders
+
+  private var remindersCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        sectionHeader(L("Reminders"), systemImage: "bell.badge.fill", tint: DLColor.warning)
+
+        Toggle(isOn: reminderEnabledBinding) {
+          VStack(alignment: .leading, spacing: 2) {
+            Text(L("Daily reminder"))
+              .font(.dl(.body))
+              .foregroundStyle(DLColor.textPrimary)
+            Text(L("Get a nudge to close today's loop."))
+              .font(.dl(.caption2))
+              .foregroundStyle(DLColor.textSecondary)
+          }
+        }
+        .tint(progress.accentColor)
+
+        if progress.reminderEnabled {
+          Divider().overlay(DLColor.separator)
+          DatePicker(
+            L("Reminder time"),
+            selection: reminderTimeBinding,
+            displayedComponents: .hourAndMinute
+          )
+          .font(.dl(.body))
+          .foregroundStyle(DLColor.textPrimary)
+          .tint(progress.accentColor)
+        }
+      }
+    }
+  }
+
+  private var reminderEnabledBinding: Binding<Bool> {
+    Binding(
+      get: { progress.reminderEnabled },
+      set: { enabled in
+        progress.reminderEnabled = enabled
+        try? context.save()
+        Haptics.selection()
+        if enabled {
+          Task {
+            _ = await NotificationService.requestAuthorization()
+            NotificationService.sync(
+              enabled: true,
+              hour: progress.reminderHour,
+              minute: progress.reminderMinute
+            )
+          }
+        } else {
+          NotificationService.cancelDailyReminder()
+        }
+      }
+    )
+  }
+
+  /// Bridges the stored hour/minute components to a `Date` for the picker.
+  private var reminderTimeBinding: Binding<Date> {
+    Binding(
+      get: {
+        var components = DateComponents()
+        components.hour = progress.reminderHour
+        components.minute = progress.reminderMinute
+        return Calendar.current.date(from: components) ?? Date()
+      },
+      set: { date in
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        progress.reminderHour = components.hour ?? progress.reminderHour
+        progress.reminderMinute = components.minute ?? progress.reminderMinute
+        try? context.save()
+        Haptics.selection()
+        NotificationService.sync(
+          enabled: progress.reminderEnabled,
+          hour: progress.reminderHour,
+          minute: progress.reminderMinute
+        )
+      }
+    )
+  }
+
+  // MARK: Testing
+
+  private var testingCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        sectionHeader(L("Testing"), systemImage: "wrench.and.screwdriver.fill", tint: DLColor.textSecondary)
+        Toggle(isOn: debugUnlockBinding) {
+          VStack(alignment: .leading, spacing: 2) {
+            Text(L("Unlock everything (testing)"))
+              .font(.dl(.body))
+              .foregroundStyle(DLColor.textPrimary)
+            Text(L("Temporarily unlock all accents and content."))
+              .font(.dl(.caption2))
+              .foregroundStyle(DLColor.textSecondary)
+          }
+        }
+        .tint(progress.accentColor)
+      }
+    }
+  }
+
+  private var debugUnlockBinding: Binding<Bool> {
+    Binding(
+      get: { progress.debugUnlockAll },
+      set: {
+        progress.debugUnlockAll = $0
+        try? context.save()
+        Haptics.selection()
+      }
+    )
+  }
+
   // MARK: Data
 
   private var dataCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        sectionHeader("Data", systemImage: "tray.full.fill", tint: DLColor.xpGold)
-        Button(action: exportEntries) {
-          HStack(spacing: DLSpace.sm) {
-            Image(systemName: exportConfirmed ? "checkmark.circle.fill" : "doc.on.clipboard")
-              .font(.system(size: 20))
-              .foregroundStyle(exportConfirmed ? DLColor.success : progress.accentColor)
-            VStack(alignment: .leading, spacing: 2) {
-              Text(exportConfirmed ? "Copied to clipboard" : "Export entries")
-                .font(.dl(.body, weight: .medium))
-                .foregroundStyle(DLColor.textPrimary)
-              Text("Copy a JSON summary of all \(entries.count) entries.")
-                .font(.dl(.caption2))
-                .foregroundStyle(DLColor.textSecondary)
-            }
-            Spacer()
-            Image(systemName: "chevron.right")
-              .font(.system(size: 13, weight: .semibold))
-              .foregroundStyle(DLColor.textTertiary)
-          }
-          .contentShape(Rectangle())
+        sectionHeader(L("Data"), systemImage: "tray.full.fill", tint: DLColor.xpGold)
+
+        // Back up now
+        Button(action: backupNow) {
+          dataRow(
+            systemImage: backupConfirmed ? "checkmark.circle.fill" : "arrow.up.doc.fill",
+            tint: backupConfirmed ? DLColor.success : progress.accentColor,
+            title: backupConfirmed ? L("Backup complete") : L("Back up now"),
+            subtitle: backupSubtitle
+          )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Export entries as JSON to the clipboard")
+        .accessibilityLabel(L("Back up now"))
+
+        Divider().overlay(DLColor.separator)
+
+        // Restore from backup
+        Button { showRestoreDialog = true } label: {
+          dataRow(
+            systemImage: "arrow.down.doc.fill",
+            tint: BackupService.backupExists ? progress.accentColor : DLColor.textTertiary,
+            title: L("Restore from backup"),
+            subtitle: BackupService.backupExists
+              ? L("Replace current data with the last backup.")
+              : L("No backup available yet.")
+          )
+        }
+        .buttonStyle(.plain)
+        .disabled(!BackupService.backupExists)
+        .accessibilityLabel(L("Restore from backup"))
+
+        Divider().overlay(DLColor.separator)
+
+        // Export entries (JSON to clipboard)
+        Button(action: exportEntries) {
+          dataRow(
+            systemImage: exportConfirmed ? "checkmark.circle.fill" : "doc.on.clipboard",
+            tint: exportConfirmed ? DLColor.success : progress.accentColor,
+            title: exportConfirmed ? L("Copied to clipboard") : L("Export entries"),
+            subtitle: Lf("Copy a JSON summary of all %d entries.", entries.count)
+          )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L("Export entries"))
       }
     }
+  }
+
+  private var backupSubtitle: String {
+    if let date = lastBackupDisplay {
+      let formatter = DateFormatter()
+      formatter.dateStyle = .medium
+      formatter.timeStyle = .short
+      formatter.locale = LocalizationManager.shared.locale ?? .current
+      return "\(L("Last backup")): \(formatter.string(from: date))"
+    }
+    return L("Save a JSON snapshot of all your data.")
+  }
+
+  private func dataRow(systemImage: String, tint: Color, title: String, subtitle: String) -> some View {
+    HStack(spacing: DLSpace.sm) {
+      Image(systemName: systemImage)
+        .font(.system(size: 20))
+        .foregroundStyle(tint)
+        .frame(width: 24)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+          .font(.dl(.body, weight: .medium))
+          .foregroundStyle(DLColor.textPrimary)
+        Text(subtitle)
+          .font(.dl(.caption2))
+          .foregroundStyle(DLColor.textSecondary)
+      }
+      Spacer()
+      Image(systemName: "chevron.right")
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(DLColor.textTertiary)
+    }
+    .contentShape(Rectangle())
+  }
+
+  private func backupNow() {
+    let date = BackupService.export(context: context)
+    lastBackupDisplay = date ?? progress.lastBackupAt ?? BackupService.lastModified
+    Haptics.success()
+    withAnimation(DLAnim.quick) { backupConfirmed = true }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+      withAnimation(DLAnim.quick) { backupConfirmed = false }
+    }
+  }
+
+  private func restoreBackup() {
+    if BackupService.restore(context: context) {
+      Haptics.success()
+    } else {
+      Haptics.light()
+    }
+    lastBackupDisplay = progress.lastBackupAt ?? BackupService.lastModified
   }
 
   private func exportEntries() {
@@ -203,12 +442,12 @@ struct SettingsView: View {
   private var aboutCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        sectionHeader("About", systemImage: "info.circle.fill", tint: DLColor.textSecondary)
-        infoRow("Version", value: appVersion)
+        sectionHeader(L("About"), systemImage: "info.circle.fill", tint: DLColor.textSecondary)
+        infoRow(L("Version"), value: appVersion)
         Divider().overlay(DLColor.separator)
-        infoRow("Made for", value: "Daily reflection")
+        infoRow(L("Made for"), value: L("Daily reflection"))
         Divider().overlay(DLColor.separator)
-        Text("Daily Loop turns a daily Win · Mistake · Lesson · Adjustment review into momentum.")
+        Text(L("Daily Loop turns a daily Win · Mistake · Lesson · Adjustment review into momentum."))
           .font(.dl(.caption))
           .foregroundStyle(DLColor.textSecondary)
       }

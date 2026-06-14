@@ -31,6 +31,10 @@ struct EntryDetailView: View {
           photoCard(uiImage)
         }
 
+        if !entry.sortedAttachments.isEmpty {
+          mediaCard
+        }
+
         if entry.xpAwarded > 0 {
           xpCard
         }
@@ -53,20 +57,20 @@ struct EntryDetailView: View {
 
         HStack(spacing: DLSpace.lg) {
           VStack(alignment: .leading, spacing: 2) {
-            Text("Mood")
+            Text(L("Mood"))
               .font(.dl(.caption, weight: .medium))
               .foregroundStyle(DLColor.textTertiary)
             HStack(spacing: DLSpace.sm) {
               Text(entry.mood.emoji)
                 .font(.system(size: 28))
-              Text(entry.mood.label)
+              Text(L(entry.mood.label))
                 .font(.dl(.subheadline, weight: .semibold))
                 .foregroundStyle(entry.mood.color)
             }
           }
 
           VStack(alignment: .leading, spacing: 4) {
-            Text("Energy")
+            Text(L("Energy"))
               .font(.dl(.caption, weight: .medium))
               .foregroundStyle(DLColor.textTertiary)
             HStack(spacing: 4) {
@@ -94,7 +98,7 @@ struct EntryDetailView: View {
               .font(.system(size: 15, weight: .semibold))
               .foregroundStyle(kind.accent)
           }
-          Text(kind.title)
+          Text(L(kind.title))
             .font(.dl(.headline, weight: .semibold))
             .foregroundStyle(DLColor.textPrimary)
         }
@@ -109,7 +113,7 @@ struct EntryDetailView: View {
   private var intentionCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Label("Morning intention", systemImage: "target")
+        Label(L("Morning intention"), systemImage: "target")
           .font(.dl(.subheadline, weight: .semibold))
           .foregroundStyle(Color.accentColor)
         Text(entry.morningIntention)
@@ -123,7 +127,7 @@ struct EntryDetailView: View {
   private var tagsCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Text("Tags")
+        Text(L("Tags"))
           .font(.dl(.subheadline, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)
         FlowTags(tags: entry.tags)
@@ -134,7 +138,7 @@ struct EntryDetailView: View {
   private func photoCard(_ uiImage: UIImage) -> some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Text("Photo")
+        Text(L("Photo"))
           .font(.dl(.subheadline, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)
         Image(uiImage: uiImage)
@@ -142,13 +146,30 @@ struct EntryDetailView: View {
           .scaledToFit()
           .frame(maxWidth: .infinity)
           .clipShape(RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous))
-          .accessibilityLabel("Attached photo")
+          .accessibilityLabel(L("Attached photo"))
+      }
+    }
+  }
+
+  private var mediaCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.sm) {
+        Text(L("Add media"))
+          .font(.dl(.subheadline, weight: .semibold))
+          .foregroundStyle(DLColor.textPrimary)
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(spacing: DLSpace.sm) {
+            ForEach(entry.sortedAttachments) { attachment in
+              MediaViewer(attachment: attachment)
+            }
+          }
+        }
       }
     }
   }
 
   private var xpCard: some View {
-    Label("+\(entry.xpAwarded) XP earned", systemImage: "bolt.fill")
+    Label(Lf("+%d XP earned", entry.xpAwarded), systemImage: "bolt.fill")
       .font(.dl(.headline, weight: .semibold))
       .foregroundStyle(DLColor.xpGold)
       .frame(maxWidth: .infinity)

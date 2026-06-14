@@ -40,13 +40,13 @@ struct OnboardingView: View {
       Text("Daily Loop")
         .font(.dl(.largeTitle, weight: .bold))
         .foregroundStyle(DLColor.textPrimary)
-      Text("Turn every day into progress with a simple loop:\nWin · Mistake · Lesson · Adjustment.")
+      Text(L("Turn every day into progress with a simple loop:\nWin · Mistake · Lesson · Adjustment."))
         .font(.dl(.body))
         .multilineTextAlignment(.center)
         .foregroundStyle(DLColor.textSecondary)
         .padding(.horizontal, DLSpace.xl)
       Spacer()
-      nextButton(to: 1, title: "Continue")
+      nextButton(to: 1, title: L("Continue"))
     }
     .padding(DLSpace.lg)
   }
@@ -57,17 +57,17 @@ struct OnboardingView: View {
       Image(systemName: "bolt.fill")
         .font(.system(size: 72))
         .foregroundStyle(DLColor.xpGold)
-      Text("Earn XP every day")
+      Text(L("Earn XP every day"))
         .font(.dl(.title, weight: .bold))
         .foregroundStyle(DLColor.textPrimary)
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        perk("bolt.fill", DLColor.xpGold, "Complete your review for +50 XP")
-        perk("flame.fill", DLColor.streakEnd, "Build streaks for XP multipliers")
-        perk("rosette", Color(hexString: accentHex), "Unlock badges, levels & themes")
+        perk("bolt.fill", DLColor.xpGold, L("Complete your review for +50 XP"))
+        perk("flame.fill", DLColor.streakEnd, L("Build streaks for XP multipliers"))
+        perk("rosette", Color(hexString: accentHex), L("Unlock badges, levels & themes"))
       }
       .padding(.horizontal, DLSpace.lg)
       Spacer()
-      nextButton(to: 2, title: "Continue")
+      nextButton(to: 2, title: L("Continue"))
     }
     .padding(DLSpace.lg)
   }
@@ -75,20 +75,20 @@ struct OnboardingView: View {
   private var setupPage: some View {
     VStack(spacing: DLSpace.lg) {
       Spacer()
-      Text("Make it yours")
+      Text(L("Make it yours"))
         .font(.dl(.title, weight: .bold))
         .foregroundStyle(DLColor.textPrimary)
 
       VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Text("Your main goal")
+        Text(L("Your main goal"))
           .font(.dl(.subheadline, weight: .semibold))
           .foregroundStyle(DLColor.textSecondary)
-        TextField("e.g. Become more consistent", text: $goal)
+        TextField(L("e.g. Become more consistent"), text: $goal)
           .textFieldStyle(.roundedBorder)
       }
 
       VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Text("Accent colour")
+        Text(L("Accent color"))
           .font(.dl(.subheadline, weight: .semibold))
           .foregroundStyle(DLColor.textSecondary)
         HStack(spacing: DLSpace.md) {
@@ -110,7 +110,7 @@ struct OnboardingView: View {
       }
 
       Spacer()
-      PrimaryButton("Start my loop", systemImage: "sparkles") { finish() }
+      PrimaryButton(L("Start my loop"), systemImage: "sparkles") { finish() }
     }
     .padding(DLSpace.lg)
   }

@@ -47,16 +47,16 @@ struct HistoryView: View {
 
         if entries.isEmpty {
           ContentUnavailableView(
-            "No entries yet",
+            L("No entries yet"),
             systemImage: "calendar",
-            description: Text("Your reflections will appear here.")
+            description: Text(L("Your reflections will appear here."))
           )
         } else {
           content
         }
       }
-      .navigationTitle("History")
-      .searchable(text: $query, prompt: "Search reflections")
+      .navigationTitle(L("History"))
+      .searchable(text: $query, prompt: L("Search reflections"))
       .navigationDestination(for: Entry.self) { entry in
         EntryDetailView(entry: entry)
       }
@@ -72,9 +72,9 @@ struct HistoryView: View {
 
         if filtered.isEmpty {
           ContentUnavailableView {
-            Label("No matches", systemImage: "magnifyingglass")
+            Label(L("No matches"), systemImage: "magnifyingglass")
           } description: {
-            Text("Try a different search or clear the mood filter.")
+            Text(L("Try a different search or clear the mood filter."))
           }
           .padding(.top, DLSpace.xl)
         } else {
@@ -152,7 +152,7 @@ struct HistoryView: View {
   private var moodFilterChips: some View {
     ScrollView(.horizontal, showsIndicators: false) {
       HStack(spacing: DLSpace.sm) {
-        chip(label: "All", emoji: nil, color: Color.accentColor, isSelected: moodFilter == nil) {
+        chip(label: L("All"), emoji: nil, color: Color.accentColor, isSelected: moodFilter == nil) {
           moodFilter = nil
         }
         ForEach(Mood.allCases) { mood in
