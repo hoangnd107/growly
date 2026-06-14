@@ -2,134 +2,173 @@ import SwiftUI
 import SwiftData
 import Charts
 
+/// The Insights tab — an at-a-glance dashboard of the user's growth.
+///
+/// Sections, top to bottom:
+/// 1. AI Insights  — on-device heuristic patterns from `InsightsEngine`.
+/// 2. Growth score — the compound score plus a cumulative-reviews curve.
+/// 3. Mood calendar — week / month / year views of mood color.
+/// 4. Charts        — mood trend, XP per day, mood distribution.
+/// 5. Sleep summary — averages + a link to the sleep tracker.
+/// 6. Goals summary — active/completed counts + a link to goals.
+///
+/// Everything lives in a `NavigationStack` so the summary cards can push the
+/// Sleep and Goals destinations. The whole screen is reduce-motion aware and
+/// paints the user's gradient theme behind the content.
 struct InsightsView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   @Query(sort: \Entry.day, order: .reverse) private var entries: [Entry]
   @Query private var progressList: [UserProgress]
   @Query(sort: \XPTransaction.date) private var transactions: [XPTransaction]
+  @Query private var habitLogs: [HabitLog]
+  @Query(sort: \SleepLog.date, order: .reverse) private var sleeps: [SleepLog]
+  @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
 
-  // Habit logs from the last 7 days, used to compute weekly challenge progress.
-  @Query private var recentHabitLogs: [HabitLog]
+  /// Drives a spring entrance for the AI-insight cards.
+  @State private var appeared = false
 
-  init() {
-    let weekAgo = Calendar.current.startOfDay(
-      for: Calendar.current.date(byAdding: .day, value: -6, to: Date()) ?? Date()
-    )
-    _recentHabitLogs = Query(
-      filter: #Predicate<HabitLog> { $0.completed && $0.date >= weekAgo }
-    )
-  }
+  /// Selected granularity for the mood calendar section.
+  @State private var calendarScale: CalendarScale = .month
+
+  init() {}
 
   private let calendar = Calendar.current
   private var today: Date { calendar.startOfDay(for: Date()) }
 
-  /// Animate chart entrances only when Reduce Motion is off.
+  /// Animate entrances only when Reduce Motion is off.
   private var animate: Bool { !reduceMotion }
+
+  private var theme: GradientTheme {
+    progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
+  }
 
   // MARK: Body
 
   var body: some View {
     NavigationStack {
       ZStack {
-        DLColor.background.ignoresSafeArea()
-        if entries.isEmpty {
+        ThemedBackground(theme: theme)
+        if isEmpty {
           emptyState
         } else {
           content
         }
       }
       .navigationTitle(L("Insights"))
+      .tint(theme.accent)
     }
+    .onAppear {
+      guard !appeared else { return }
+      if animate {
+        withAnimation(DLAnim.smooth) { appeared = true }
+      } else {
+        appeared = true
+      }
+    }
+  }
+
+  /// "Truly empty" — no reflections, no sleep, no goals to show anything for.
+  private var isEmpty: Bool {
+    entries.isEmpty && sleeps.isEmpty && goals.isEmpty
   }
 
   private var emptyState: some View {
     ContentUnavailableView {
-      Label(L("No insights yet"), systemImage: "chart.line.uptrend.xyaxis")
+      VStack(spacing: DLSpace.md) {
+        MiraView(size: 120, quote: L("Your story starts here!"))
+        Text(L("No insights yet"))
+          .font(.dl(.title3, weight: .semibold))
+          .foregroundStyle(DLColor.textPrimary)
+      }
     } description: {
-      Text(L("Complete a daily review to start seeing your mood, XP, and growth trends here."))
+      Text(L("Complete a daily review, log a night's sleep, or set a goal to start seeing your trends here."))
+        .font(.dl(.subheadline))
+        .foregroundStyle(DLColor.textSecondary)
     }
   }
 
   private var content: some View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
-        coachCard
-        moodTrendCard
-        xpPerDayCard
-        moodDistributionCard
-        moodCalendarCard
+        aiInsightsCard
         growthScoreCard
-        challengesCard
+        moodCalendarCard
+        if !entries.isEmpty {
+          moodTrendCard
+          xpPerDayCard
+          moodDistributionCard
+        }
+        sleepSummaryCard
+        goalsSummaryCard
       }
       .padding(DLSpace.md)
     }
+    .scrollDismissesKeyboard(.immediately)
   }
 
-  // MARK: 1 — Weekly AI coach
+  // MARK: 1 — AI Insights
 
-  private var coachCard: some View {
+  private var aiInsightsCard: some View {
     GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Label(L("Weekly coach"), systemImage: "sparkles")
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        Label(L("AI insights"), systemImage: "sparkles")
           .font(.dl(.headline, weight: .semibold))
-          .foregroundStyle(Color.accentColor)
-        Text(AICoach.weeklySummary(entries: entries))
-          .font(.dl(.body))
+          .foregroundStyle(theme.accent)
+
+        ForEach(Array(insights.enumerated()), id: \.element.id) { index, insight in
+          insightRow(insight)
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 12)
+            .animation(
+              animate ? DLAnim.bouncy.delay(Double(index) * 0.06) : nil,
+              value: appeared
+            )
+          if insight.id != insights.last?.id {
+            Divider().overlay(DLColor.separator)
+          }
+        }
+      }
+    }
+  }
+
+  private func insightRow(_ insight: Insight) -> some View {
+    HStack(alignment: .top, spacing: DLSpace.sm) {
+      ZStack {
+        Circle()
+          .fill(tint(for: insight.tone).opacity(0.18))
+          .frame(width: 40, height: 40)
+        Image(systemName: insight.icon)
+          .font(.system(size: 17, weight: .semibold))
+          .foregroundStyle(tint(for: insight.tone))
+      }
+      .accessibilityHidden(true)
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text(L(insight.title))
+          .font(.dl(.subheadline, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)
+        Text(L(insight.message))
+          .font(.dl(.caption))
+          .foregroundStyle(DLColor.textSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
+      Spacer(minLength: 0)
+    }
+    .padding(.vertical, DLSpace.xs)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("\(L(insight.title)). \(L(insight.message))")
+  }
+
+  private func tint(for tone: InsightTone) -> Color {
+    switch tone {
+    case .positive: return DLColor.success
+    case .suggestion: return DLColor.warning
+    case .neutral: return theme.accent
     }
   }
 
-  // MARK: 2 — Mood over time
-
-  private var moodTrendCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        chartHeader(L("Mood over time"), subtitle: L("Last 14 days"), icon: "face.smiling")
-        MoodTrendChart(points: moodPoints, animate: animate)
-          .accessibilityLabel(L("Mood trend over the last 14 days"))
-      }
-    }
-  }
-
-  // MARK: 3 — XP per day
-
-  private var xpPerDayCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        chartHeader(L("XP per day"), subtitle: L("Last 14 days"), icon: "bolt.fill", tint: DLColor.xpGold)
-        XPPerDayChart(points: xpPoints, animate: animate)
-          .accessibilityLabel(L("Experience points earned per day over the last 14 days"))
-      }
-    }
-  }
-
-  // MARK: 4 — Mood distribution
-
-  private var moodDistributionCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        chartHeader(L("Mood distribution"), subtitle: L("All entries"), icon: "chart.bar.fill")
-        MoodDistributionChart(points: moodCountPoints, animate: animate)
-          .accessibilityLabel(L("How often each mood was logged across all entries"))
-      }
-    }
-  }
-
-  // MARK: 4b — Mood calendar (heatmap)
-
-  private var moodCalendarCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        chartHeader(L("Mood calendar"), subtitle: L("Last 16 weeks"), icon: "calendar")
-        MoodHeatmap(entries: entries)
-      }
-    }
-  }
-
-  // MARK: 5 — Growth score
+  // MARK: 2 — Growth score
 
   private var growthScoreCard: some View {
     GlassCard {
@@ -166,69 +205,251 @@ struct InsightsView: View {
     }
   }
 
-  // MARK: 6 — Challenges
+  // MARK: 3 — Mood calendar
 
-  private var challengesCard: some View {
+  private enum CalendarScale: String, CaseIterable, Identifiable {
+    case week, month, year
+    var id: String { rawValue }
+    var label: String {
+      switch self {
+      case .week: return L("Week")
+      case .month: return L("Month")
+      case .year: return L("Year")
+      }
+    }
+  }
+
+  private var moodCalendarCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        Label(L("Challenges"), systemImage: "flag.checkered")
-          .font(.dl(.headline, weight: .semibold))
-          .foregroundStyle(Color.accentColor)
+        HStack(alignment: .firstTextBaseline) {
+          Label(L("Mood calendar"), systemImage: "calendar")
+            .font(.dl(.headline, weight: .semibold))
+            .foregroundStyle(theme.accent)
+          Spacer()
+        }
 
-        ForEach(challengeProgress) { item in
-          challengeRow(item)
-          if item.id != challengeProgress.last?.id {
-            Divider().overlay(DLColor.separator)
+        calendarScalePicker
+
+        if entries.isEmpty {
+          Text(L("Log a daily review to fill your mood calendar."))
+            .font(.dl(.caption))
+            .foregroundStyle(DLColor.textTertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, DLSpace.sm)
+        } else {
+          switch calendarScale {
+          case .week, .month:
+            MoodHeatmap(entries: entries)
+              .accessibilityLabel(L("Mood calendar by day"))
+          case .year:
+            yearMoodGrid
+              .accessibilityLabel(L("Average mood by month over the last year"))
           }
         }
       }
     }
   }
 
-  private func challengeRow(_ item: ChallengeProgress) -> some View {
-    VStack(alignment: .leading, spacing: DLSpace.sm) {
-      HStack(spacing: DLSpace.sm) {
-        Image(systemName: item.challenge.systemIcon)
-          .font(.system(size: 18))
-          .foregroundStyle(item.isComplete ? DLColor.success : DLColor.textSecondary)
-          .frame(width: 26)
-          .accessibilityHidden(true)
-
-        VStack(alignment: .leading, spacing: 2) {
-          Text(item.challenge.title)
+  private var calendarScalePicker: some View {
+    HStack(spacing: 4) {
+      ForEach(CalendarScale.allCases) { scale in
+        let isSelected = calendarScale == scale
+        Button {
+          withAnimation(animate ? DLAnim.standard : nil) { calendarScale = scale }
+          Haptics.selection()
+        } label: {
+          Text(scale.label)
             .font(.dl(.subheadline, weight: .semibold))
-            .foregroundStyle(DLColor.textPrimary)
-          Text(item.challenge.detail)
-            .font(.dl(.caption))
-            .foregroundStyle(DLColor.textSecondary)
-            .fixedSize(horizontal: false, vertical: true)
+            .foregroundStyle(isSelected ? Color.white : DLColor.textSecondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background {
+              if isSelected { Capsule().fill(theme.accent) }
+            }
+            .contentShape(Capsule())
         }
-
-        Spacer()
-
-        if item.isComplete {
-          Image(systemName: "checkmark.seal.fill")
-            .foregroundStyle(DLColor.success)
-            .accessibilityHidden(true)
-        } else {
-          Text("+\(item.challenge.xpReward)")
-            .font(.dl(.caption2, weight: .semibold))
-            .foregroundStyle(DLColor.xpGold)
-        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
       }
-
-      XPProgressBar(value: item.value, height: 8)
-        .animation(animate ? DLAnim.standard : nil, value: item.value)
     }
-    .padding(.vertical, DLSpace.xs)
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel(
-      "\(item.challenge.title). \(item.challenge.detail). "
-      + (item.isComplete ? "Complete." : "\(Int(item.value * 100)) percent, rewards \(item.challenge.xpReward) XP.")
-    )
+    .padding(4)
+    .background(DLColor.surfaceElevated, in: Capsule())
+    .overlay(Capsule().strokeBorder(DLColor.separator.opacity(0.6), lineWidth: 1))
   }
 
-  // MARK: Shared header
+  /// A 12-month mini grid: each cell is tinted by that month's average mood.
+  private var yearMoodGrid: some View {
+    let columns = Array(repeating: GridItem(.flexible(), spacing: DLSpace.sm), count: 4)
+    return LazyVGrid(columns: columns, spacing: DLSpace.sm) {
+      ForEach(yearMonths) { month in
+        VStack(spacing: 4) {
+          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+            .fill(month.color)
+            .frame(height: 34)
+            .overlay(
+              RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+                .strokeBorder(DLColor.separator.opacity(0.3), lineWidth: 0.5)
+            )
+          Text(month.label)
+            .font(.dl(.caption2, weight: .medium))
+            .foregroundStyle(DLColor.textSecondary)
+        }
+      }
+    }
+  }
+
+  // MARK: 4 — Existing charts
+
+  private var moodTrendCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        chartHeader(L("Mood over time"), subtitle: L("Last 14 days"), icon: "face.smiling")
+        MoodTrendChart(points: moodPoints, animate: animate)
+          .accessibilityLabel(L("Mood trend over the last 14 days"))
+      }
+    }
+  }
+
+  private var xpPerDayCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        chartHeader(L("XP per day"), subtitle: L("Last 14 days"), icon: "bolt.fill", tint: DLColor.xpGold)
+        XPPerDayChart(points: xpPoints, animate: animate)
+          .accessibilityLabel(L("Experience points earned per day over the last 14 days"))
+      }
+    }
+  }
+
+  private var moodDistributionCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        chartHeader(L("Mood distribution"), subtitle: L("All entries"), icon: "chart.bar.fill")
+        MoodDistributionChart(points: moodCountPoints, animate: animate)
+          .accessibilityLabel(L("How often each mood was logged across all entries"))
+      }
+    }
+  }
+
+  // MARK: 5 — Sleep summary
+
+  private var sleepSummaryCard: some View {
+    NavigationLink {
+      SleepTrackerView()
+    } label: {
+      GlassCard {
+        VStack(alignment: .leading, spacing: DLSpace.md) {
+          HStack {
+            Label(L("Sleep"), systemImage: "bed.double.fill")
+              .font(.dl(.headline, weight: .semibold))
+              .foregroundStyle(theme.accent)
+            Spacer()
+            Image(systemName: "chevron.right")
+              .font(.system(size: 13, weight: .semibold))
+              .foregroundStyle(DLColor.textTertiary)
+          }
+
+          if sleeps.isEmpty {
+            Text(L("No sleep logged yet. Track a night to see your rest patterns."))
+              .font(.dl(.subheadline))
+              .foregroundStyle(DLColor.textSecondary)
+              .fixedSize(horizontal: false, vertical: true)
+          } else {
+            HStack(spacing: DLSpace.xl) {
+              metric(
+                value: String(format: "%.1f", avgSleepHours),
+                unit: L("hrs avg"),
+                tint: theme.accent
+              )
+              metric(
+                value: String(format: "%.1f", avgSleepQuality),
+                unit: L("quality"),
+                tint: DLColor.xpGold
+              )
+              metric(
+                value: "\(sleeps.count)",
+                unit: L("nights"),
+                tint: DLColor.success
+              )
+            }
+          }
+        }
+      }
+    }
+    .buttonStyle(.plain)
+    .bounceTap(scale: 0.98, haptic: false)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(sleepAccessibilityLabel)
+    .accessibilityAddTraits(.isButton)
+  }
+
+  // MARK: 6 — Goals summary
+
+  private var goalsSummaryCard: some View {
+    NavigationLink {
+      GoalsView()
+    } label: {
+      GlassCard {
+        VStack(alignment: .leading, spacing: DLSpace.md) {
+          HStack {
+            Label(L("Goals"), systemImage: "target")
+              .font(.dl(.headline, weight: .semibold))
+              .foregroundStyle(theme.accent)
+            Spacer()
+            Image(systemName: "chevron.right")
+              .font(.system(size: 13, weight: .semibold))
+              .foregroundStyle(DLColor.textTertiary)
+          }
+
+          if goals.isEmpty {
+            Text(L("No goals yet. Set a SMART goal to track your progress."))
+              .font(.dl(.subheadline))
+              .foregroundStyle(DLColor.textSecondary)
+              .fixedSize(horizontal: false, vertical: true)
+          } else {
+            HStack(spacing: DLSpace.xl) {
+              metric(value: "\(activeGoalsCount)", unit: L("active"), tint: theme.accent)
+              metric(value: "\(completedGoalsCount)", unit: L("done"), tint: DLColor.success)
+            }
+
+            if let top = topGoal {
+              VStack(alignment: .leading, spacing: DLSpace.xs) {
+                Text(top.title)
+                  .font(.dl(.subheadline, weight: .semibold))
+                  .foregroundStyle(DLColor.textPrimary)
+                  .lineLimit(1)
+                XPProgressBar(value: top.progress, height: 8)
+                  .animation(animate ? DLAnim.standard : nil, value: top.progress)
+                Text("\(Int(top.progress * 100))%")
+                  .font(.dl(.caption2, weight: .semibold))
+                  .foregroundStyle(DLColor.textSecondary)
+                  .monospacedDigit()
+              }
+            }
+          }
+        }
+      }
+    }
+    .buttonStyle(.plain)
+    .bounceTap(scale: 0.98, haptic: false)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(goalsAccessibilityLabel)
+    .accessibilityAddTraits(.isButton)
+  }
+
+  // MARK: Shared building blocks
+
+  private func metric(value: String, unit: String, tint: Color) -> some View {
+    VStack(alignment: .leading, spacing: 0) {
+      Text(value)
+        .font(.system(.title2, design: .rounded).weight(.bold))
+        .monospacedDigit()
+        .foregroundStyle(tint)
+      Text(unit)
+        .font(.dl(.caption2, weight: .medium))
+        .foregroundStyle(DLColor.textSecondary)
+    }
+  }
 
   private func chartHeader(_ title: String, subtitle: String, icon: String, tint: Color = Color.accentColor) -> some View {
     HStack(alignment: .firstTextBaseline) {
@@ -243,6 +464,10 @@ struct InsightsView: View {
   }
 
   // MARK: - Derived data
+
+  private var insights: [Insight] {
+    InsightsEngine.generate(entries: entries, habitLogs: habitLogs, sleeps: sleeps)
+  }
 
   private var growthScoreText: String {
     let score = progressList.first?.growthScore ?? 0
@@ -277,11 +502,10 @@ struct InsightsView: View {
 
   private var moodCountPoints: [MoodCountPoint] {
     var counts: [Int: Int] = [:]
-    for entry in entries where !entry.win.isEmpty || !entry.mistake.isEmpty
-      || !entry.lesson.isEmpty || !entry.adjustment.isEmpty {
+    for entry in entries where entry.isComplete {
       counts[entry.moodRaw, default: 0] += 1
     }
-    // Fall back to counting all entries if none have reflection text yet.
+    // Fall back to counting all entries if none are complete yet.
     if counts.isEmpty {
       for entry in entries { counts[entry.moodRaw, default: 0] += 1 }
     }
@@ -300,17 +524,89 @@ struct InsightsView: View {
     }
   }
 
-  private var todayEntry: Entry? {
-    entries.first { calendar.isDate($0.day, inSameDayAs: today) }
+  // Sleep metrics
+
+  private var avgSleepHours: Double {
+    guard !sleeps.isEmpty else { return 0 }
+    return sleeps.map(\.durationHours).reduce(0, +) / Double(sleeps.count)
   }
 
-  private var habitCompletionsThisWeek: Int { recentHabitLogs.count }
+  private var avgSleepQuality: Double {
+    guard !sleeps.isEmpty else { return 0 }
+    return Double(sleeps.map(\.quality).reduce(0, +)) / Double(sleeps.count)
+  }
 
-  private var challengeProgress: [ChallengeProgress] {
-    ChallengeEngine.evaluate(
-      entries: entries,
-      todayEntry: todayEntry,
-      habitCompletionsThisWeek: habitCompletionsThisWeek
+  private var sleepAccessibilityLabel: String {
+    if sleeps.isEmpty {
+      return L("Sleep. No sleep logged yet. Opens the sleep tracker.")
+    }
+    return Lf(
+      "Sleep. Averaging %.1f hours and %.1f quality over %d nights. Opens the sleep tracker.",
+      avgSleepHours, avgSleepQuality, sleeps.count
     )
+  }
+
+  // Goal metrics
+
+  private var activeGoalsCount: Int { goals.filter { !$0.isCompleted }.count }
+  private var completedGoalsCount: Int { goals.filter { $0.isCompleted }.count }
+
+  /// The most-progressed active goal, falling back to the newest if none active.
+  private var topGoal: SmartGoal? {
+    goals
+      .filter { !$0.isCompleted }
+      .max { $0.progress < $1.progress }
+      ?? goals.first
+  }
+
+  private var goalsAccessibilityLabel: String {
+    if goals.isEmpty {
+      return L("Goals. No goals yet. Opens your goals.")
+    }
+    return Lf(
+      "Goals. %d active, %d completed. Opens your goals.",
+      activeGoalsCount, completedGoalsCount
+    )
+  }
+
+  // Year mood grid
+
+  private struct YearMonth: Identifiable {
+    let id: Int
+    let label: String
+    let color: Color
+  }
+
+  /// The last 12 months (oldest → newest), each colored by its average mood.
+  /// Months with no entries render as a faint placeholder.
+  private var yearMonths: [YearMonth] {
+    // Average mood per (year, month).
+    var sums: [DateComponents: (total: Int, count: Int)] = [:]
+    for entry in entries {
+      let comps = calendar.dateComponents([.year, .month], from: entry.day)
+      let cur = sums[comps] ?? (0, 0)
+      sums[comps] = (cur.total + entry.moodRaw, cur.count + 1)
+    }
+
+    let monthSymbols = calendar.shortMonthSymbols
+    var result: [YearMonth] = []
+    result.reserveCapacity(12)
+
+    for offset in (0..<12).reversed() {
+      guard let date = calendar.date(byAdding: .month, value: -offset, to: today) else { continue }
+      let comps = calendar.dateComponents([.year, .month], from: date)
+      let monthIndex = (comps.month ?? 1) - 1
+      let label = monthSymbols.indices.contains(monthIndex) ? monthSymbols[monthIndex] : ""
+
+      let color: Color
+      if let bucket = sums[comps], bucket.count > 0 {
+        let avg = Int((Double(bucket.total) / Double(bucket.count)).rounded())
+        color = (Mood(rawValue: max(1, min(5, avg))) ?? .neutral).color
+      } else {
+        color = DLColor.separator.opacity(0.3)
+      }
+      result.append(YearMonth(id: offset, label: label, color: color))
+    }
+    return result
   }
 }
