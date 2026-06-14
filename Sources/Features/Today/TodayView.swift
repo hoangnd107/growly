@@ -21,8 +21,8 @@ struct TodayView: View {
   var body: some View {
     NavigationStack {
       ZStack {
-        DLColor.background.ignoresSafeArea()
         if let progress = progressList.first, let entry = todayEntry {
+          ThemedBackground(theme: progress.gradientTheme)
           TodayContent(
             entry: entry,
             progress: progress,
@@ -31,6 +31,7 @@ struct TodayView: View {
             allEntries: entries
           )
         } else {
+          DLColor.background.ignoresSafeArea()
           ProgressView()
         }
       }
@@ -60,14 +61,13 @@ private struct TodayContent: View {
   private enum Mode { case evening, morning }
   @State private var mode: Mode = .evening
   @State private var showCelebration = false
+  @State private var showHabitManager = false
   @State private var result: ReviewResult = .none
 
   var body: some View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
-        LevelHeader(progress: progress, todayXP: entry.xpAwarded)
-
-        quoteCard
+        header
 
         Picker(L("Today"), selection: $mode) {
           Text(L("Evening")).tag(Mode.evening)
@@ -85,6 +85,9 @@ private struct TodayContent: View {
     }
     .scrollDismissesKeyboard(.interactively)
     .keyboardDismissButton()
+    .sheet(isPresented: $showHabitManager) {
+      HabitManagerView()
+    }
     .overlay {
       if showCelebration {
         CompletionCelebration(result: result, isPresented: $showCelebration)
@@ -95,22 +98,19 @@ private struct TodayContent: View {
     }
   }
 
-  // MARK: Quote
+  // MARK: Header (level + mascot)
 
-  private var quoteCard: some View {
-    GlassCard {
-      HStack(alignment: .top, spacing: DLSpace.sm) {
-        Image(systemName: "quote.opening")
-          .font(.system(size: 18, weight: .semibold))
-          .foregroundStyle(DLColor.xpGold)
-        Text(AICoach.quote())
-          .font(.dl(.subheadline, weight: .medium))
-          .foregroundStyle(DLColor.textPrimary)
-          .frame(maxWidth: .infinity, alignment: .leading)
+  private var header: some View {
+    VStack(spacing: DLSpace.md) {
+      HStack(alignment: .top, spacing: DLSpace.md) {
+        LevelHeader(progress: progress, todayXP: entry.xpAwarded)
+        if progress.miraEnabled {
+          MiraView(size: 64, quote: AICoach.quote())
+            .padding(.top, DLSpace.xs)
+            .accessibilityLabel(L("Mira, your companion"))
+        }
       }
     }
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel(L("Quote of the day"))
   }
 
   // MARK: Evening
@@ -125,6 +125,24 @@ private struct TodayContent: View {
 
     mediaCard
 
+    completionCard
+
+    if entry.xpAwarded > 0 {
+      Label(Lf("Day complete · +%d XP earned", entry.xpAwarded), systemImage: "checkmark.seal.fill")
+        .font(.dl(.headline, weight: .semibold))
+        .foregroundStyle(DLColor.success)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DLSpace.md)
+        .background(DLColor.success.opacity(0.12), in: RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous))
+    } else {
+      PrimaryButton(L("Complete the day"), systemImage: "sparkles", isEnabled: entry.isComplete) {
+        saveAndComplete()
+      }
+      .bounceTap()
+    }
+  }
+
+  private var completionCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
         HStack {
@@ -138,19 +156,6 @@ private struct TodayContent: View {
             .monospacedDigit()
         }
         XPProgressBar(value: Double(entry.filledCount) / 4.0, height: 8)
-      }
-    }
-
-    if entry.xpAwarded > 0 {
-      Label(Lf("Day complete · +%d XP earned", entry.xpAwarded), systemImage: "checkmark.seal.fill")
-        .font(.dl(.headline, weight: .semibold))
-        .foregroundStyle(DLColor.success)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(DLColor.success.opacity(0.12), in: RoundedRectangle(cornerRadius: DLRadius.small))
-    } else {
-      PrimaryButton(L("Complete the day"), systemImage: "sparkles", isEnabled: entry.isComplete) {
-        saveAndComplete()
       }
     }
   }
@@ -214,12 +219,28 @@ private struct TodayContent: View {
     }
 
     GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Text(L("Habits"))
-          .font(.dl(.headline, weight: .semibold))
-          .foregroundStyle(DLColor.textPrimary)
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        HStack {
+          Text(L("Habits"))
+            .font(.dl(.headline, weight: .semibold))
+            .foregroundStyle(DLColor.textPrimary)
+          Spacer()
+          Button {
+            showHabitManager = true
+          } label: {
+            Label(L("Manage habits"), systemImage: "slider.horizontal.3")
+              .font(.dl(.caption, weight: .semibold))
+              .padding(.horizontal, DLSpace.md)
+              .padding(.vertical, DLSpace.sm)
+              .background(Color.accentColor.opacity(0.16), in: Capsule())
+              .foregroundStyle(Color.accentColor)
+          }
+          .buttonStyle(.plain)
+          .bounceTap()
+        }
+
         if habits.isEmpty {
-          Text(L("Add habits in onboarding to track them here."))
+          Text(L("Add habits to track them here."))
             .font(.dl(.subheadline))
             .foregroundStyle(DLColor.textSecondary)
         } else {
@@ -236,8 +257,9 @@ private struct TodayContent: View {
     return Button {
       toggleHabit(habit)
     } label: {
-      HStack(spacing: DLSpace.sm) {
+      HStack(spacing: DLSpace.md) {
         Text(habit.emoji)
+          .font(.system(size: 24))
         Text(habit.name)
           .font(.dl(.body))
           .foregroundStyle(DLColor.textPrimary)
@@ -246,12 +268,13 @@ private struct TodayContent: View {
           .font(.dl(.caption2, weight: .semibold))
           .foregroundStyle(DLColor.xpGold)
         Image(systemName: done ? "checkmark.circle.fill" : "circle")
-          .font(.system(size: 22))
+          .font(.system(size: 26))
           .foregroundStyle(done ? DLColor.success : DLColor.textTertiary)
       }
-      .padding(.vertical, 4)
+      .padding(.vertical, DLSpace.sm)
     }
     .buttonStyle(.plain)
+    .bounceTap()
     .accessibilityLabel(habit.name)
     .accessibilityValue(done ? L("Done") : "")
   }
