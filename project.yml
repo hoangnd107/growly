@@ -40,6 +40,7 @@ targets:
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Dictate your reflections with your voice."
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Transcribe your spoken reflections on device."
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Attach a photo to a reflection."
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Tag your reflections and notes with where you are."
 
   GrowlyTests:
     type: bundle.unit-test
