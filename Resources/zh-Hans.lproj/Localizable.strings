@@ -97,3 +97,6 @@
 /* Notifications */
 "Time to reflect" = "该反思了";
 "Close today's loop — Win, Mistake, Lesson, Adjustment." = "完成今天的循环——成就、失误、教训、调整。";
+
+/* v3 */
+"day streak" = "连续天数";

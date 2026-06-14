@@ -37,6 +37,14 @@ final class UserProgress {
   // Local backup
   var lastBackupAt: Date? = nil
 
+  // Personalization (v3)
+  var gradientThemeID: String = "teal"
+  var weekStartsMonday: Bool = true
+  var miraEnabled: Bool = true
+
+  // Streak freeze: days the streak was protected with XP (so a gap doesn't break it).
+  var streakFreezeDates: [Date] = []
+
   init() {
     self.id = UUID()
     self.totalXP = 0
@@ -61,6 +69,8 @@ final class UserProgress {
   }
 
   var accentColor: Color { Color(hexString: accentColorHex) }
+
+  var gradientTheme: GradientTheme { GradientThemeCatalog.theme(id: gradientThemeID) }
 
   var levelInfo: LevelInfo { LevelSystem.levelInfo(totalXP: totalXP) }
   var streakMultiplier: Double { StreakEngine.multiplier(for: currentStreak) }

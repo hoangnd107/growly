@@ -97,3 +97,6 @@
 /* Notifications */
 "Time to reflect" = "Time to reflect";
 "Close today's loop — Win, Mistake, Lesson, Adjustment." = "Close today's loop — Win, Mistake, Lesson, Adjustment.";
+
+/* v3 */
+"day streak" = "day streak";

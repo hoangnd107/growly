@@ -97,3 +97,6 @@
 /* Notifications */
 "Time to reflect" = "Đã đến giờ suy ngẫm";
 "Close today's loop — Win, Mistake, Lesson, Adjustment." = "Hoàn tất vòng lặp hôm nay — Thành công, Sai lầm, Bài học, Điều chỉnh.";
+
+/* v3 */
+"day streak" = "chuỗi ngày";

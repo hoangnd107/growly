@@ -97,3 +97,6 @@
 /* Notifications */
 "Time to reflect" = "돌아볼 시간이에요";
 "Close today's loop — Win, Mistake, Lesson, Adjustment." = "오늘의 루프를 완성하세요 — 성취, 실수, 교훈, 개선.";
+
+/* v3 */
+"day streak" = "일 연속";

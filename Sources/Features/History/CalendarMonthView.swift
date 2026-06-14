@@ -16,7 +16,7 @@ struct CalendarMonthView: View {
 
   private var calendar: Calendar {
     var cal = Calendar.current
-    cal.firstWeekday = 1 // Sunday-first to match the weekday header below.
+    cal.firstWeekday = 2 // Monday-first (the weekday header rotates to match).
     return cal
   }
 
