@@ -37,13 +37,13 @@ enum LevelSystem {
   /// A friendly rank title that changes every few levels.
   static func title(for level: Int) -> String {
     switch level {
-    case ..<3: return "Beginner"
-    case 3..<6: return "Seeker"
-    case 6..<10: return "Reflector"
-    case 10..<15: return "Sage"
-    case 15..<25: return "Mentor"
-    case 25..<40: return "Master"
-    default: return "Luminary"
+    case ..<3: return "Spark"
+    case 3..<6: return "Kindling"
+    case 6..<10: return "Glow"
+    case 10..<15: return "Ember"
+    case 15..<25: return "Flame"
+    case 25..<40: return "Beacon"
+    default: return "Wildfire"
     }
   }
 }

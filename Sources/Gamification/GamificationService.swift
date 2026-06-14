@@ -49,6 +49,7 @@ enum GamificationService {
       lastReviewDay: progress.lastReviewDay,
       currentStreak: progress.currentStreak,
       longestStreak: progress.longestStreak,
+      frozenDays: Set(progress.streakFreezeDates),
       today: now,
       calendar: calendar
     )

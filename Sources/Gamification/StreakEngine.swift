@@ -22,10 +22,15 @@ enum StreakEngine {
   }
 
   /// Compute the streak after completing a review on `today`.
+  ///
+  /// `frozenDays` are days the user protected with a Streak Freeze: if every
+  /// missed day between the last review and today is frozen, the streak bridges
+  /// the gap instead of resetting.
   static func update(
     lastReviewDay: Date?,
     currentStreak: Int,
     longestStreak: Int,
+    frozenDays: Set<Date> = [],
     today: Date = Date(),
     calendar: Calendar = .current
   ) -> StreakUpdate {
@@ -41,11 +46,26 @@ enum StreakEngine {
     }
 
     let diff = calendar.dateComponents([.day], from: last, to: day).day ?? 0
-    if diff == 1 {
+    if diff <= 0 {
+      // Reviewing for a day before the last review — leave the streak untouched.
+      return StreakUpdate(newStreak: currentStreak, newLongest: longestStreak, increased: false)
+    }
+
+    // Are all the missed days (strictly between last and today) frozen?
+    let frozen = Set(frozenDays.map { calendar.startOfDay(for: $0) })
+    var bridged = true
+    if diff > 1 {
+      for offset in 1..<diff {
+        guard let gapDay = calendar.date(byAdding: .day, value: offset, to: last) else { continue }
+        if !frozen.contains(calendar.startOfDay(for: gapDay)) { bridged = false; break }
+      }
+    }
+
+    if diff == 1 || bridged {
       let s = currentStreak + 1
       return StreakUpdate(newStreak: s, newLongest: max(s, longestStreak), increased: true)
     } else {
-      // Missed one or more days — streak restarts.
+      // A non-frozen day was missed — streak restarts.
       return StreakUpdate(newStreak: 1, newLongest: max(1, longestStreak), increased: true)
     }
   }
