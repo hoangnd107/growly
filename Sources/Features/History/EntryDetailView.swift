@@ -7,6 +7,12 @@ import SwiftData
 struct EntryDetailView: View {
   let entry: Entry
 
+  @Query private var progressList: [UserProgress]
+
+  private var theme: GradientTheme {
+    progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
+  }
+
   var body: some View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
@@ -41,7 +47,7 @@ struct EntryDetailView: View {
       }
       .padding(DLSpace.md)
     }
-    .background(DLColor.background.ignoresSafeArea())
+    .themedBackground(theme)
     .navigationTitle(entry.day.formatted(.dateTime.weekday(.abbreviated).month().day()))
     .navigationBarTitleDisplayMode(.inline)
   }
