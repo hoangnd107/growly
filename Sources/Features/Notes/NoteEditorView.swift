@@ -1,456 +1,438 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
-/// Create or edit a `DayNote`. Supports title, multi-line body, an editable
-/// creation date, an optional clearable mood, tag chips, a color label, a
-/// pinned toggle, and media attachments via `MediaPickerField`.
+/// Apple-Journal-style note editor: title + divider + body on one page, an
+/// editable creation date, mood/color/tags, location, media, and a floating
+/// bottom toolbar (format, bookmark, location, voice memo, dictate, photo,
+/// camera, undo).
 ///
-/// For a NEW note the model is created and inserted on appear so attachment
-/// relationships can be wired immediately; if the user cancels with no content,
-/// the empty note is deleted again.
+/// For a NEW note the model is inserted on appear so media/audio can attach
+/// immediately; an empty new note is deleted again on cancel.
 struct NoteEditorView: View {
   @Environment(\.modelContext) private var context
-  @Environment(\.dismiss) private var dismiss
 
-  /// The note being edited; nil means "create new".
   private let existingNote: DayNote?
-
-  /// Resolved working note (created on appear for the new-note case).
   @State private var note: DayNote?
-  @State private var didCreateNote = false
 
-  // Editable fields, mirrored to the model on save / immediately for media.
-  @State private var title = ""
-  @State private var bodyText = ""
-  @State private var createdAt = Date()
-  @State private var moodRaw: Int?
-  @State private var tags: [String] = []
-  @State private var colorHex: String?
-  @State private var pinned = false
-  @State private var newTag = ""
-
-  init(note: DayNote?) {
-    self.existingNote = note
-  }
-
-  private var isNew: Bool { existingNote == nil }
-
-  /// Preset label colors (hex). `nil` = no label.
-  private let presetColors: [String] = [
-    "FF3D5A", // red
-    "FF9F0A", // orange
-    "FFC83D", // gold
-    "34C759", // green
-    "5AC8FA", // blue
-    "AF8CFF", // purple
-  ]
-
-  // MARK: - Body
+  init(note: DayNote?) { self.existingNote = note }
 
   var body: some View {
-    ZStack {
-      DLColor.background.ignoresSafeArea()
-
-      ScrollView {
-        VStack(spacing: DLSpace.lg) {
-          titleCard
-          bodyCard
-          detailsCard
-          tagsCard
-          colorCard
-          mediaCard
+    Group {
+      if let note {
+        NoteEditorForm(note: note, isNew: existingNote == nil)
+      } else {
+        ProgressView()
+      }
+    }
+    .onAppear {
+      if note == nil {
+        if let existingNote {
+          note = existingNote
+        } else {
+          let fresh = DayNote()
+          context.insert(fresh)
+          note = fresh
         }
-        .padding(DLSpace.md)
+      }
+    }
+  }
+}
+
+private struct NoteEditorForm: View {
+  @Bindable var note: DayNote
+  let isNew: Bool
+
+  @Environment(\.modelContext) private var context
+  @Environment(\.dismiss) private var dismiss
+  @Query private var progressList: [UserProgress]
+
+  @StateObject private var location = LocationService()
+  @StateObject private var recorder = AudioRecorder()
+  @StateObject private var dictator = SpeechDictator()
+
+  @State private var newTag = ""
+  @State private var undoSnapshot: String?
+  @State private var showCamera = false
+
+  private let presetColors = ["FF3D5A", "FF9F0A", "FFC83D", "34C759", "00B4A6", "5AC8FA", "7E5BEF", "FF5C8A"]
+
+  private var theme: GradientTheme {
+    progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
+  }
+
+  var body: some View {
+    NavigationStack {
+      ScrollView {
+        VStack(alignment: .leading, spacing: DLSpace.md) {
+          metaRow
+          TextField(L("Title"), text: $note.title, axis: .vertical)
+            .font(.dl(.title, weight: .bold))
+            .foregroundStyle(DLColor.textPrimary)
+            .textInputAutocapitalization(.sentences)
+
+          Divider().overlay(DLColor.separator)
+
+          TextField(L("Write your note…"), text: $note.text, axis: .vertical)
+            .font(.dl(.body))
+            .foregroundStyle(DLColor.textPrimary)
+            .lineLimit(6...40)
+            .textInputAutocapitalization(.sentences)
+
+          if dictator.isRecording {
+            recordingBanner(L("Listening…"), color: DLColor.warning)
+          }
+          if recorder.isRecording {
+            recordingBanner(Lf("Recording %@", timeString(recorder.elapsed)), color: Color(hex: 0xFF3B30))
+          }
+
+          if note.hasLocation { locationChip }
+          moodRow
+          colorRow
+          tagsRow
+          mediaSection
+        }
+        .padding(DLSpace.lg)
       }
       .scrollDismissesKeyboard(.interactively)
-    }
-    .navigationTitle(isNew ? L("New note") : L("Edit note"))
-    .navigationBarTitleDisplayMode(.inline)
-    .toolbar {
-      ToolbarItem(placement: .topBarLeading) {
-        Button(L("Cancel")) { cancel() }
-      }
-      ToolbarItem(placement: .topBarTrailing) {
-        Button(L("Save")) { save() }
-          .fontWeight(.semibold)
-          .disabled(!hasContent)
-      }
-    }
-    .keyboardDismissButton()
-    .onAppear(perform: setup)
-  }
-
-  // MARK: - Cards
-
-  private var titleCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Text(L("Title"))
-          .font(.dl(.caption, weight: .semibold))
-          .foregroundStyle(DLColor.textTertiary)
-        TextField(L("Title"), text: $title)
-          .font(.dl(.title3, weight: .semibold))
-          .foregroundStyle(DLColor.textPrimary)
-          .textInputAutocapitalization(.sentences)
-      }
-    }
-  }
-
-  private var bodyCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Text(L("Note"))
-          .font(.dl(.caption, weight: .semibold))
-          .foregroundStyle(DLColor.textTertiary)
-        TextField(L("Write your note..."), text: $bodyText, axis: .vertical)
-          .lineLimit(4...20)
-          .font(.dl(.body))
-          .foregroundStyle(DLColor.textPrimary)
-      }
-    }
-  }
-
-  private var detailsCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        DatePicker(
-          L("Created"),
-          selection: $createdAt,
-          displayedComponents: [.date, .hourAndMinute]
-        )
-        .font(.dl(.subheadline, weight: .medium))
-        .foregroundStyle(DLColor.textPrimary)
-
-        Divider().overlay(DLColor.separator)
-
-        Toggle(isOn: $pinned) {
-          Label(L("Pinned"), systemImage: "pin.fill")
-            .font(.dl(.subheadline, weight: .medium))
-            .foregroundStyle(DLColor.textPrimary)
+      .themedBackground(theme)
+      .navigationTitle(isNew ? L("New note") : L("Edit note"))
+      .navigationBarTitleDisplayMode(.inline)
+      .tint(theme.accent)
+      .safeAreaInset(edge: .bottom) { toolbar }
+      .toolbar {
+        ToolbarItem(placement: .topBarLeading) {
+          Button(L("Cancel")) { cancel() }
         }
-        .tint(DLColor.xpGold)
-
-        Divider().overlay(DLColor.separator)
-
-        VStack(alignment: .leading, spacing: DLSpace.sm) {
-          Text(L("Mood & Energy"))
-            .font(.dl(.subheadline, weight: .semibold))
-            .foregroundStyle(DLColor.textPrimary)
-          HStack(spacing: DLSpace.sm) {
-            ForEach(Mood.allCases) { mood in
-              moodButton(mood)
-            }
-            Spacer()
-            if moodRaw != nil {
-              Button {
-                withAnimation(DLAnim.quick) { moodRaw = nil }
-                Haptics.selection()
-              } label: {
-                Image(systemName: "xmark.circle.fill")
-                  .font(.system(size: 20))
-                  .foregroundStyle(DLColor.textTertiary)
-              }
-              .accessibilityLabel(L("Clear mood"))
-            }
-          }
+        ToolbarItem(placement: .topBarTrailing) {
+          Button(L("Save")) { save() }.fontWeight(.semibold)
         }
       }
-    }
-  }
-
-  private func moodButton(_ mood: Mood) -> some View {
-    let isSelected = moodRaw == mood.rawValue
-    return Button {
-      withAnimation(DLAnim.quick) {
-        moodRaw = isSelected ? nil : mood.rawValue
+      .keyboardDismissButton()
+      .fullScreenCover(isPresented: $showCamera) {
+        CameraPicker { image in addCamera(image) }
+          .ignoresSafeArea()
       }
-      Haptics.selection()
-    } label: {
-      Text(mood.emoji)
-        .font(.system(size: 26))
-        .frame(width: 44, height: 44)
-        .background(
-          isSelected ? mood.color.opacity(0.25) : Color.clear,
-          in: Circle()
-        )
-        .overlay(
-          Circle().strokeBorder(isSelected ? mood.color : Color.clear, lineWidth: 2)
-        )
-        .opacity(isSelected || moodRaw == nil ? 1 : 0.5)
-    }
-    .buttonStyle(.plain)
-    .accessibilityLabel(mood.label)
-    .accessibilityAddTraits(isSelected ? .isSelected : [])
-  }
-
-  private var tagsCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Text(L("Tags"))
-          .font(.dl(.subheadline, weight: .semibold))
-          .foregroundStyle(DLColor.textPrimary)
-
-        if !tags.isEmpty {
-          NoteFlowLayout(spacing: DLSpace.sm) {
-            ForEach(tags, id: \.self) { tag in
-              tagChip(tag)
-            }
-          }
-        }
-
-        HStack(spacing: DLSpace.sm) {
-          TextField(L("Add tag"), text: $newTag)
-            .font(.dl(.subheadline))
-            .foregroundStyle(DLColor.textPrimary)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .onSubmit(addTag)
-          Button {
-            addTag()
-          } label: {
-            Image(systemName: "plus.circle.fill")
-              .font(.system(size: 22))
-              .foregroundStyle(Color.accentColor)
-          }
-          .disabled(newTag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-          .accessibilityLabel(L("Add"))
-        }
+      .onChange(of: location.placeName) { _, name in
+        if let name { note.locationName = name }
+        note.latitude = location.latitude
+        note.longitude = location.longitude
+      }
+      .onChange(of: dictator.isRecording) { was, now in
+        if was && !now { appendToBody(dictator.transcript) }
       }
     }
   }
 
-  private func tagChip(_ tag: String) -> some View {
-    HStack(spacing: 4) {
-      Text("#\(tag)")
-        .font(.dl(.caption, weight: .medium))
+  // MARK: Meta (date)
+
+  private var metaRow: some View {
+    HStack {
+      Image(systemName: "calendar")
+        .foregroundStyle(theme.accent)
+      DatePicker("", selection: $note.createdAt, displayedComponents: [.date, .hourAndMinute])
+        .labelsHidden()
+      Spacer()
       Button {
-        withAnimation(DLAnim.quick) {
-          tags.removeAll { $0 == tag }
-        }
+        note.bookmarked.toggle()
         Haptics.selection()
       } label: {
-        Image(systemName: "xmark.circle.fill")
-          .font(.system(size: 14))
-          .foregroundStyle(DLColor.textTertiary)
+        Image(systemName: note.bookmarked ? "bookmark.fill" : "bookmark")
+          .foregroundStyle(note.bookmarked ? theme.accent : DLColor.textSecondary)
       }
-      .accessibilityLabel(Lf("Remove tag %@", tag))
+      .accessibilityLabel(note.bookmarked ? L("Remove bookmark") : L("Bookmark"))
     }
-    .padding(.horizontal, 10)
-    .padding(.vertical, 6)
-    .background(DLColor.surfaceElevated, in: Capsule())
-    .foregroundStyle(DLColor.textSecondary)
   }
 
-  private var colorCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.sm) {
-        Text(L("Accent color"))
-          .font(.dl(.subheadline, weight: .semibold))
-          .foregroundStyle(DLColor.textPrimary)
+  private var locationChip: some View {
+    HStack(spacing: DLSpace.xs) {
+      Image(systemName: "mappin.and.ellipse").foregroundStyle(theme.accent)
+      Text(note.locationName ?? L("Location"))
+        .font(.dl(.caption, weight: .medium))
+        .foregroundStyle(DLColor.textPrimary)
+        .lineLimit(1)
+      Button {
+        note.locationName = nil; note.latitude = nil; note.longitude = nil
+        location.clear()
+      } label: {
+        Image(systemName: "xmark.circle.fill").foregroundStyle(DLColor.textTertiary)
+      }
+    }
+    .padding(.horizontal, DLSpace.sm)
+    .padding(.vertical, DLSpace.xs)
+    .glass(cornerRadius: DLRadius.pill)
+  }
 
-        HStack(spacing: DLSpace.md) {
-          // "None" swatch.
-          colorSwatch(hex: nil)
-          ForEach(presetColors, id: \.self) { hex in
-            colorSwatch(hex: hex)
-          }
-          Spacer()
+  // MARK: Mood / color / tags
+
+  private var moodRow: some View {
+    HStack(spacing: DLSpace.sm) {
+      ForEach(Mood.allCases) { mood in
+        Button {
+          note.moodRaw = (note.moodRaw == mood.rawValue) ? nil : mood.rawValue
+          Haptics.selection()
+        } label: {
+          Text(mood.emoji)
+            .font(.system(size: note.moodRaw == mood.rawValue ? 28 : 22))
+            .padding(6)
+            .background(
+              note.moodRaw == mood.rawValue ? mood.color.opacity(0.18) : Color.clear,
+              in: Circle()
+            )
         }
+        .buttonStyle(.plain)
       }
     }
   }
 
-  private func colorSwatch(hex: String?) -> some View {
-    let isSelected = colorHex == hex
+  private var colorRow: some View {
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(spacing: DLSpace.sm) {
+        colorDot(nil)
+        ForEach(presetColors, id: \.self) { hex in colorDot(hex) }
+      }
+    }
+  }
+
+  private func colorDot(_ hex: String?) -> some View {
+    let isSelected = note.colorHex == hex
     return Button {
-      withAnimation(DLAnim.quick) { colorHex = hex }
+      note.colorHex = hex
       Haptics.selection()
     } label: {
       ZStack {
-        if let hex {
-          Circle().fill(Color(hexString: hex))
-        } else {
-          Circle()
-            .fill(DLColor.surfaceElevated)
-            .overlay(
-              Image(systemName: "slash.circle")
-                .font(.system(size: 16))
-                .foregroundStyle(DLColor.textTertiary)
-            )
+        Circle()
+          .fill(hex.map { Color(hexString: $0) } ?? DLColor.surfaceElevated)
+          .frame(width: 28, height: 28)
+        if hex == nil {
+          Image(systemName: "slash.circle").font(.system(size: 14)).foregroundStyle(DLColor.textSecondary)
+        }
+        if isSelected {
+          Circle().strokeBorder(DLColor.textPrimary, lineWidth: 2).frame(width: 34, height: 34)
         }
       }
-      .frame(width: 34, height: 34)
-      .overlay(
-        Circle().strokeBorder(
-          isSelected ? DLColor.textPrimary : DLColor.separator,
-          lineWidth: isSelected ? 2.5 : 1
-        )
-      )
+      .frame(width: 36, height: 36)
     }
     .buttonStyle(.plain)
-    .frame(width: 44, height: 44)
-    .accessibilityLabel(hex == nil ? L("No color") : Lf("Color %@", hex!))
-    .accessibilityAddTraits(isSelected ? .isSelected : [])
   }
 
-  private var mediaCard: some View {
-    GlassCard {
-      MediaPickerField(
-        attachments: note?.sortedAttachments ?? [],
-        onAddImage: addImage,
-        onAddVideo: addVideo,
-        onDelete: deleteAttachment
-      )
+  private var tagsRow: some View {
+    VStack(alignment: .leading, spacing: DLSpace.sm) {
+      if !note.tags.isEmpty {
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(spacing: DLSpace.sm) {
+            ForEach(note.tags, id: \.self) { tag in
+              HStack(spacing: 4) {
+                Text("#\(tag)").font(.dl(.caption, weight: .medium))
+                Button { note.tags.removeAll { $0 == tag } } label: {
+                  Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                }
+              }
+              .padding(.horizontal, 10).padding(.vertical, 6)
+              .background(theme.accent.opacity(0.14), in: Capsule())
+              .foregroundStyle(theme.accent)
+            }
+          }
+        }
+      }
+      HStack {
+        Image(systemName: "tag").foregroundStyle(DLColor.textTertiary)
+        TextField(L("Add tag"), text: $newTag)
+          .onSubmit(addTag)
+        if !newTag.isEmpty {
+          Button(L("Add"), action: addTag).font(.dl(.caption, weight: .semibold))
+        }
+      }
     }
   }
 
-  // MARK: - Content gating
+  // MARK: Media
 
-  private var hasContent: Bool {
-    !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-      || !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-      || !tags.isEmpty
-      || !(note?.attachments.isEmpty ?? true)
+  private var mediaSection: some View {
+    MediaPickerField(
+      attachments: note.sortedAttachments,
+      onAddImage: { data in addAttachment(data: data, type: .image, ext: "jpg") },
+      onAddVideo: { data, ext in addAttachment(data: data, type: .video, ext: ext) },
+      onDelete: deleteAttachment
+    )
   }
 
-  // MARK: - Lifecycle
+  // MARK: Floating toolbar
 
-  private func setup() {
-    if let existingNote {
-      note = existingNote
-      title = existingNote.title
-      bodyText = existingNote.text
-      createdAt = existingNote.createdAt
-      moodRaw = existingNote.moodRaw
-      tags = existingNote.tags
-      colorHex = existingNote.colorHex
-      pinned = existingNote.pinned
-    } else if note == nil {
-      // Create-and-insert up front so media attachments can be related.
-      let fresh = DayNote()
-      context.insert(fresh)
-      note = fresh
-      didCreateNote = true
-      createdAt = fresh.createdAt
+  private var toolbar: some View {
+    HStack(spacing: DLSpace.lg) {
+      Menu {
+        Button(L("Bold")) { insertMarker("**bold**") }
+        Button(L("Italic")) { insertMarker("_italic_") }
+        Button(L("Highlight")) { insertMarker("==highlight==") }
+        Button(L("Bullet")) { insertMarker("\n- ") }
+      } label: { toolIcon("textformat") }
+
+      toolButton("camera.fill", L("Camera")) {
+        if UIImagePickerController.isSourceTypeAvailable(.camera) { showCamera = true }
+      }
+
+      toolButton(recorder.isRecording ? "stop.circle.fill" : "waveform", L("Voice memo")) { toggleVoiceMemo() }
+
+      toolButton(dictator.isRecording ? "mic.fill" : "mic", L("Dictate")) {
+        Task { if await SpeechDictator.requestAuthorization() { dictator.toggle() } }
+      }
+
+      toolButton(location.isResolving ? "location.fill" : "location", L("Location")) {
+        location.capture()
+        Haptics.light()
+      }
+
+      toolButton("arrow.uturn.backward", L("Undo")) {
+        if let snap = undoSnapshot { note.text = snap; Haptics.light() }
+      }
     }
+    .padding(.horizontal, DLSpace.lg)
+    .padding(.vertical, DLSpace.sm)
+    .glass(cornerRadius: DLRadius.pill)
+    .padding(.horizontal, DLSpace.md)
+    .padding(.bottom, DLSpace.xs)
   }
 
-  // MARK: - Tags
+  private func toolIcon(_ system: String) -> some View {
+    Image(systemName: system)
+      .font(.system(size: 20, weight: .semibold))
+      .foregroundStyle(theme.accent)
+      .frame(width: 36, height: 36)
+  }
+
+  private func toolButton(_ system: String, _ label: String, action: @escaping () -> Void) -> some View {
+    Button(action: { action() }) { toolIcon(system) }
+      .buttonStyle(.plain)
+      .bounceTap()
+      .accessibilityLabel(label)
+  }
+
+  private func recordingBanner(_ text: String, color: Color) -> some View {
+    HStack(spacing: DLSpace.sm) {
+      Circle().fill(color).frame(width: 10, height: 10)
+      Text(text).font(.dl(.caption, weight: .semibold)).foregroundStyle(DLColor.textPrimary)
+    }
+    .padding(.horizontal, DLSpace.sm).padding(.vertical, DLSpace.xs)
+    .glass(cornerRadius: DLRadius.pill)
+  }
+
+  // MARK: Actions
 
   private func addTag() {
-    let trimmed = newTag.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return }
-    let normalized = trimmed.hasPrefix("#") ? String(trimmed.dropFirst()) : trimmed
-    guard !normalized.isEmpty, !tags.contains(normalized) else {
-      newTag = ""
-      return
-    }
-    withAnimation(DLAnim.quick) {
-      tags.append(normalized)
-    }
+    let raw = newTag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().replacingOccurrences(of: "#", with: "")
+    guard !raw.isEmpty, !note.tags.contains(raw) else { newTag = ""; return }
+    note.tags.append(raw)
     newTag = ""
-    Haptics.selection()
+    Haptics.light()
   }
 
-  // MARK: - Media
+  private func insertMarker(_ marker: String) {
+    undoSnapshot = note.text
+    note.text += (note.text.isEmpty || note.text.hasSuffix(" ") || note.text.hasSuffix("\n") ? "" : " ") + marker + " "
+    Haptics.light()
+  }
 
-  private func addImage(_ data: Data) {
-    guard let note, let fileName = MediaStore.save(data, ext: "jpg") else { return }
-    let attachment = MediaAttachment(fileName: fileName, type: .image, order: note.attachments.count)
-    attachment.note = note
-    context.insert(attachment)
+  private func appendToBody(_ transcript: String) {
+    let captured = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !captured.isEmpty else { return }
+    undoSnapshot = note.text
+    note.text += (note.text.isEmpty ? "" : (note.text.hasSuffix(" ") ? "" : " ")) + captured
+    Haptics.success()
+  }
+
+  private func toggleVoiceMemo() {
+    if recorder.isRecording {
+      if let name = recorder.stop() {
+        let media = MediaAttachment(fileName: name, type: .audio, order: note.attachments.count)
+        media.note = note
+        context.insert(media)
+        try? context.save()
+        Haptics.success()
+      }
+    } else {
+      Task {
+        if await AudioRecorder.requestPermission() { recorder.start() }
+      }
+    }
+  }
+
+  private func addAttachment(data: Data, type: MediaType, ext: String) {
+    guard let name = MediaStore.save(data, ext: ext) else { return }
+    let media = MediaAttachment(fileName: name, type: type, order: note.attachments.count)
+    media.note = note
+    context.insert(media)
     try? context.save()
   }
 
-  private func addVideo(_ data: Data, _ ext: String) {
-    guard let note, let fileName = MediaStore.save(data, ext: ext) else { return }
-    let attachment = MediaAttachment(fileName: fileName, type: .video, order: note.attachments.count)
-    attachment.note = note
-    context.insert(attachment)
-    try? context.save()
+  private func addCamera(_ image: UIImage) {
+    guard let data = image.jpegData(compressionQuality: 0.9) else { return }
+    addAttachment(data: data, type: .image, ext: "jpg")
   }
 
-  private func deleteAttachment(_ attachment: MediaAttachment) {
-    MediaStore.delete(attachment.fileName)
-    context.delete(attachment)
+  private func deleteAttachment(_ media: MediaAttachment) {
+    MediaStore.delete(media.fileName)
+    context.delete(media)
     try? context.save()
   }
-
-  // MARK: - Save / Cancel
 
   private func save() {
-    guard let note else { dismiss(); return }
-    note.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-    note.text = bodyText
-    note.createdAt = createdAt
-    note.moodRaw = moodRaw
-    note.tags = tags
-    note.colorHex = colorHex
-    note.pinned = pinned
+    if recorder.isRecording { _ = recorder.stop() }
+    if dictator.isRecording { dictator.toggle() }
+    note.title = note.title.trimmingCharacters(in: .whitespaces)
     note.updatedAt = Date()
-    // New notes were already inserted on appear, so a plain save persists both.
     try? context.save()
-    Haptics.light()
+    Haptics.success()
     dismiss()
   }
 
   private func cancel() {
-    // For a freshly-created note with nothing in it, discard so we don't leave
-    // an empty ghost note behind.
-    if didCreateNote, let note, !hasContent {
-      for attachment in note.attachments {
-        MediaStore.delete(attachment.fileName)
-      }
+    if recorder.isRecording { _ = recorder.stop() }
+    if dictator.isRecording { dictator.toggle() }
+    let empty = note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && note.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && note.attachments.isEmpty
+    if isNew && empty {
+      for media in note.attachments { MediaStore.delete(media.fileName) }
       context.delete(note)
       try? context.save()
     }
     dismiss()
   }
+
+  private func timeString(_ t: TimeInterval) -> String {
+    let s = Int(t)
+    return String(format: "%d:%02d", s / 60, s % 60)
+  }
 }
 
-// MARK: - Wrapping layout for tag chips
+// MARK: - Camera
 
-/// Minimal wrapping layout (iOS 16+ `Layout`) so tag chips flow to new rows.
-private struct NoteFlowLayout: Layout {
-  var spacing: CGFloat = DLSpace.sm
+private struct CameraPicker: UIViewControllerRepresentable {
+  var onImage: (UIImage) -> Void
 
-  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
-    let maxWidth = proposal.width ?? .infinity
-    var x: CGFloat = 0
-    var y: CGFloat = 0
-    var rowHeight: CGFloat = 0
-    var totalWidth: CGFloat = 0
-
-    for subview in subviews {
-      let size = subview.sizeThatFits(.unspecified)
-      if x + size.width > maxWidth, x > 0 {
-        x = 0
-        y += rowHeight + spacing
-        rowHeight = 0
-      }
-      x += size.width + spacing
-      rowHeight = max(rowHeight, size.height)
-      totalWidth = max(totalWidth, x - spacing)
-    }
-    return CGSize(width: min(totalWidth, maxWidth), height: y + rowHeight)
+  func makeUIViewController(context: Context) -> UIImagePickerController {
+    let picker = UIImagePickerController()
+    picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+    picker.delegate = context.coordinator
+    return picker
   }
 
-  func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
-    let maxWidth = bounds.width
-    var x: CGFloat = bounds.minX
-    var y: CGFloat = bounds.minY
-    var rowHeight: CGFloat = 0
+  func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
 
-    for subview in subviews {
-      let size = subview.sizeThatFits(.unspecified)
-      if x + size.width > bounds.minX + maxWidth, x > bounds.minX {
-        x = bounds.minX
-        y += rowHeight + spacing
-        rowHeight = 0
-      }
-      subview.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: ProposedViewSize(size))
-      x += size.width + spacing
-      rowHeight = max(rowHeight, size.height)
+  func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+  final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    let parent: CameraPicker
+    init(_ parent: CameraPicker) { self.parent = parent }
+
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+      if let image = info[.originalImage] as? UIImage { parent.onImage(image) }
+      picker.presentingViewController?.dismiss(animated: true)
+    }
+
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+      picker.presentingViewController?.dismiss(animated: true)
     }
   }
 }

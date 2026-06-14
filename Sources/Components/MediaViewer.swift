@@ -4,8 +4,9 @@ import AVFoundation
 
 /// A tappable thumbnail for a `MediaAttachment`. Images load from `MediaStore`;
 /// videos show their first frame (with a small play overlay) or a film icon
-/// fallback. Tapping opens a full-screen viewer — images are zoomable, videos
-/// play via AVKit's `VideoPlayer`.
+/// fallback; audio shows a waveform glyph on a glass tile. Tapping opens a
+/// full-screen viewer — images are zoomable, videos and audio play via AVKit's
+/// `VideoPlayer` (which plays `.m4a` audio with transport controls).
 struct MediaViewer: View {
   let attachment: MediaAttachment
   var size: CGFloat = 96
@@ -33,29 +34,51 @@ struct MediaViewer: View {
   @ViewBuilder
   private var thumbnail: some View {
     ZStack {
-      if let image {
-        Image(uiImage: image)
-          .resizable()
-          .scaledToFill()
-      } else {
+      switch attachment.type {
+      case .image, .video:
+        if let image {
+          Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+        } else {
+          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+            .fill(DLColor.surfaceElevated)
+          Image(systemName: attachment.type == .video ? "film" : "photo")
+            .font(.system(size: size * 0.3, weight: .regular))
+            .foregroundStyle(DLColor.textTertiary)
+        }
+
+        if attachment.type == .video {
+          // Subtle scrim + play glyph so videos read as playable.
+          LinearGradient(
+            colors: [.clear, .black.opacity(0.35)],
+            startPoint: .top,
+            endPoint: .bottom
+          )
+          Image(systemName: "play.circle.fill")
+            .font(.system(size: size * 0.32, weight: .semibold))
+            .foregroundStyle(.white)
+            .shadow(radius: 3)
+        }
+
+      case .audio:
+        // Glass tile with a waveform glyph and a small play badge.
         RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
           .fill(DLColor.surfaceElevated)
-        Image(systemName: attachment.type == .video ? "film" : "photo")
-          .font(.system(size: size * 0.3, weight: .regular))
-          .foregroundStyle(DLColor.textTertiary)
-      }
-
-      if attachment.type == .video {
-        // Subtle scrim + play glyph so videos read as playable.
-        LinearGradient(
-          colors: [.clear, .black.opacity(0.35)],
-          startPoint: .top,
-          endPoint: .bottom
-        )
-        Image(systemName: "play.circle.fill")
-          .font(.system(size: size * 0.32, weight: .semibold))
-          .foregroundStyle(.white)
-          .shadow(radius: 3)
+        Image(systemName: "waveform")
+          .font(.system(size: size * 0.34, weight: .semibold))
+          .foregroundStyle(Color.accentColor)
+        VStack {
+          Spacer()
+          HStack {
+            Spacer()
+            Image(systemName: "play.circle.fill")
+              .font(.system(size: size * 0.26, weight: .semibold))
+              .foregroundStyle(.white, Color.accentColor)
+              .shadow(radius: 2)
+              .padding(6)
+          }
+        }
       }
     }
     .frame(width: size, height: size)
@@ -68,7 +91,11 @@ struct MediaViewer: View {
   }
 
   private var accessibilityLabel: String {
-    attachment.type == .video ? L("Video attachment") : L("Photo attachment")
+    switch attachment.type {
+    case .image: return L("Photo attachment")
+    case .video: return L("Video attachment")
+    case .audio: return L("Audio attachment")
+    }
   }
 
   // MARK: - Loading
@@ -85,6 +112,9 @@ struct MediaViewer: View {
       let url = MediaStore.url(for: attachment.fileName)
       let frame = await Self.firstFrame(of: url)
       await MainActor.run { image = frame }
+    case .audio:
+      // Audio has no bitmap thumbnail; the static waveform glyph is used.
+      break
     }
   }
 
@@ -121,6 +151,8 @@ private struct FullScreenMediaView: View {
       case .video:
         VideoPlayer(player: AVPlayer(url: MediaStore.url(for: attachment.fileName)))
           .ignoresSafeArea()
+      case .audio:
+        AudioPlayerView(fileName: attachment.fileName)
       }
 
       VStack {
@@ -140,6 +172,57 @@ private struct FullScreenMediaView: View {
         }
         Spacer()
       }
+    }
+  }
+}
+
+/// Full-screen audio playback. Uses AVKit's `VideoPlayer` backed by an
+/// `AVPlayer`, which plays `.m4a` audio files and provides standard transport
+/// controls (play/pause/scrub). A waveform glyph keeps the screen meaningful
+/// since audio has no visual frame.
+private struct AudioPlayerView: View {
+  let fileName: String
+
+  @State private var player: AVPlayer?
+
+  var body: some View {
+    VStack(spacing: DLSpace.xl) {
+      Spacer()
+
+      Image(systemName: "waveform")
+        .font(.system(size: 88, weight: .semibold))
+        .foregroundStyle(.white)
+        .accessibilityHidden(true)
+
+      Text(L("Audio attachment"))
+        .font(.dl(.headline, weight: .semibold))
+        .foregroundStyle(.white)
+        .multilineTextAlignment(.center)
+
+      if let player {
+        VideoPlayer(player: player)
+          .frame(height: 120)
+          .clipShape(RoundedRectangle(cornerRadius: DLRadius.card, style: .continuous))
+          .padding(.horizontal, DLSpace.lg)
+      } else {
+        ProgressView().tint(.white)
+      }
+
+      Spacer()
+      Spacer()
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .padding(DLSpace.lg)
+    .onAppear {
+      let url = MediaStore.url(for: fileName)
+      try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+      try? AVAudioSession.sharedInstance().setActive(true)
+      player = AVPlayer(url: url)
+    }
+    .onDisappear {
+      player?.pause()
+      player = nil
+      try? AVAudioSession.sharedInstance().setActive(false)
     }
   }
 }
