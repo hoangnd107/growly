@@ -36,6 +36,11 @@ struct BackupNote: Codable {
   var colorHex: String?
   var tags: [String]
   var moodRaw: Int?
+  var bookmarked: Bool?
+  var folder: String?
+  var locationName: String?
+  var latitude: Double?
+  var longitude: Double?
   var attachments: [BackupAttachment]
 }
 
@@ -193,6 +198,11 @@ enum BackupService {
     for n in file.notes {
       let note = DayNote(title: n.title, text: n.text, createdAt: n.createdAt, pinned: n.pinned, colorHex: n.colorHex, tags: n.tags, moodRaw: n.moodRaw)
       note.updatedAt = n.updatedAt
+      note.bookmarked = n.bookmarked ?? false
+      note.folder = n.folder
+      note.locationName = n.locationName
+      note.latitude = n.latitude
+      note.longitude = n.longitude
       context.insert(note)
       for a in n.attachments {
         let media = MediaAttachment(fileName: a.fileName, type: MediaType(rawValue: a.type) ?? .image, order: a.order, createdAt: a.createdAt)
@@ -239,6 +249,8 @@ enum BackupService {
     BackupNote(
       title: n.title, text: n.text, createdAt: n.createdAt, updatedAt: n.updatedAt,
       pinned: n.pinned, colorHex: n.colorHex, tags: n.tags, moodRaw: n.moodRaw,
+      bookmarked: n.bookmarked, folder: n.folder, locationName: n.locationName,
+      latitude: n.latitude, longitude: n.longitude,
       attachments: n.attachments.map(snapshot(attachment:))
     )
   }

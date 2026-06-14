@@ -4,6 +4,7 @@ import SwiftData
 enum MediaType: String, Codable {
   case image
   case video
+  case audio
 }
 
 /// A photo or video attached to an `Entry` or a `DayNote`. The binary lives on

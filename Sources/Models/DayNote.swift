@@ -18,6 +18,13 @@ final class DayNote {
   /// Optional mood (1...5), nil when not set.
   var moodRaw: Int?
 
+  // Journal (v3)
+  var bookmarked: Bool = false
+  var folder: String?
+  var locationName: String?
+  var latitude: Double?
+  var longitude: Double?
+
   @Relationship(deleteRule: .cascade, inverse: \MediaAttachment.note)
   var attachments: [MediaAttachment]
 
@@ -53,4 +60,6 @@ final class DayNote {
   var sortedAttachments: [MediaAttachment] {
     attachments.sorted { $0.order < $1.order }
   }
+
+  var hasLocation: Bool { locationName != nil || (latitude != nil && longitude != nil) }
 }
