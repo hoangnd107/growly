@@ -2,41 +2,62 @@ import SwiftUI
 import SwiftData
 import UIKit
 
-/// App preferences: appearance theme, language, Face ID lock, daily reminders,
-/// testing unlocks, local backup/restore, JSON export, and an About section.
-/// Controls bind directly to `UserProgress` via `@Bindable`, persisting through
-/// `context.save()` with light haptics on every change.
+/// App preferences and data tools. Pushed from `ProfileView`'s `NavigationStack`,
+/// so this view does NOT create its own. Controls bind directly to `UserProgress`
+/// via `@Bindable` and persist through `modelContext.save()` with haptics on every
+/// change. Sections: gradient themes, appearance, language, security, reminders,
+/// testing unlocks, data & export (PDF / JSON / backup / restore), reset by
+/// category, and About.
+///
+/// Keep `init(progress:entries:)` exactly — it is called as
+/// `SettingsView(progress:entries:)` from `ProfileView`.
 struct SettingsView: View {
-  @Environment(\.modelContext) private var context
+  @Environment(\.modelContext) private var modelContext
   @Bindable var progress: UserProgress
 
-  /// Entries used to build the export payload.
+  /// Entries used to build the export payloads (PDF + JSON).
   let entries: [Entry]
 
+  // Data tools
   @State private var exportConfirmed = false
   @State private var backupConfirmed = false
   @State private var showRestoreDialog = false
   @State private var lastBackupDisplay: Date?
 
+  /// Wraps a temporary file URL so it can drive `.sheet(item:)`.
+  private struct ShareItem: Identifiable {
+    let id = UUID()
+    let url: URL
+  }
+  @State private var shareItem: ShareItem?
+
+  // Reset
+  @State private var pendingReset: ResetService.Kind?
+
   var body: some View {
-    ZStack {
-      DLColor.background.ignoresSafeArea()
-      ScrollView {
-        VStack(spacing: DLSpace.lg) {
-          appearanceCard
-          languageCard
-          securityCard
-          remindersCard
-          testingCard
-          dataCard
-          aboutCard
-        }
-        .padding(DLSpace.md)
+    ScrollView {
+      VStack(spacing: DLSpace.lg) {
+        themesCard
+        appearanceCard
+        languageCard
+        securityCard
+        remindersCard
+        testingCard
+        dataCard
+        resetCard
+        aboutCard
       }
+      .padding(DLSpace.md)
+      .frame(maxWidth: 640)
+      .frame(maxWidth: .infinity)
     }
+    .themedBackground(progress.gradientTheme)
     .navigationTitle(L("Settings"))
     .navigationBarTitleDisplayMode(.inline)
     .onAppear { lastBackupDisplay = progress.lastBackupAt ?? BackupService.lastModified }
+    .sheet(item: $shareItem) { item in
+      ShareSheet(items: [item.url])
+    }
     .confirmationDialog(
       L("Restore from backup"),
       isPresented: $showRestoreDialog,
@@ -47,14 +68,94 @@ struct SettingsView: View {
     } message: {
       Text(L("This replaces all current data with the last backup."))
     }
+    .confirmationDialog(
+      pendingReset.map { L($0.title) } ?? L("Reset data"),
+      isPresented: resetDialogBinding,
+      titleVisibility: .visible
+    ) {
+      if let kind = pendingReset {
+        Button(L("Confirm"), role: .destructive) { performReset(kind) }
+      }
+      Button(L("Cancel"), role: .cancel) { pendingReset = nil }
+    } message: {
+      Text(L("Back up first — this cannot be undone."))
+    }
   }
 
-  // MARK: Appearance
+  // MARK: 1. Themes
+
+  private var themesCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        sectionHeader(L("Themes"), systemImage: "paintpalette.fill", tint: progress.accentColor)
+
+        LazyVGrid(
+          columns: Array(repeating: GridItem(.flexible(), spacing: DLSpace.md), count: 3),
+          spacing: DLSpace.md
+        ) {
+          ForEach(GradientThemeCatalog.all) { theme in
+            themeSwatch(theme)
+          }
+        }
+
+        Text(L("Tap a theme to recolor the whole app."))
+          .font(.dl(.caption2))
+          .foregroundStyle(DLColor.textTertiary)
+      }
+    }
+  }
+
+  private func themeSwatch(_ theme: GradientTheme) -> some View {
+    let selected = progress.gradientThemeID == theme.id
+    return Button {
+      selectTheme(theme)
+    } label: {
+      VStack(spacing: DLSpace.xs) {
+        ZStack {
+          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+            .fill(theme.accentGradient)
+            .frame(height: 56)
+            .overlay(
+              RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+                .strokeBorder(
+                  selected ? DLColor.textPrimary : DLColor.separator.opacity(0.6),
+                  lineWidth: selected ? 3 : 1
+                )
+            )
+          if selected {
+            Image(systemName: "checkmark")
+              .font(.system(size: 18, weight: .bold))
+              .foregroundStyle(.white)
+              .shadow(radius: 1)
+          }
+        }
+        Text(L(theme.name))
+          .font(.dl(.caption2, weight: selected ? .bold : .medium))
+          .foregroundStyle(selected ? DLColor.textPrimary : DLColor.textSecondary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .bounceTap()
+    .accessibilityLabel(L(theme.name))
+    .accessibilityAddTraits(selected ? [.isSelected] : [])
+  }
+
+  private func selectTheme(_ theme: GradientTheme) {
+    progress.gradientThemeID = theme.id
+    progress.accentColorHex = theme.accentHexString
+    save()
+    Haptics.selection()
+  }
+
+  // MARK: 2. Appearance
 
   private var appearanceCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        sectionHeader(L("Appearance"), systemImage: "paintbrush.fill", tint: progress.accentColor)
+        sectionHeader(L("Appearance"), systemImage: "circle.lefthalf.filled", tint: progress.accentColor)
 
         VStack(alignment: .leading, spacing: DLSpace.sm) {
           Text(L("Theme"))
@@ -84,9 +185,6 @@ struct SettingsView: View {
             .foregroundStyle(DLColor.textSecondary)
             .monospacedDigit()
         }
-        Text(L("Change your accent in Customize on the Me tab."))
-          .font(.dl(.caption2))
-          .foregroundStyle(DLColor.textTertiary)
       }
     }
   }
@@ -97,13 +195,13 @@ struct SettingsView: View {
       get: { progress.theme },
       set: {
         progress.theme = $0
-        try? context.save()
+        save()
         Haptics.selection()
       }
     )
   }
 
-  // MARK: Language
+  // MARK: 3. Language
 
   private var languageCard: some View {
     GlassCard {
@@ -131,13 +229,13 @@ struct SettingsView: View {
       get: { AppLanguage(rawValue: progress.languageCode) ?? .system },
       set: {
         progress.languageCode = $0.rawValue
-        try? context.save()
+        save()
         Haptics.selection()
       }
     )
   }
 
-  // MARK: Security
+  // MARK: 4. Security
 
   private var securityCard: some View {
     GlassCard {
@@ -163,13 +261,13 @@ struct SettingsView: View {
       get: { progress.faceIDEnabled },
       set: {
         progress.faceIDEnabled = $0
-        try? context.save()
+        save()
         Haptics.selection()
       }
     )
   }
 
-  // MARK: Reminders
+  // MARK: 5. Reminders
 
   private var remindersCard: some View {
     GlassCard {
@@ -208,7 +306,7 @@ struct SettingsView: View {
       get: { progress.reminderEnabled },
       set: { enabled in
         progress.reminderEnabled = enabled
-        try? context.save()
+        save()
         Haptics.selection()
         if enabled {
           Task {
@@ -226,7 +324,8 @@ struct SettingsView: View {
     )
   }
 
-  /// Bridges the stored hour/minute components to a `Date` for the picker.
+  /// Bridges the stored hour/minute components to a `Date` for the picker, writing
+  /// hour/minute back and re-syncing the schedule on change.
   private var reminderTimeBinding: Binding<Date> {
     Binding(
       get: {
@@ -239,7 +338,7 @@ struct SettingsView: View {
         let components = Calendar.current.dateComponents([.hour, .minute], from: date)
         progress.reminderHour = components.hour ?? progress.reminderHour
         progress.reminderMinute = components.minute ?? progress.reminderMinute
-        try? context.save()
+        save()
         Haptics.selection()
         NotificationService.sync(
           enabled: progress.reminderEnabled,
@@ -250,7 +349,7 @@ struct SettingsView: View {
     )
   }
 
-  // MARK: Testing
+  // MARK: 6. Testing
 
   private var testingCard: some View {
     GlassCard {
@@ -276,18 +375,46 @@ struct SettingsView: View {
       get: { progress.debugUnlockAll },
       set: {
         progress.debugUnlockAll = $0
-        try? context.save()
+        save()
         Haptics.selection()
       }
     )
   }
 
-  // MARK: Data
+  // MARK: 7. Data & export
 
   private var dataCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
         sectionHeader(L("Data"), systemImage: "tray.full.fill", tint: DLColor.xpGold)
+
+        // Export PDF
+        Button(action: exportPDF) {
+          dataRow(
+            systemImage: "doc.richtext",
+            tint: progress.accentColor,
+            title: L("Export PDF"),
+            subtitle: Lf("Share a formatted PDF of all %d entries.", entries.count)
+          )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L("Export PDF"))
+
+        Divider().overlay(DLColor.separator)
+
+        // Export entries (JSON to clipboard)
+        Button(action: exportEntries) {
+          dataRow(
+            systemImage: exportConfirmed ? "checkmark.circle.fill" : "doc.on.clipboard",
+            tint: exportConfirmed ? DLColor.success : progress.accentColor,
+            title: exportConfirmed ? L("Copied to clipboard") : L("Export entries (JSON)"),
+            subtitle: Lf("Copy a JSON summary of all %d entries.", entries.count)
+          )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L("Export entries (JSON)"))
+
+        Divider().overlay(DLColor.separator)
 
         // Back up now
         Button(action: backupNow) {
@@ -317,20 +444,6 @@ struct SettingsView: View {
         .buttonStyle(.plain)
         .disabled(!BackupService.backupExists)
         .accessibilityLabel(L("Restore from backup"))
-
-        Divider().overlay(DLColor.separator)
-
-        // Export entries (JSON to clipboard)
-        Button(action: exportEntries) {
-          dataRow(
-            systemImage: exportConfirmed ? "checkmark.circle.fill" : "doc.on.clipboard",
-            tint: exportConfirmed ? DLColor.success : progress.accentColor,
-            title: exportConfirmed ? L("Copied to clipboard") : L("Export entries"),
-            subtitle: Lf("Copy a JSON summary of all %d entries.", entries.count)
-          )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(L("Export entries"))
       }
     }
   }
@@ -359,8 +472,9 @@ struct SettingsView: View {
         Text(subtitle)
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textSecondary)
+          .fixedSize(horizontal: false, vertical: true)
       }
-      Spacer()
+      Spacer(minLength: DLSpace.sm)
       Image(systemName: "chevron.right")
         .font(.system(size: 13, weight: .semibold))
         .foregroundStyle(DLColor.textTertiary)
@@ -368,8 +482,17 @@ struct SettingsView: View {
     .contentShape(Rectangle())
   }
 
+  private func exportPDF() {
+    guard let url = PDFExporter.export(entries: entries, progress: progress) else {
+      Haptics.warning()
+      return
+    }
+    Haptics.success()
+    shareItem = ShareItem(url: url)
+  }
+
   private func backupNow() {
-    let date = BackupService.export(context: context)
+    let date = BackupService.export(context: modelContext)
     lastBackupDisplay = date ?? progress.lastBackupAt ?? BackupService.lastModified
     Haptics.success()
     withAnimation(DLAnim.quick) { backupConfirmed = true }
@@ -379,7 +502,7 @@ struct SettingsView: View {
   }
 
   private func restoreBackup() {
-    if BackupService.restore(context: context) {
+    if BackupService.restore(context: modelContext) {
       Haptics.success()
     } else {
       Haptics.light()
@@ -437,7 +560,67 @@ struct SettingsView: View {
     return string
   }
 
-  // MARK: About
+  // MARK: 8. Reset data
+
+  private var resetCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        sectionHeader(L("Reset data"), systemImage: "trash.fill", tint: DLColor.streakEnd)
+
+        Text(L("Back up first — this cannot be undone."))
+          .font(.dl(.caption2))
+          .foregroundStyle(DLColor.textTertiary)
+
+        VStack(spacing: 0) {
+          ForEach(Array(ResetService.Kind.allCases.enumerated()), id: \.element.id) { index, kind in
+            if index > 0 { Divider().overlay(DLColor.separator) }
+            Button { pendingReset = kind } label: {
+              resetRow(kind)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L(kind.title))
+          }
+        }
+      }
+    }
+  }
+
+  private func resetRow(_ kind: ResetService.Kind) -> some View {
+    let destructive = kind == .everything
+    let tint = destructive ? DLColor.streakEnd : DLColor.textSecondary
+    return HStack(spacing: DLSpace.sm) {
+      Image(systemName: kind.systemImage)
+        .font(.system(size: 18))
+        .foregroundStyle(tint)
+        .frame(width: 24)
+      Text(L(kind.title))
+        .font(.dl(.body, weight: destructive ? .semibold : .regular))
+        .foregroundStyle(destructive ? DLColor.streakEnd : DLColor.textPrimary)
+      Spacer(minLength: DLSpace.sm)
+      Image(systemName: "chevron.right")
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(DLColor.textTertiary)
+    }
+    .padding(.vertical, 10)
+    .contentShape(Rectangle())
+  }
+
+  /// Drives the reset confirmation dialog off the pending kind.
+  private var resetDialogBinding: Binding<Bool> {
+    Binding(
+      get: { pendingReset != nil },
+      set: { if !$0 { pendingReset = nil } }
+    )
+  }
+
+  private func performReset(_ kind: ResetService.Kind) {
+    ResetService.reset(kind, context: modelContext)
+    Haptics.warning()
+    lastBackupDisplay = progress.lastBackupAt ?? BackupService.lastModified
+    pendingReset = nil
+  }
+
+  // MARK: 9. About
 
   private var aboutCard: some View {
     GlassCard {
@@ -450,6 +633,7 @@ struct SettingsView: View {
         Text(L("Growly turns a daily Win · Mistake · Lesson · Adjustment review into momentum."))
           .font(.dl(.caption))
           .foregroundStyle(DLColor.textSecondary)
+          .fixedSize(horizontal: false, vertical: true)
       }
     }
   }
@@ -473,6 +657,10 @@ struct SettingsView: View {
   }
 
   // MARK: Helpers
+
+  private func save() {
+    try? modelContext.save()
+  }
 
   private func sectionHeader(_ title: String, systemImage: String, tint: Color) -> some View {
     Label(title, systemImage: systemImage)
