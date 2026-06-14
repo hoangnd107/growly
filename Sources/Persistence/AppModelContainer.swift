@@ -9,6 +9,8 @@ enum AppModelContainer {
     UserProgress.self,
     XPTransaction.self,
     BadgeRecord.self,
+    DayNote.self,
+    MediaAttachment.self,
   ])
 
   static let shared: ModelContainer = {

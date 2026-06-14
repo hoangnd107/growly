@@ -22,11 +22,16 @@ final class Entry {
   var moodRaw: Int
   var energy: Int
 
+  /// Legacy single photo (kept for backward compatibility); new media uses
+  /// `attachments`.
   @Attribute(.externalStorage) var photo: Data?
 
   var tags: [String]
   var morningIntention: String
   var xpAwarded: Int
+
+  @Relationship(deleteRule: .cascade, inverse: \MediaAttachment.entry)
+  var attachments: [MediaAttachment]
 
   init(
     day: Date = Date(),
@@ -54,6 +59,11 @@ final class Entry {
     self.tags = tags
     self.morningIntention = morningIntention
     self.xpAwarded = 0
+    self.attachments = []
+  }
+
+  var sortedAttachments: [MediaAttachment] {
+    attachments.sorted { $0.order < $1.order }
   }
 
   var mood: Mood { Mood(rawValue: moodRaw) ?? .neutral }

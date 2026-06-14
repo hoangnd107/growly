@@ -23,6 +23,20 @@ final class UserProgress {
   var unlockedThemeIDs: [String]
   var unlockedIconIDs: [String]
 
+  // Testing: unlock all gated content (accents, etc.) without changing progress.
+  var debugUnlockAll: Bool = false
+
+  // Localization: "system" | "en" | "vi" | "zh-Hans" | "ko"
+  var languageCode: String = "system"
+
+  // Daily reminder
+  var reminderEnabled: Bool = false
+  var reminderHour: Int = 21
+  var reminderMinute: Int = 0
+
+  // Local backup
+  var lastBackupAt: Date? = nil
+
   init() {
     self.id = UUID()
     self.totalXP = 0

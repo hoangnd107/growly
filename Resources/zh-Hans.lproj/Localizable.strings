@@ -1,0 +1,99 @@
+/* Tabs */
+"Today" = "今天";
+"History" = "历史";
+"Insights" = "洞察";
+"Notes" = "笔记";
+"Me" = "我的";
+
+/* Common */
+"Done" = "完成";
+"Add" = "添加";
+"Save" = "保存";
+"Cancel" = "取消";
+"Delete" = "删除";
+"Edit" = "编辑";
+"Search" = "搜索";
+"All" = "全部";
+"Continue" = "继续";
+"System" = "跟随系统";
+"Light" = "浅色";
+"Dark" = "深色";
+
+/* Reflection pillars */
+"Win" = "成就";
+"Mistake" = "失误";
+"Lesson" = "教训";
+"Adjustment" = "调整";
+
+/* Today */
+"Evening" = "晚间";
+"Morning" = "早晨";
+"New entry" = "新建记录";
+"Edit entry" = "编辑记录";
+"Complete the day" = "完成今天";
+"Mood & Energy" = "心情与精力";
+"How are you feeling?" = "你感觉如何？";
+"Tags" = "标签";
+"Title" = "标题";
+"Today's intention" = "今日目标";
+"Morning prompt" = "晨间提示";
+"Habits" = "习惯";
+"Yesterday's adjustment" = "昨天的调整";
+"Attach a photo" = "添加照片";
+"Add media" = "添加照片/视频";
+"Completion" = "完成度";
+
+/* Celebration */
+"Level Up!" = "升级了！";
+"Day complete!" = "今天完成！";
+
+/* Insights */
+"Weekly coach" = "每周教练";
+"Mood over time" = "心情趋势";
+"XP per day" = "每日经验";
+"Mood distribution" = "心情分布";
+"Growth score" = "成长分数";
+"Challenges" = "挑战";
+
+/* Profile */
+"Badges" = "徽章";
+"Earned" = "已获得";
+"Total XP" = "总经验";
+"Streak" = "连续天数";
+"Longest" = "最长";
+"Growth" = "成长";
+"Customize" = "个性化";
+"Settings" = "设置";
+
+/* Settings */
+"Appearance" = "外观";
+"Theme" = "主题";
+"Accent color" = "强调色";
+"Security" = "安全";
+"Require Face ID" = "需要 Face ID";
+"Language" = "语言";
+"Data" = "数据";
+"Reminders" = "提醒";
+"Daily reminder" = "每日提醒";
+"Reminder time" = "提醒时间";
+"Backup" = "备份";
+"Back up now" = "立即备份";
+"Restore from backup" = "从备份恢复";
+"Last backup" = "上次备份";
+"Export entries" = "导出记录";
+"Unlock everything (testing)" = "解锁全部（测试）";
+"About" = "关于";
+"Version" = "版本";
+
+/* Notes */
+"New note" = "新建笔记";
+"Edit note" = "编辑笔记";
+"Search notes" = "搜索笔记";
+"No notes yet" = "还没有笔记";
+"Pinned" = "已置顶";
+"Created" = "创建时间";
+"This week" = "本周";
+
+/* Notifications */
+"Time to reflect" = "该反思了";
+"Close today's loop — Win, Mistake, Lesson, Adjustment." = "完成今天的循环——成就、失误、教训、调整。";

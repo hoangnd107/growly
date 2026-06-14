@@ -16,6 +16,10 @@ struct RootView: View {
         content(for: progress)
           .tint(progress.accentColor)
           .preferredColorScheme(progress.theme.colorScheme)
+          .environment(\.locale, locale(for: progress.languageCode))
+          // Force a full rebuild when the in-app language changes so every
+          // L("…") string re-resolves against the new bundle.
+          .id(progress.languageCode)
       } else {
         ProgressView()
       }
@@ -25,12 +29,28 @@ struct RootView: View {
 
   @ViewBuilder
   private func content(for progress: UserProgress) -> some View {
-    if !progress.onboarded {
-      OnboardingView()
-    } else if progress.faceIDEnabled && !unlocked {
-      AppLockView(unlocked: $unlocked)
-    } else {
-      MainTabView()
+    // Apply the language synchronously before children read L(...).
+    let _ = (LocalizationManager.shared.code = progress.languageCode)
+
+    Group {
+      if !progress.onboarded {
+        OnboardingView()
+      } else if progress.faceIDEnabled && !unlocked {
+        AppLockView(unlocked: $unlocked)
+      } else {
+        MainTabView()
+      }
     }
+    .onAppear {
+      NotificationService.sync(
+        enabled: progress.reminderEnabled,
+        hour: progress.reminderHour,
+        minute: progress.reminderMinute
+      )
+    }
+  }
+
+  private func locale(for code: String) -> Locale {
+    code == "system" ? .autoupdatingCurrent : Locale(identifier: code)
   }
 }

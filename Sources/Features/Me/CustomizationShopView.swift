@@ -72,7 +72,9 @@ struct CustomizationShopView: View {
   }
 
   private func isUnlocked(_ theme: AccentTheme) -> Bool {
-    currentLevel >= theme.unlockLevel || progress.unlockedThemeIDs.contains(theme.id)
+    progress.debugUnlockAll
+      || currentLevel >= theme.unlockLevel
+      || progress.unlockedThemeIDs.contains(theme.id)
   }
 
   private func isSelected(_ theme: AccentTheme) -> Bool {

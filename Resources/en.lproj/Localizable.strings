@@ -1,0 +1,99 @@
+/* Tabs */
+"Today" = "Today";
+"History" = "History";
+"Insights" = "Insights";
+"Notes" = "Notes";
+"Me" = "Me";
+
+/* Common */
+"Done" = "Done";
+"Add" = "Add";
+"Save" = "Save";
+"Cancel" = "Cancel";
+"Delete" = "Delete";
+"Edit" = "Edit";
+"Search" = "Search";
+"All" = "All";
+"Continue" = "Continue";
+"System" = "System";
+"Light" = "Light";
+"Dark" = "Dark";
+
+/* Reflection pillars */
+"Win" = "Win";
+"Mistake" = "Mistake";
+"Lesson" = "Lesson";
+"Adjustment" = "Adjustment";
+
+/* Today */
+"Evening" = "Evening";
+"Morning" = "Morning";
+"New entry" = "New entry";
+"Edit entry" = "Edit entry";
+"Complete the day" = "Complete the day";
+"Mood & Energy" = "Mood & Energy";
+"How are you feeling?" = "How are you feeling?";
+"Tags" = "Tags";
+"Title" = "Title";
+"Today's intention" = "Today's intention";
+"Morning prompt" = "Morning prompt";
+"Habits" = "Habits";
+"Yesterday's adjustment" = "Yesterday's adjustment";
+"Attach a photo" = "Attach a photo";
+"Add media" = "Add media";
+"Completion" = "Completion";
+
+/* Celebration */
+"Level Up!" = "Level Up!";
+"Day complete!" = "Day complete!";
+
+/* Insights */
+"Weekly coach" = "Weekly coach";
+"Mood over time" = "Mood over time";
+"XP per day" = "XP per day";
+"Mood distribution" = "Mood distribution";
+"Growth score" = "Growth score";
+"Challenges" = "Challenges";
+
+/* Profile */
+"Badges" = "Badges";
+"Earned" = "Earned";
+"Total XP" = "Total XP";
+"Streak" = "Streak";
+"Longest" = "Longest";
+"Growth" = "Growth";
+"Customize" = "Customize";
+"Settings" = "Settings";
+
+/* Settings */
+"Appearance" = "Appearance";
+"Theme" = "Theme";
+"Accent color" = "Accent color";
+"Security" = "Security";
+"Require Face ID" = "Require Face ID";
+"Language" = "Language";
+"Data" = "Data";
+"Reminders" = "Reminders";
+"Daily reminder" = "Daily reminder";
+"Reminder time" = "Reminder time";
+"Backup" = "Backup";
+"Back up now" = "Back up now";
+"Restore from backup" = "Restore from backup";
+"Last backup" = "Last backup";
+"Export entries" = "Export entries";
+"Unlock everything (testing)" = "Unlock everything (testing)";
+"About" = "About";
+"Version" = "Version";
+
+/* Notes */
+"New note" = "New note";
+"Edit note" = "Edit note";
+"Search notes" = "Search notes";
+"No notes yet" = "No notes yet";
+"Pinned" = "Pinned";
+"Created" = "Created";
+"This week" = "This week";
+
+/* Notifications */
+"Time to reflect" = "Time to reflect";
+"Close today's loop — Win, Mistake, Lesson, Adjustment." = "Close today's loop — Win, Mistake, Lesson, Adjustment.";

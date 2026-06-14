@@ -1,0 +1,99 @@
+/* Tabs */
+"Today" = "Hôm nay";
+"History" = "Lịch sử";
+"Insights" = "Thống kê";
+"Notes" = "Ghi chú";
+"Me" = "Cá nhân";
+
+/* Common */
+"Done" = "Xong";
+"Add" = "Thêm";
+"Save" = "Lưu";
+"Cancel" = "Hủy";
+"Delete" = "Xóa";
+"Edit" = "Sửa";
+"Search" = "Tìm kiếm";
+"All" = "Tất cả";
+"Continue" = "Tiếp tục";
+"System" = "Hệ thống";
+"Light" = "Sáng";
+"Dark" = "Tối";
+
+/* Reflection pillars */
+"Win" = "Thành công";
+"Mistake" = "Sai lầm";
+"Lesson" = "Bài học";
+"Adjustment" = "Điều chỉnh";
+
+/* Today */
+"Evening" = "Buổi tối";
+"Morning" = "Buổi sáng";
+"New entry" = "Mục mới";
+"Edit entry" = "Sửa mục";
+"Complete the day" = "Hoàn thành ngày";
+"Mood & Energy" = "Tâm trạng & Năng lượng";
+"How are you feeling?" = "Bạn cảm thấy thế nào?";
+"Tags" = "Thẻ";
+"Title" = "Tiêu đề";
+"Today's intention" = "Mục tiêu hôm nay";
+"Morning prompt" = "Gợi ý buổi sáng";
+"Habits" = "Thói quen";
+"Yesterday's adjustment" = "Điều chỉnh hôm qua";
+"Attach a photo" = "Đính kèm ảnh";
+"Add media" = "Thêm ảnh/video";
+"Completion" = "Tiến độ";
+
+/* Celebration */
+"Level Up!" = "Lên cấp!";
+"Day complete!" = "Hoàn thành ngày!";
+
+/* Insights */
+"Weekly coach" = "Huấn luyện viên tuần";
+"Mood over time" = "Tâm trạng theo thời gian";
+"XP per day" = "XP mỗi ngày";
+"Mood distribution" = "Phân bố tâm trạng";
+"Growth score" = "Điểm phát triển";
+"Challenges" = "Thử thách";
+
+/* Profile */
+"Badges" = "Huy hiệu";
+"Earned" = "Đã đạt";
+"Total XP" = "Tổng XP";
+"Streak" = "Chuỗi ngày";
+"Longest" = "Dài nhất";
+"Growth" = "Phát triển";
+"Customize" = "Tùy chỉnh";
+"Settings" = "Cài đặt";
+
+/* Settings */
+"Appearance" = "Giao diện";
+"Theme" = "Chủ đề";
+"Accent color" = "Màu nhấn";
+"Security" = "Bảo mật";
+"Require Face ID" = "Yêu cầu Face ID";
+"Language" = "Ngôn ngữ";
+"Data" = "Dữ liệu";
+"Reminders" = "Nhắc nhở";
+"Daily reminder" = "Nhắc nhở hằng ngày";
+"Reminder time" = "Giờ nhắc nhở";
+"Backup" = "Sao lưu";
+"Back up now" = "Sao lưu ngay";
+"Restore from backup" = "Khôi phục từ bản sao lưu";
+"Last backup" = "Lần sao lưu gần nhất";
+"Export entries" = "Xuất dữ liệu";
+"Unlock everything (testing)" = "Mở khóa tất cả (thử nghiệm)";
+"About" = "Giới thiệu";
+"Version" = "Phiên bản";
+
+/* Notes */
+"New note" = "Ghi chú mới";
+"Edit note" = "Sửa ghi chú";
+"Search notes" = "Tìm ghi chú";
+"No notes yet" = "Chưa có ghi chú";
+"Pinned" = "Đã ghim";
+"Created" = "Ngày tạo";
+"This week" = "Tuần này";
+
+/* Notifications */
+"Time to reflect" = "Đã đến giờ suy ngẫm";
+"Close today's loop — Win, Mistake, Lesson, Adjustment." = "Hoàn tất vòng lặp hôm nay — Thành công, Sai lầm, Bài học, Điều chỉnh.";

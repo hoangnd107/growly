@@ -1,8 +1,7 @@
 import Foundation
 
-/// On-device, privacy-safe "coach". These are local heuristics + curated copy;
-/// when `FeatureFlags.appleIntelligence` is enabled this is where a
-/// FoundationModels session would plug in.
+/// On-device, privacy-safe "coach". These are local heuristics + curated copy —
+/// no data ever leaves the device.
 enum AICoach {
   static func suggestions(for kind: ReflectionKind) -> [String] {
     switch kind {

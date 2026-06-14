@@ -1,0 +1,99 @@
+/* Tabs */
+"Today" = "오늘";
+"History" = "기록";
+"Insights" = "인사이트";
+"Notes" = "노트";
+"Me" = "나";
+
+/* Common */
+"Done" = "완료";
+"Add" = "추가";
+"Save" = "저장";
+"Cancel" = "취소";
+"Delete" = "삭제";
+"Edit" = "편집";
+"Search" = "검색";
+"All" = "전체";
+"Continue" = "계속";
+"System" = "시스템";
+"Light" = "라이트";
+"Dark" = "다크";
+
+/* Reflection pillars */
+"Win" = "성취";
+"Mistake" = "실수";
+"Lesson" = "교훈";
+"Adjustment" = "개선";
+
+/* Today */
+"Evening" = "저녁";
+"Morning" = "아침";
+"New entry" = "새 기록";
+"Edit entry" = "기록 편집";
+"Complete the day" = "하루 완료";
+"Mood & Energy" = "기분 & 에너지";
+"How are you feeling?" = "오늘 기분은 어때요?";
+"Tags" = "태그";
+"Title" = "제목";
+"Today's intention" = "오늘의 다짐";
+"Morning prompt" = "아침 질문";
+"Habits" = "습관";
+"Yesterday's adjustment" = "어제의 개선";
+"Attach a photo" = "사진 첨부";
+"Add media" = "사진/동영상 추가";
+"Completion" = "완성도";
+
+/* Celebration */
+"Level Up!" = "레벨 업!";
+"Day complete!" = "하루 완료!";
+
+/* Insights */
+"Weekly coach" = "주간 코치";
+"Mood over time" = "기분 변화";
+"XP per day" = "일일 XP";
+"Mood distribution" = "기분 분포";
+"Growth score" = "성장 점수";
+"Challenges" = "챌린지";
+
+/* Profile */
+"Badges" = "배지";
+"Earned" = "획득함";
+"Total XP" = "총 XP";
+"Streak" = "연속 기록";
+"Longest" = "최장";
+"Growth" = "성장";
+"Customize" = "꾸미기";
+"Settings" = "설정";
+
+/* Settings */
+"Appearance" = "화면";
+"Theme" = "테마";
+"Accent color" = "강조 색상";
+"Security" = "보안";
+"Require Face ID" = "Face ID 사용";
+"Language" = "언어";
+"Data" = "데이터";
+"Reminders" = "알림";
+"Daily reminder" = "매일 알림";
+"Reminder time" = "알림 시간";
+"Backup" = "백업";
+"Back up now" = "지금 백업";
+"Restore from backup" = "백업에서 복원";
+"Last backup" = "마지막 백업";
+"Export entries" = "기록 내보내기";
+"Unlock everything (testing)" = "전체 잠금 해제 (테스트)";
+"About" = "정보";
+"Version" = "버전";
+
+/* Notes */
+"New note" = "새 노트";
+"Edit note" = "노트 편집";
+"Search notes" = "노트 검색";
+"No notes yet" = "아직 노트가 없습니다";
+"Pinned" = "고정됨";
+"Created" = "생성일";
+"This week" = "이번 주";
+
+/* Notifications */
+"Time to reflect" = "돌아볼 시간이에요";
+"Close today's loop — Win, Mistake, Lesson, Adjustment." = "오늘의 루프를 완성하세요 — 성취, 실수, 교훈, 개선.";
