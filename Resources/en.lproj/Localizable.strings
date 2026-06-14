@@ -100,3 +100,43 @@
 
 /* v3 */
 "day streak" = "day streak";
+
+/* v3 phase 7 */
+"Themes" = "Themes";
+"Sleep" = "Sleep";
+"Sleep logs" = "Sleep logs";
+"Add sleep" = "Add sleep";
+"Bedtime" = "Bedtime";
+"Wake time" = "Wake time";
+"Quality" = "Quality";
+"Goals" = "Goals";
+"New goal" = "New goal";
+"No goals yet" = "No goals yet";
+"Target" = "Target";
+"Deadline" = "Deadline";
+"Mark complete" = "Mark complete";
+"AI Insights" = "AI Insights";
+"Mood calendar" = "Mood calendar";
+"Week" = "Week";
+"Month" = "Month";
+"Year" = "Year";
+"Bold" = "Bold";
+"Italic" = "Italic";
+"Highlight" = "Highlight";
+"Bullet" = "Bullet";
+"Voice memo" = "Voice memo";
+"Dictate" = "Dictate";
+"Location" = "Location";
+"Undo" = "Undo";
+"Camera" = "Camera";
+"Format" = "Format";
+"Streak Freeze" = "Streak Freeze";
+"Freeze days" = "Freeze days";
+"Clear frozen days" = "Clear frozen days";
+"Adjust streak" = "Adjust streak";
+"Reset data" = "Reset data";
+"Export PDF" = "Export PDF";
+"Reflections" = "Reflections";
+"XP & streak" = "XP & streak";
+"Everything" = "Everything";
+"This cannot be undone." = "This cannot be undone.";

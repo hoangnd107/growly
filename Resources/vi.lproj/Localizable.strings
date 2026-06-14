@@ -100,3 +100,43 @@
 
 /* v3 */
 "day streak" = "chuỗi ngày";
+
+/* v3 phase 7 */
+"Themes" = "Chủ đề";
+"Sleep" = "Giấc ngủ";
+"Sleep logs" = "Nhật ký giấc ngủ";
+"Add sleep" = "Thêm giấc ngủ";
+"Bedtime" = "Giờ đi ngủ";
+"Wake time" = "Giờ thức dậy";
+"Quality" = "Chất lượng";
+"Goals" = "Mục tiêu";
+"New goal" = "Mục tiêu mới";
+"No goals yet" = "Chưa có mục tiêu";
+"Target" = "Chỉ tiêu";
+"Deadline" = "Hạn chót";
+"Mark complete" = "Đánh dấu hoàn thành";
+"AI Insights" = "Phân tích AI";
+"Mood calendar" = "Lịch tâm trạng";
+"Week" = "Tuần";
+"Month" = "Tháng";
+"Year" = "Năm";
+"Bold" = "Đậm";
+"Italic" = "Nghiêng";
+"Highlight" = "Tô sáng";
+"Bullet" = "Dấu đầu dòng";
+"Voice memo" = "Ghi âm";
+"Dictate" = "Đọc chính tả";
+"Location" = "Vị trí";
+"Undo" = "Hoàn tác";
+"Camera" = "Máy ảnh";
+"Format" = "Định dạng";
+"Streak Freeze" = "Đóng băng chuỗi";
+"Freeze days" = "Số ngày đóng băng";
+"Clear frozen days" = "Xóa ngày đã đóng băng";
+"Adjust streak" = "Điều chỉnh chuỗi";
+"Reset data" = "Đặt lại dữ liệu";
+"Export PDF" = "Xuất PDF";
+"Reflections" = "Bài phản ánh";
+"XP & streak" = "XP & chuỗi";
+"Everything" = "Tất cả";
+"This cannot be undone." = "Không thể hoàn tác.";

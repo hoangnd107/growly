@@ -100,3 +100,43 @@
 
 /* v3 */
 "day streak" = "일 연속";
+
+/* v3 phase 7 */
+"Themes" = "테마";
+"Sleep" = "수면";
+"Sleep logs" = "수면 기록";
+"Add sleep" = "수면 추가";
+"Bedtime" = "취침 시간";
+"Wake time" = "기상 시간";
+"Quality" = "품질";
+"Goals" = "목표";
+"New goal" = "새 목표";
+"No goals yet" = "아직 목표가 없습니다";
+"Target" = "목표치";
+"Deadline" = "마감일";
+"Mark complete" = "완료로 표시";
+"AI Insights" = "AI 인사이트";
+"Mood calendar" = "기분 캘린더";
+"Week" = "주";
+"Month" = "월";
+"Year" = "년";
+"Bold" = "굵게";
+"Italic" = "기울임";
+"Highlight" = "강조";
+"Bullet" = "글머리 기호";
+"Voice memo" = "음성 메모";
+"Dictate" = "받아쓰기";
+"Location" = "위치";
+"Undo" = "실행 취소";
+"Camera" = "카메라";
+"Format" = "서식";
+"Streak Freeze" = "연속 동결";
+"Freeze days" = "동결 일수";
+"Clear frozen days" = "동결 해제";
+"Adjust streak" = "연속 조정";
+"Reset data" = "데이터 초기화";
+"Export PDF" = "PDF 내보내기";
+"Reflections" = "회고";
+"XP & streak" = "XP & 연속";
+"Everything" = "모두";
+"This cannot be undone." = "되돌릴 수 없습니다.";

@@ -100,3 +100,43 @@
 
 /* v3 */
 "day streak" = "连续天数";
+
+/* v3 phase 7 */
+"Themes" = "主题";
+"Sleep" = "睡眠";
+"Sleep logs" = "睡眠记录";
+"Add sleep" = "添加睡眠";
+"Bedtime" = "就寝时间";
+"Wake time" = "起床时间";
+"Quality" = "质量";
+"Goals" = "目标";
+"New goal" = "新目标";
+"No goals yet" = "还没有目标";
+"Target" = "目标值";
+"Deadline" = "截止日期";
+"Mark complete" = "标记完成";
+"AI Insights" = "AI 洞察";
+"Mood calendar" = "心情日历";
+"Week" = "周";
+"Month" = "月";
+"Year" = "年";
+"Bold" = "粗体";
+"Italic" = "斜体";
+"Highlight" = "高亮";
+"Bullet" = "项目符号";
+"Voice memo" = "语音备忘";
+"Dictate" = "听写";
+"Location" = "位置";
+"Undo" = "撤销";
+"Camera" = "相机";
+"Format" = "格式";
+"Streak Freeze" = "连续冻结";
+"Freeze days" = "冻结天数";
+"Clear frozen days" = "清除冻结天数";
+"Adjust streak" = "调整连续天数";
+"Reset data" = "重置数据";
+"Export PDF" = "导出 PDF";
+"Reflections" = "回顾";
+"XP & streak" = "XP 和连续";
+"Everything" = "全部";
+"This cannot be undone." = "此操作无法撤销。";
