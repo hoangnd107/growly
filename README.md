@@ -20,43 +20,42 @@ mechanic (the daily feedback loop).
 ## Features
 
 - **The Loop** — four focused fields (Win, Mistake, Lesson, Adjustment) with quality
-  detection, gentle AI-style suggestion chips, and a morning/evening flow.
-- **Mood & energy** tracking, photo attachment, tags.
+  detection, gentle suggestion chips, and a morning/evening flow.
+- **Notes** — a dedicated tab for free-form notes: many per day, full editor, an
+  **editable creation date**, pin/colour-label/mood/tags, flexible filters (All /
+  Today / This week / Pinned / by tag) + search.
+- **Photos & videos** — attach multiple images and videos to entries and notes, with
+  an in-app zoomable image viewer and AVKit video playback.
+- **Mood & energy** tracking, tags.
 - **Gamification** — XP with early-bird & quality bonuses, a 50+ level curve, streaks
   with ×1.5 / ×2 multipliers, 13 badges across 6 categories, daily/weekly challenges,
   and a compound **Growth Score**.
-- **Insights** — weekly coach summary + growth visualization.
-- **Profile (Me)** — level, XP, streak, badge gallery with locked/earned states.
-- **History** — searchable timeline of entries.
+- **Insights** — weekly coach, **tappable** Swift Charts (mood, XP/day, distribution,
+  growth curve), and a GitHub-style **mood heatmap**.
+- **Profile (Me)** — level, XP, streak, badge gallery, 30-day XP chart, level-gated
+  accent shop.
+- **History** — month calendar + searchable timeline + entry detail.
+- **Languages** — switch in-app between **English, Tiếng Việt, 中文, 한국어**.
+- **Daily reminders** — opt-in local notification at a time you choose.
+- **Local backup & restore** — one-tap JSON snapshot of all data to the device, with
+  restore (a safety net beyond SwiftData's own persistence).
 - **Privacy-first** — 100% on-device **SwiftData**, optional **Face ID** lock, no
-  account required, no tracking.
+  account required, no tracking, no network calls.
 - **Premium feel** — dark-first design (#0A0A0A), glassmorphism, rounded typography,
-  spring micro-interactions, confetti & level-up celebration — all respecting
-  **Reduce Motion**.
+  spring micro-interactions, confetti & level-up celebration, a custom flame app icon
+  (light/dark) — all respecting **Reduce Motion**.
+- **Testing switch** — Settings → *Unlock everything (testing)* unlocks all gated
+  content on/off without affecting your real progress.
 
 ## Tech
 
-- **SwiftUI** + **SwiftData** (iOS 17+), Swift Charts-ready, `LocalAuthentication`,
-  `PhotosUI`.
-- Project-as-code via **XcodeGen**; CI builds an unsigned IPA on `macos-latest`.
-
-### Capabilities gated for free sideloading
-
-A *free* Apple ID cannot sign certain entitlements, so these are behind
-[`FeatureFlags`](Sources/App/FeatureFlags.swift) and **off** in the sideload build
-(code is present; flip them on with a paid Apple Developer account):
-
-| Capability | Flag | Sideload (free) |
-|---|---|---|
-| HealthKit | `healthKit` | ❌ |
-| Live Activities / push | `liveActivities` | ❌ |
-| iCloud / CloudKit sync | `iCloudSync` | ❌ |
-| Apple Intelligence coach | `appleIntelligence` | ❌ |
-| Local reminders | `reminders` | ✅ (permission) |
-| Voice input (Speech) | `voiceInput` | ✅ (permission) |
-
-Everything else — the full loop, gamification, insights, history, Face ID — runs on a
-free sideload.
+- **SwiftUI** + **SwiftData** (iOS 17+), **Swift Charts**, **AVKit**, **PhotosUI**,
+  **UserNotifications**, `LocalAuthentication`.
+- Fully on-device. This build deliberately uses **no entitlement-gated capabilities**
+  (no HealthKit / Live Activities / push / iCloud / Apple Intelligence), so it installs
+  and runs from a free Sideloadly sign with nothing disabled.
+- Project-as-code via **XcodeGen**; CI builds an unsigned IPA on `macos-latest` and
+  bumps to Node-24 GitHub Actions (`checkout@v5`, `setup-java@v5`).
 
 ## Documentation
 
