@@ -1,5 +1,5 @@
 import XCTest
-@testable import DailyLoop
+@testable import Growly
 
 final class GamificationTests: XCTestCase {
 

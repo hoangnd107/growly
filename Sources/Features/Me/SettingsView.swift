@@ -421,7 +421,7 @@ struct SettingsView: View {
       }
 
     let root: [String: Any] = [
-      "app": "Daily Loop",
+      "app": "Growly",
       "exportedAt": ISO8601DateFormatter().string(from: Date()),
       "entryCount": entries.count,
       "entries": payload
@@ -432,7 +432,7 @@ struct SettingsView: View {
       let data = try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys]),
       let string = String(data: data, encoding: .utf8)
     else {
-      return "{\"app\":\"Daily Loop\",\"entries\":[]}"
+      return "{\"app\":\"Growly\",\"entries\":[]}"
     }
     return string
   }
@@ -447,7 +447,7 @@ struct SettingsView: View {
         Divider().overlay(DLColor.separator)
         infoRow(L("Made for"), value: L("Daily reflection"))
         Divider().overlay(DLColor.separator)
-        Text(L("Daily Loop turns a daily Win · Mistake · Lesson · Adjustment review into momentum."))
+        Text(L("Growly turns a daily Win · Mistake · Lesson · Adjustment review into momentum."))
           .font(.dl(.caption))
           .foregroundStyle(DLColor.textSecondary)
       }

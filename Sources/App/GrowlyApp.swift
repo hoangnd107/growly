@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct DailyLoopApp: App {
+struct GrowlyApp: App {
   var body: some Scene {
     WindowGroup {
       RootView()

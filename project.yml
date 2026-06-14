@@ -1,6 +1,6 @@
 # XcodeGen spec — the Xcode project is generated from this file in CI, so no
 # fragile .xcodeproj is committed. Regenerate locally with: `xcodegen generate`.
-name: DailyLoop
+name: Growly
 
 options:
   bundleIdPrefix: com.hoangnd107
@@ -16,11 +16,11 @@ settings:
     CODE_SIGNING_REQUIRED: "NO"
     CODE_SIGNING_ALLOWED: "NO"
     CODE_SIGN_IDENTITY: ""
-    MARKETING_VERSION: "1.1.0"
+    MARKETING_VERSION: "1.2.0"
     CURRENT_PROJECT_VERSION: "1"
 
 targets:
-  DailyLoop:
+  Growly:
     type: application
     platform: iOS
     sources:
@@ -28,12 +28,12 @@ targets:
       - path: Resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hoangnd107.dailyloop
+        PRODUCT_BUNDLE_IDENTIFIER: com.hoangnd107.growly
         GENERATE_INFOPLIST_FILE: "YES"
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        INFOPLIST_KEY_CFBundleDisplayName: "Daily Loop"
+        INFOPLIST_KEY_CFBundleDisplayName: "Growly"
         INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown"
         INFOPLIST_KEY_NSFaceIDUsageDescription: "Unlock your private journal with Face ID."
@@ -41,29 +41,29 @@ targets:
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Transcribe your spoken reflections on device."
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Attach a photo to a reflection."
 
-  DailyLoopTests:
+  GrowlyTests:
     type: bundle.unit-test
     platform: iOS
     sources:
       - path: Tests
     dependencies:
-      - target: DailyLoop
+      - target: Growly
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hoangnd107.dailyloop.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.hoangnd107.growly.tests
         GENERATE_INFOPLIST_FILE: "YES"
 
 schemes:
-  DailyLoop:
+  Growly:
     build:
       targets:
-        DailyLoop: all
-        DailyLoopTests: [test]
+        Growly: all
+        GrowlyTests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - DailyLoopTests
+        - GrowlyTests
     archive:
       config: Release

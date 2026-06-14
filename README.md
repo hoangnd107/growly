@@ -1,4 +1,4 @@
-# Daily Loop 🔁
+# Growly 🔁
 
 A native **SwiftUI** daily-reflection journal built around a simple, powerful loop —
 **Win · Mistake · Lesson · Adjustment** — wrapped in calm, premium UI and healthy
@@ -11,10 +11,10 @@ without turning reflection into a numbers game.
 
 ---
 
-## Why "Daily Loop"
+## Why "Growly"
 
 The prompt suggested *Reflectly* — but that's an existing trademarked App Store app,
-so this project is named **Daily Loop**: short, memorable, and it names the core
+so this project is named **Growly**: short, memorable, and it names the core
 mechanic (the daily feedback loop).
 
 ## Features
@@ -67,17 +67,17 @@ mechanic (the daily feedback loop).
 ## Get the app
 
 1. **Actions → iOS Build → Run workflow** (or push to `main`).
-2. Download the `DailyLoop-<version>-<run>.ipa` artifact (unzip once).
+2. Download the `Growly-<version>-<run>.ipa` artifact (unzip once).
 3. Sideload with [Sideloadly](https://sideloadly.io/) + a free Apple ID.
 
 ## Project layout
 
 ```text
-DailyLoop/
+Growly/
 ├── project.yml                 # XcodeGen spec (the Xcode project is generated)
 ├── .github/workflows/          # ios-build.yml (IPA), tests.yml (simulator)
 ├── Sources/
-│   ├── App/                    # entry, RootView, tab bar, Face ID lock, FeatureFlags
+│   ├── App/                    # entry, RootView, tab bar, Face ID lock
 │   ├── Models/                 # SwiftData @Model + enums + Badge catalog
 │   ├── Gamification/           # Level/Streak/XP/Badge/Challenge engines + service
 │   ├── Persistence/            # ModelContainer + seed

@@ -108,7 +108,7 @@ struct BackupFile: Codable {
 enum BackupService {
   static var fileURL: URL {
     FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("daily-loop-backup.json")
+      .appendingPathComponent("growly-backup.json")
   }
 
   static var backupExists: Bool {

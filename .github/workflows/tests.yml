@@ -53,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild test \
-            -project DailyLoop.xcodeproj \
-            -scheme DailyLoop \
+            -project Growly.xcodeproj \
+            -scheme Growly \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
             CODE_SIGNING_ALLOWED=NO

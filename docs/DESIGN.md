@@ -34,7 +34,7 @@ border at 60% separator. Used for every content block.
 
 Paged `TabView` (3 pages, dotted index), tinted by the live accent selection.
 
-1. **Welcome** — large looping arrows glyph, "Daily Loop" title, one-line value prop
+1. **Welcome** — large looping arrows glyph, "Growly" title, one-line value prop
    (the loop), `Continue`.
 2. **Gamification intro** — gold bolt, "Earn XP every day", three perks (XP / streak
    multipliers / badges) as icon+text rows, `Continue`.

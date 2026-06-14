@@ -37,7 +37,7 @@ struct OnboardingView: View {
       Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
         .font(.system(size: 80))
         .foregroundStyle(.tint)
-      Text("Daily Loop")
+      Text("Growly")
         .font(.dl(.largeTitle, weight: .bold))
         .foregroundStyle(DLColor.textPrimary)
       Text(L("Turn every day into progress with a simple loop:\nWin · Mistake · Lesson · Adjustment."))

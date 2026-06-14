@@ -32,7 +32,7 @@ creates the `UserProgress` row and starter habits on first launch.
 
 ## State & data flow
 
-- `@main DailyLoopApp` injects the container via `.modelContainer`.
+- `@main GrowlyApp` injects the container via `.modelContainer`.
 - `RootView` decides Onboarding → Face ID lock → `MainTabView`, applies the user's
   accent (`.tint`) and theme (`.preferredColorScheme`).
 - Views use `@Query` for reads and `@Bindable` on `@Model` objects so text fields bind
