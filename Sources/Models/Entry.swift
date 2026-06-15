@@ -68,6 +68,12 @@ final class Entry {
 
   var mood: Mood { Mood(rawValue: moodRaw) ?? .neutral }
 
+  /// The mood resolved against the user's customizable catalog (clamped so legacy
+  /// values always render). Use this for display; `moodRaw` stays the ordinal.
+  var moodOption: MoodOption {
+    MoodCatalog.shared.option(forValue: moodRaw) ?? MoodCatalog.defaults[2]
+  }
+
   func text(for kind: ReflectionKind) -> String {
     switch kind {
     case .win: return win

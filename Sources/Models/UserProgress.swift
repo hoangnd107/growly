@@ -46,7 +46,12 @@ final class UserProgress {
   var streakFreezeDates: [Date] = []
 
   // Optional custom emoji per mood level (empty = use defaults). Index 0 → level 1.
+  // Legacy (v7); superseded by `moodCatalogJSON` but still read for migration.
   var moodEmojis: [String] = []
+
+  // Customizable mood scale: JSON-encoded `[MoodOption]` (empty = built-in defaults).
+  // Holds re-skinned built-ins plus any user-added custom moods.
+  var moodCatalogJSON: String = ""
 
   init() {
     self.id = UUID()

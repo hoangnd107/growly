@@ -12,22 +12,24 @@ struct MoodEnergyCard: View {
           .foregroundStyle(DLColor.textPrimary)
 
         HStack(spacing: DLSpace.xs) {
-          ForEach(Mood.allCases) { mood in
+          ForEach(MoodCatalog.shared.options) { mood in
             Button {
-              moodRaw = mood.rawValue
+              moodRaw = mood.value
               Haptics.selection()
             } label: {
               VStack(spacing: 2) {
                 Text(mood.emoji)
-                  .font(.system(size: moodRaw == mood.rawValue ? 30 : 24))
-                Text(mood.label)
+                  .font(.system(size: moodRaw == mood.value ? 30 : 24))
+                Text(mood.displayName)
                   .font(.dl(.caption2))
-                  .foregroundStyle(moodRaw == mood.rawValue ? mood.color : DLColor.textTertiary)
+                  .foregroundStyle(moodRaw == mood.value ? mood.color : DLColor.textTertiary)
+                  .lineLimit(1)
+                  .minimumScaleFactor(0.6)
               }
               .frame(maxWidth: .infinity)
               .padding(.vertical, 8)
               .background(
-                moodRaw == mood.rawValue ? mood.color.opacity(0.16) : Color.clear,
+                moodRaw == mood.value ? mood.color.opacity(0.16) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 14, style: .continuous)
               )
             }

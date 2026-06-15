@@ -10,7 +10,8 @@ struct HistoryView: View {
   @Query private var progressList: [UserProgress]
 
   @State private var query = ""
-  @State private var moodFilter: Mood?
+  @State private var moodFilter: Int?
+  @State private var tagFilter: String?
   @State private var visibleMonth = Calendar.current.startOfDay(for: Date())
   @State private var selectedEntry: Entry?
   @State private var showMonthPicker = false
@@ -23,21 +24,49 @@ struct HistoryView: View {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
   }
 
-  /// Day-start -> mood color for the calendar dots. Respects the active mood
-  /// filter so the calendar mirrors the list below it.
+  /// Day-start -> mood color for the calendar dots. Respects the active mood +
+  /// tag filters so the calendar mirrors the list below it.
   private var entriesByDay: [Date: Color] {
     var map: [Date: Color] = [:]
-    for entry in entries where moodFilter == nil || entry.mood == moodFilter {
-      map[calendar.startOfDay(for: entry.day)] = entry.mood.color
+    for entry in entries where passesFilters(entry) {
+      map[calendar.startOfDay(for: entry.day)] = entry.moodOption.color
     }
     return map
   }
 
-  /// Entries shown in the list, filtered by search text and selected mood.
+  /// Whether an entry passes the active mood + tag filters (used by both the
+  /// calendar dots and the list).
+  private func passesFilters(_ entry: Entry) -> Bool {
+    if let moodFilter, entry.moodRaw != moodFilter { return false }
+    if let tagFilter, !entry.tags.contains(tagFilter) { return false }
+    return true
+  }
+
+  private var isFiltering: Bool {
+    moodFilter != nil || tagFilter != nil || !query.isEmpty
+  }
+
+  /// Distinct, sorted tags across all entries (for the tag filter menu).
+  private var allTags: [String] {
+    var seen = Set<String>()
+    var ordered: [String] = []
+    for entry in entries {
+      for tag in entry.tags {
+        let trimmed = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty, !seen.contains(trimmed) {
+          seen.insert(trimmed)
+          ordered.append(trimmed)
+        }
+      }
+    }
+    return ordered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+  }
+
+  /// Entries shown in the list, filtered by search text, mood, and tag.
   private var filtered: [Entry] {
     let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     return entries.filter { entry in
-      if let moodFilter, entry.mood != moodFilter { return false }
+      guard passesFilters(entry) else { return false }
       guard !q.isEmpty else { return true }
       return entry.win.lowercased().contains(q)
         || entry.mistake.lowercased().contains(q)
@@ -67,6 +96,11 @@ struct HistoryView: View {
       }
       .navigationTitle(L("History"))
       .searchable(text: $query, prompt: Text(L("Search reflections")))
+      .toolbar {
+        if !allTags.isEmpty {
+          ToolbarItem(placement: .topBarTrailing) { tagMenu }
+        }
+      }
       .sheet(item: $selectedEntry) { entry in
         NavigationStack {
           EntryDetailView(entry: entry)
@@ -85,6 +119,32 @@ struct HistoryView: View {
   private func open(_ entry: Entry) {
     Haptics.selection()
     selectedEntry = entry
+  }
+
+  // MARK: - Tag filter menu
+
+  private var tagMenu: some View {
+    Menu {
+      Picker(L("Tag"), selection: $tagFilter) {
+        Text(L("All tags")).tag(String?.none)
+        ForEach(allTags, id: \.self) { tag in
+          Text("#\(tag)").tag(String?.some(tag))
+        }
+      }
+      if tagFilter != nil {
+        Divider()
+        Button(role: .destructive) {
+          tagFilter = nil
+          Haptics.light()
+        } label: {
+          Label(L("Clear filters"), systemImage: "xmark.circle")
+        }
+      }
+    } label: {
+      Image(systemName: tagFilter != nil ? "tag.circle.fill" : "tag.circle")
+        .font(.system(size: 17, weight: .semibold))
+    }
+    .accessibilityLabel(L("Filter by tag"))
   }
 
   // MARK: - Empty state (no entries at all)
@@ -129,6 +189,7 @@ struct HistoryView: View {
       }
       .padding(DLSpace.md)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: moodFilter)
+      .animation(reduceMotion ? nil : DLAnim.smooth, value: tagFilter)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: query)
     }
     .scrollDismissesKeyboard(.interactively)
@@ -141,10 +202,11 @@ struct HistoryView: View {
     } description: {
       Text(L("Try a different search or clear the mood filter."))
     } actions: {
-      if moodFilter != nil || !query.isEmpty {
+      if isFiltering {
         Button(L("Clear filters")) {
           withAnimation(reduceMotion ? nil : DLAnim.standard) {
             moodFilter = nil
+            tagFilter = nil
             query = ""
           }
           Haptics.light()
@@ -329,9 +391,9 @@ struct HistoryView: View {
         chip(label: L("All"), emoji: nil, color: theme.accent, isSelected: moodFilter == nil) {
           moodFilter = nil
         }
-        ForEach(Mood.allCases) { mood in
-          chip(label: L(mood.label), emoji: mood.emoji, color: mood.color, isSelected: moodFilter == mood) {
-            moodFilter = (moodFilter == mood) ? nil : mood
+        ForEach(MoodCatalog.shared.options) { mood in
+          chip(label: mood.displayName, emoji: mood.emoji, color: mood.color, isSelected: moodFilter == mood.value) {
+            moodFilter = (moodFilter == mood.value) ? nil : mood.value
           }
         }
       }
@@ -373,10 +435,10 @@ struct HistoryView: View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
         HStack(spacing: DLSpace.sm) {
-          Text(entry.mood.emoji)
+          Text(entry.moodOption.emoji)
             .font(.system(size: 26))
             .frame(width: 38, height: 38)
-            .background(entry.mood.color.opacity(0.16), in: Circle())
+            .background(entry.moodOption.color.opacity(0.16), in: Circle())
 
           VStack(alignment: .leading, spacing: 1) {
             Text(entry.day, format: .dateTime.weekday(.wide))

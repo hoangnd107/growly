@@ -15,6 +15,12 @@ struct CustomizationShopView: View {
 
   private let columns = [GridItem(.adaptive(minimum: 96), spacing: DLSpace.md)]
 
+  /// Editable working copy of the mood catalog, persisted on change.
+  @State private var moods: [MoodOption] = []
+
+  /// Preset colors offered when recoloring a mood.
+  private let moodPalette = ["E5484D", "F0883E", "F5C84B", "8CCF4D", "34C759", "30B0C7", "5AC8FA", "7E5BEF", "AF52DE", "FF5C8A"]
+
   var body: some View {
     ZStack {
       DLColor.background.ignoresSafeArea()
@@ -24,7 +30,7 @@ struct CustomizationShopView: View {
 
           gradientThemesCard
 
-          moodEmojisCard
+          moodsCard
 
           GlassCard {
             LazyVGrid(columns: columns, spacing: DLSpace.md) {
@@ -45,7 +51,10 @@ struct CustomizationShopView: View {
     }
     .navigationTitle("Customize")
     .navigationBarTitleDisplayMode(.inline)
-    .onAppear(perform: syncUnlocks)
+    .onAppear {
+      syncUnlocks()
+      if moods.isEmpty { moods = MoodCatalog.shared.options }
+    }
   }
 
   private var header: some View {
@@ -141,72 +150,161 @@ struct CustomizationShopView: View {
     Haptics.selection()
   }
 
-  // MARK: Mood emojis (custom per level, applied app-wide)
+  // MARK: Moods (rename / recolor built-ins, add custom moods — applied app-wide)
 
-  private var moodEmojisCard: some View {
+  private var moodsCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
         HStack {
-          Label(L("Mood emojis"), systemImage: "face.smiling")
+          Label(L("Moods"), systemImage: "face.smiling")
             .font(.dl(.headline, weight: .semibold))
             .foregroundStyle(progress.accentColor)
           Spacer()
-          if !progress.moodEmojis.isEmpty {
-            Button(L("Reset")) { resetMoodEmojis() }
+          if moods != MoodCatalog.defaults {
+            Button(L("Reset")) { resetMoods() }
               .font(.dl(.subheadline, weight: .semibold))
               .foregroundStyle(progress.accentColor)
           }
         }
 
-        Text(L("Pick your own emoji for each mood — it shows everywhere."))
+        Text(L("Set an emoji and color for each mood, or add your own — moods show everywhere."))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
 
-        ForEach(Mood.allCases) { mood in
-          HStack(spacing: DLSpace.sm) {
-            Circle().fill(mood.color).frame(width: 12, height: 12)
-            Text(L(mood.label))
-              .font(.dl(.body))
-              .foregroundStyle(DLColor.textPrimary)
-            Spacer()
-            TextField(mood.defaultEmoji, text: emojiBinding(for: mood))
-              .multilineTextAlignment(.center)
-              .font(.system(size: 24))
-              .frame(width: 56)
-              .padding(.vertical, 6)
-              .background(
-                RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-                  .fill(DLColor.separator.opacity(0.35))
-              )
-            }
+        ForEach(Array(moods.enumerated()), id: \.element.id) { index, mood in
+          moodEditorRow(index: index, mood: mood)
+          if mood.id != moods.last?.id {
+            Divider().overlay(DLColor.separator.opacity(0.5))
+          }
         }
+
+        Button {
+          addMood()
+        } label: {
+          Label(L("Add mood"), systemImage: "plus.circle.fill")
+            .font(.dl(.subheadline, weight: .semibold))
+            .foregroundStyle(progress.accentColor)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, DLSpace.xs)
       }
     }
+    .onChange(of: moods) { _, _ in persistMoods() }
   }
 
-  private func emojiBinding(for mood: Mood) -> Binding<String> {
-    let index = mood.rawValue - 1
-    return Binding(
-      get: {
-        progress.moodEmojis.indices.contains(index) ? progress.moodEmojis[index] : ""
-      },
+  @ViewBuilder
+  private func moodEditorRow(index: Int, mood: MoodOption) -> some View {
+    HStack(spacing: DLSpace.sm) {
+      // Color picker (preset palette).
+      Menu {
+        ForEach(moodPalette, id: \.self) { hex in
+          Button { setColor(index, to: hex) } label: {
+            Label {
+              Text(verbatim: "#\(hex)")
+            } icon: {
+              Image(systemName: "circle.fill").foregroundStyle(Color(hexString: hex))
+            }
+          }
+        }
+      } label: {
+        Circle()
+          .fill(Color(hexString: mood.colorHex))
+          .frame(width: 26, height: 26)
+          .overlay(Circle().strokeBorder(DLColor.separator, lineWidth: 1))
+      }
+      .accessibilityLabel(L("Mood color"))
+
+      // Emoji (one grapheme).
+      TextField("🙂", text: emojiBinding(index))
+        .multilineTextAlignment(.center)
+        .font(.system(size: 22))
+        .frame(width: 46)
+        .padding(.vertical, 6)
+        .background(
+          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+            .fill(DLColor.separator.opacity(0.35))
+        )
+
+      // Name — built-ins keep their localized label; custom moods are editable.
+      if mood.isBuiltIn {
+        Text(mood.displayName)
+          .font(.dl(.body))
+          .foregroundStyle(DLColor.textPrimary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      } else {
+        TextField(L("Mood name"), text: nameBinding(index))
+          .font(.dl(.body))
+          .foregroundStyle(DLColor.textPrimary)
+          .textInputAutocapitalization(.words)
+          .frame(maxWidth: .infinity, alignment: .leading)
+        Button { removeMood(mood) } label: {
+          Image(systemName: "minus.circle.fill")
+            .font(.system(size: 20))
+            .foregroundStyle(DLColor.streakEnd)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L("Remove mood"))
+      }
+    }
+    .padding(.vertical, 2)
+  }
+
+  // MARK: Mood editing
+
+  private func emojiBinding(_ index: Int) -> Binding<String> {
+    Binding(
+      get: { moods.indices.contains(index) ? moods[index].emoji : "" },
       set: { newValue in
-        var emojis = progress.moodEmojis
-        while emojis.count < Mood.allCases.count { emojis.append("") }
-        emojis[index] = String(newValue.prefix(1))
-        progress.moodEmojis = emojis
-        MoodStyle.shared.emojis = emojis
-        try? context.save()
-        Haptics.selection()
+        guard moods.indices.contains(index) else { return }
+        moods[index].emoji = String(newValue.prefix(1))
       }
     )
   }
 
-  private func resetMoodEmojis() {
+  private func nameBinding(_ index: Int) -> Binding<String> {
+    Binding(
+      get: { moods.indices.contains(index) ? moods[index].label : "" },
+      set: { newValue in
+        guard moods.indices.contains(index) else { return }
+        moods[index].label = newValue
+      }
+    )
+  }
+
+  private func setColor(_ index: Int, to hex: String) {
+    guard moods.indices.contains(index) else { return }
+    moods[index].colorHex = hex
+    Haptics.selection()
+  }
+
+  private func addMood() {
+    let newValue = (moods.map(\.value).max() ?? 5) + 1
+    moods.append(
+      MoodOption(value: newValue, emoji: "⭐️", label: "\(L("Mood")) \(newValue)", colorHex: "5AC8FA", isBuiltIn: false)
+    )
+    Haptics.success()
+  }
+
+  private func removeMood(_ mood: MoodOption) {
+    guard !mood.isBuiltIn else { return }
+    moods.removeAll { $0.value == mood.value }
+    Haptics.medium()
+  }
+
+  private func resetMoods() {
+    progress.moodCatalogJSON = ""
     progress.moodEmojis = []
-    MoodStyle.shared.emojis = []
+    MoodCatalog.shared.apply(from: progress)
+    moods = MoodCatalog.shared.options
     try? context.save()
     Haptics.medium()
+  }
+
+  /// Persist the working copy to the catalog + store (no reassignment, so text
+  /// fields keep their cursor while editing).
+  private func persistMoods() {
+    MoodCatalog.shared.save(moods, to: progress)
+    try? context.save()
   }
 
   private var unlockedCount: Int {

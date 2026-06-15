@@ -58,7 +58,7 @@ enum PDFExporter {
         for entry in sorted {
           ensure(120)
           let header = entry.day.formatted(.dateTime.weekday(.wide).month().day().year())
-          y += draw("\(entry.mood.emoji)  \(header)", font: .systemFont(ofSize: 15, weight: .bold), color: ink, x: margin, y: y, width: contentWidth)
+          y += draw("\(entry.moodOption.emoji)  \(header)", font: .systemFont(ofSize: 15, weight: .bold), color: ink, x: margin, y: y, width: contentWidth)
           y += 6
           for kind in ReflectionKind.allCases {
             let text = entry.text(for: kind).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -105,13 +105,13 @@ enum PDFExporter {
     var counts: [Int: Int] = [:]
     for e in entries { counts[e.moodRaw, default: 0] += 1 }
     let maxCount = max(1, counts.values.max() ?? 1)
-    let moods = Mood.allCases
+    let moods = MoodCatalog.shared.options
     let gap: CGFloat = 12
     let barWidth = (width - gap * CGFloat(moods.count - 1)) / CGFloat(moods.count)
     let maxBarHeight: CGFloat = 80
 
     for (index, mood) in moods.enumerated() {
-      let count = counts[mood.rawValue] ?? 0
+      let count = counts[mood.value] ?? 0
       let barHeight = maxBarHeight * CGFloat(count) / CGFloat(maxCount)
       let bx = x + CGFloat(index) * (barWidth + gap)
       let by = y + (maxBarHeight - barHeight)

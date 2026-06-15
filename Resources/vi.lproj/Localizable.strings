@@ -199,3 +199,28 @@
 "Empty" = "Dọn sạch";
 "Swipe a note to restore or delete it permanently." = "Vuốt một ghi chú để khôi phục hoặc xóa vĩnh viễn.";
 "Long-press to move" = "Nhấn giữ để di chuyển";
+
+/* v8 — sorting, history tag filter, chart ranges, custom moods */
+"Sort by" = "Sắp xếp theo";
+"Newest first" = "Mới nhất trước";
+"Oldest first" = "Cũ nhất trước";
+"Sort notes" = "Sắp xếp ghi chú";
+"Range" = "Khoảng thời gian";
+"Range: %@" = "Khoảng: %@";
+"7 days" = "7 ngày";
+"14 days" = "14 ngày";
+"30 days" = "30 ngày";
+"90 days" = "90 ngày";
+"1 year" = "1 năm";
+"All time" = "Toàn bộ";
+"Mood this week" = "Tâm trạng tuần này";
+"Mood trend" = "Xu hướng tâm trạng";
+"Experience points earned per day" = "Điểm kinh nghiệm mỗi ngày";
+"All tags" = "Tất cả thẻ";
+"Filter by tag" = "Lọc theo thẻ";
+"Moods" = "Tâm trạng";
+"Add mood" = "Thêm tâm trạng";
+"Mood name" = "Tên tâm trạng";
+"Remove mood" = "Xoá tâm trạng";
+"Mood color" = "Màu tâm trạng";
+"Set an emoji and color for each mood, or add your own — moods show everywhere." = "Đặt emoji và màu cho mỗi tâm trạng, hoặc tự thêm — tâm trạng hiển thị ở mọi nơi.";

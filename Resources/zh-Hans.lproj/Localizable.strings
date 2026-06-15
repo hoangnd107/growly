@@ -199,3 +199,28 @@
 "Empty" = "清空";
 "Swipe a note to restore or delete it permanently." = "滑动笔记以恢复或永久删除。";
 "Long-press to move" = "长按以移动";
+
+/* v8 — sorting, history tag filter, chart ranges, custom moods */
+"Sort by" = "排序方式";
+"Newest first" = "最新优先";
+"Oldest first" = "最早优先";
+"Sort notes" = "排序笔记";
+"Range" = "范围";
+"Range: %@" = "范围：%@";
+"7 days" = "7 天";
+"14 days" = "14 天";
+"30 days" = "30 天";
+"90 days" = "90 天";
+"1 year" = "1 年";
+"All time" = "全部时间";
+"Mood this week" = "本周心情";
+"Mood trend" = "心情趋势";
+"Experience points earned per day" = "每日获得经验值";
+"All tags" = "所有标签";
+"Filter by tag" = "按标签筛选";
+"Moods" = "心情";
+"Add mood" = "添加心情";
+"Mood name" = "心情名称";
+"Remove mood" = "删除心情";
+"Mood color" = "心情颜色";
+"Set an emoji and color for each mood, or add your own — moods show everywhere." = "为每种心情设置表情和颜色，或添加自定义心情——心情会显示在各处。";

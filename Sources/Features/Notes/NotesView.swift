@@ -26,7 +26,8 @@ struct NotesView: View {
   @State private var granularity: Granularity = .month
   @State private var folderFilter: String?
   @State private var filter: NoteFilter = .all
-  @State private var moodFilter: Mood?
+  @State private var moodFilter: Int?
+  @State private var sortOrder: NoteSort = .createdDesc
 
   // Sheets
   @State private var editorNote: DayNote?
@@ -76,6 +77,41 @@ struct NotesView: View {
 
   private var isFiltering: Bool { filter != .all || moodFilter != nil }
 
+  // MARK: - Sort
+
+  private enum NoteSort: String, CaseIterable, Identifiable {
+    case createdDesc, createdAsc, title, tag
+    var id: String { rawValue }
+
+    var label: String {
+      switch self {
+      case .createdDesc: return L("Newest first")
+      case .createdAsc: return L("Oldest first")
+      case .title: return L("Title")
+      case .tag: return L("Tag")
+      }
+    }
+
+    var systemImage: String {
+      switch self {
+      case .createdDesc: return "arrow.down"
+      case .createdAsc: return "arrow.up"
+      case .title: return "textformat"
+      case .tag: return "tag"
+      }
+    }
+  }
+
+  // MARK: - Action colors (consistent + distinct across swipe / batch / badges)
+
+  private enum NoteActionColor {
+    static let edit = Color(hex: 0x0A84FF)      // blue
+    static let pin = DLColor.xpGold             // gold
+    static let bookmark = Color(hex: 0xAF52DE)  // purple
+    static let date = Color(hex: 0x30B0C7)      // teal
+    static let delete = DLColor.streakEnd       // red
+  }
+
   // MARK: - Derived data
 
   /// Notes not in the Trash (soft-deleted notes are excluded everywhere).
@@ -102,10 +138,11 @@ struct NotesView: View {
     return ordered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
   }
 
-  /// All active notes after search + folder + filter narrowing (pinned still included).
+  /// All active notes after search + folder + filter narrowing, then sorted by the
+  /// selected order (pinned still included).
   private var matched: [DayNote] {
     let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    return activeNotes.filter { note in
+    let filtered = activeNotes.filter { note in
       if let folderFilter, note.folder != folderFilter { return false }
       switch filter {
       case .all: break
@@ -113,12 +150,37 @@ struct NotesView: View {
       case .bookmarked: if !note.bookmarked { return false }
       case .media: if note.attachments.isEmpty { return false }
       }
-      if let moodFilter, note.mood != moodFilter { return false }
+      if let moodFilter, note.moodRaw != moodFilter { return false }
       guard !q.isEmpty else { return true }
       return note.title.lowercased().contains(q)
         || note.text.lowercased().contains(q)
         || note.tags.contains { $0.lowercased().contains(q) }
         || (note.locationName?.lowercased().contains(q) ?? false)
+    }
+    return sorted(filtered)
+  }
+
+  /// Applies the selected sort order. Title / Tag sorts still group into timeline
+  /// sections; the order just controls placement within and the section sequence.
+  private func sorted(_ list: [DayNote]) -> [DayNote] {
+    switch sortOrder {
+    case .createdDesc:
+      return list.sorted { $0.createdAt > $1.createdAt }
+    case .createdAsc:
+      return list.sorted { $0.createdAt < $1.createdAt }
+    case .title:
+      return list.sorted {
+        displayTitle($0).localizedCaseInsensitiveCompare(displayTitle($1)) == .orderedAscending
+      }
+    case .tag:
+      // Empty-tag notes sort last; ties fall back to newest-first.
+      let last = "\u{10FFFF}"
+      return list.sorted {
+        let a = $0.tags.first?.lowercased() ?? last
+        let b = $1.tags.first?.lowercased() ?? last
+        if a == b { return $0.createdAt > $1.createdAt }
+        return a < b
+      }
     }
   }
 
@@ -234,6 +296,7 @@ struct NotesView: View {
   @ToolbarContentBuilder
   private var toolbarContent: some ToolbarContent {
     if !activeNotes.isEmpty {
+      // Left: filter + sort + (when present) trash — grouped, well away from Select.
       ToolbarItem(placement: .topBarLeading) {
         if selecting {
           Button(allSelected ? L("Deselect all") : L("Select all")) {
@@ -242,37 +305,61 @@ struct NotesView: View {
           .font(.dl(.subheadline, weight: .semibold))
           .accessibilityLabel(allSelected ? L("Deselect all") : L("Select all"))
         } else {
-          filterMenu
-        }
-      }
-    }
-    if !trashedNotes.isEmpty {
-      ToolbarItem(placement: .topBarTrailing) {
-        Button { showTrash = true } label: {
-          Image(systemName: "trash")
-        }
-        .accessibilityLabel(L("Recently deleted"))
-      }
-    }
-    if !activeNotes.isEmpty {
-      ToolbarItem(placement: .topBarTrailing) {
-        Button {
-          withAnimation(DLAnim.standard) {
-            if selecting {
-              editMode = .inactive
-              selection.removeAll()
-            } else {
-              editMode = .active
-            }
+          HStack(spacing: DLSpace.md) {
+            filterMenu
+            sortMenu
+            if !trashedNotes.isEmpty { trashButton }
           }
-          Haptics.selection()
-        } label: {
-          Text(selecting ? L("Done") : L("Select"))
-            .font(.dl(.subheadline, weight: .semibold))
         }
-        .accessibilityLabel(selecting ? L("Done selecting") : L("Select notes"))
       }
+      // Right: Select / Done only.
+      ToolbarItem(placement: .topBarTrailing) {
+        selectButton
+      }
+    } else if !trashedNotes.isEmpty {
+      // No active notes, but the bin still has restorable notes.
+      ToolbarItem(placement: .topBarTrailing) { trashButton }
     }
+  }
+
+  private var trashButton: some View {
+    Button { showTrash = true } label: {
+      Image(systemName: "trash")
+        .font(.system(size: 17, weight: .semibold))
+    }
+    .accessibilityLabel(L("Recently deleted"))
+  }
+
+  private var selectButton: some View {
+    Button {
+      withAnimation(DLAnim.standard) {
+        if selecting {
+          editMode = .inactive
+          selection.removeAll()
+        } else {
+          editMode = .active
+        }
+      }
+      Haptics.selection()
+    } label: {
+      Text(selecting ? L("Done") : L("Select"))
+        .font(.dl(.subheadline, weight: .semibold))
+    }
+    .accessibilityLabel(selecting ? L("Done selecting") : L("Select notes"))
+  }
+
+  private var sortMenu: some View {
+    Menu {
+      Picker(L("Sort by"), selection: $sortOrder) {
+        ForEach(NoteSort.allCases) { order in
+          Label(order.label, systemImage: order.systemImage).tag(order)
+        }
+      }
+    } label: {
+      Image(systemName: "arrow.up.arrow.down.circle")
+        .font(.system(size: 17, weight: .semibold))
+    }
+    .accessibilityLabel(L("Sort notes"))
   }
 
   private var allSelected: Bool {
@@ -289,9 +376,9 @@ struct NotesView: View {
       }
       Divider()
       Picker(L("Mood"), selection: $moodFilter) {
-        Text(L("Any mood")).tag(Mood?.none)
-        ForEach(Mood.allCases) { mood in
-          Text("\(mood.emoji)  \(L(mood.label))").tag(Mood?.some(mood))
+        Text(L("Any mood")).tag(Int?.none)
+        ForEach(MoodCatalog.shared.options) { mood in
+          Text("\(mood.emoji)  \(mood.displayName)").tag(Int?.some(mood.value))
         }
       }
       if isFiltering {
@@ -499,31 +586,36 @@ struct NotesView: View {
       .tag(note.id)
       .contentShape(Rectangle())
       .onTapGesture {
-        if !selecting { editorNote = note }
+        // In select mode, tapping anywhere on the row toggles its selection.
+        if selecting {
+          toggleSelection(note)
+        } else {
+          editorNote = note
+        }
       }
       .swipeActions(edge: .leading, allowsFullSwipe: true) {
         Button { editorNote = note } label: {
           Label(L("Edit"), systemImage: "pencil")
         }
-        .tint(Color(hex: 0x0A84FF))   // blue — edit
+        .tint(NoteActionColor.edit)       // blue — edit
 
         Button { togglePin(note) } label: {
           Label(note.pinned ? L("Unpin") : L("Pin"),
                 systemImage: note.pinned ? "pin.slash" : "pin")
         }
-        .tint(DLColor.xpGold)         // gold — pin
+        .tint(NoteActionColor.pin)        // gold — pin
       }
       .swipeActions(edge: .trailing, allowsFullSwipe: true) {
         Button(role: .destructive) { delete([note]) } label: {
           Label(L("Delete"), systemImage: "trash")
         }
-        .tint(DLColor.streakEnd)      // red — delete
+        .tint(NoteActionColor.delete)     // red — delete
 
         Button { toggleBookmark(note) } label: {
           Label(note.bookmarked ? L("Remove bookmark") : L("Bookmark"),
                 systemImage: note.bookmarked ? "bookmark.slash" : "bookmark")
         }
-        .tint(Color(hex: 0xAF52DE))   // purple — bookmark
+        .tint(NoteActionColor.bookmark)   // purple — bookmark
       }
       .contextMenu { contextMenu(note) }
       .accessibilityElement(children: .combine)
@@ -542,8 +634,8 @@ struct NotesView: View {
       GlassCard {
         VStack(alignment: .leading, spacing: DLSpace.sm) {
           HStack(spacing: DLSpace.sm) {
-            if let mood = note.mood {
-              Text(mood.emoji)
+            if let option = note.moodOption {
+              Text(option.emoji)
             }
             Text(displayTitle(note))
               .font(.dl(.headline, weight: .semibold))
@@ -553,13 +645,13 @@ struct NotesView: View {
             if note.bookmarked {
               Image(systemName: "bookmark.fill")
                 .font(.system(size: 12))
-                .foregroundStyle(theme.accent)
+                .foregroundStyle(NoteActionColor.bookmark)
                 .accessibilityHidden(true)
             }
             if note.pinned {
               Image(systemName: "pin.fill")
                 .font(.system(size: 12))
-                .foregroundStyle(DLColor.xpGold)
+                .foregroundStyle(NoteActionColor.pin)
                 .accessibilityHidden(true)
             }
           }
@@ -631,7 +723,7 @@ struct NotesView: View {
 
   private func rowAccessibilityLabel(_ note: DayNote) -> String {
     var parts: [String] = [displayTitle(note)]
-    if let mood = note.mood { parts.append(mood.label) }
+    if let option = note.moodOption { parts.append(option.displayName) }
     if note.pinned { parts.append(L("Pinned")) }
     if note.bookmarked { parts.append(L("Bookmarked")) }
     if note.hasLocation { parts.append(note.locationName ?? L("Location")) }
@@ -710,13 +802,13 @@ struct NotesView: View {
 
   private var batchActionBar: some View {
     HStack(spacing: DLSpace.lg) {
-      batchButton(title: L("Pin"), systemImage: "pin.fill", action: batchPin)
-      batchButton(title: L("Bookmark"), systemImage: "bookmark.fill", action: batchBookmark)
-      batchButton(title: L("Date"), systemImage: "calendar") {
+      batchButton(title: L("Pin"), systemImage: "pin.fill", tint: NoteActionColor.pin, action: batchPin)
+      batchButton(title: L("Bookmark"), systemImage: "bookmark.fill", tint: NoteActionColor.bookmark, action: batchBookmark)
+      batchButton(title: L("Date"), systemImage: "calendar", tint: NoteActionColor.date) {
         batchDate = Date()
         showBatchDatePicker = true
       }
-      batchButton(title: L("Delete"), systemImage: "trash", role: .destructive) {
+      batchButton(title: L("Delete"), systemImage: "trash", tint: NoteActionColor.delete, role: .destructive) {
         delete(selectedNotes())
         withAnimation(DLAnim.standard) {
           selection.removeAll()
@@ -738,6 +830,7 @@ struct NotesView: View {
   private func batchButton(
     title: String,
     systemImage: String,
+    tint: Color,
     role: ButtonRole? = nil,
     action: @escaping () -> Void
   ) -> some View {
@@ -753,7 +846,7 @@ struct NotesView: View {
           .minimumScaleFactor(0.8)
       }
       .frame(maxWidth: .infinity)
-      .foregroundStyle(role == .destructive ? DLColor.streakEnd : theme.accent)
+      .foregroundStyle(tint)
     }
     .buttonStyle(.plain)
   }
@@ -800,6 +893,19 @@ struct NotesView: View {
         selection.removeAll()
       } else {
         selection = Set(visibleIDs)
+      }
+    }
+    Haptics.selection()
+  }
+
+  /// Toggles a single note's membership in the multi-select set (so tapping the
+  /// row body selects it, not just the leading checkmark).
+  private func toggleSelection(_ note: DayNote) {
+    withAnimation(DLAnim.quick) {
+      if selection.contains(note.id) {
+        selection.remove(note.id)
+      } else {
+        selection.insert(note.id)
       }
     }
     Haptics.selection()

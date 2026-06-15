@@ -2,22 +2,6 @@ import SwiftUI
 
 // MARK: - Mood
 
-/// Holds the user's optional per-level mood emoji overrides so a custom emoji
-/// shows everywhere `Mood.emoji` is read (set from `UserProgress.moodEmojis`).
-/// `emojis` is either empty (use defaults) or holds one entry per mood level.
-final class MoodStyle {
-  static let shared = MoodStyle()
-  var emojis: [String] = []
-
-  /// The override for a 1-based mood level, or nil to fall back to the default.
-  func emoji(for level: Int) -> String? {
-    let index = level - 1
-    guard emojis.indices.contains(index) else { return nil }
-    let value = emojis[index].trimmingCharacters(in: .whitespaces)
-    return value.isEmpty ? nil : value
-  }
-}
-
 enum Mood: Int, CaseIterable, Identifiable {
   case awful = 1
   case low
@@ -27,11 +11,9 @@ enum Mood: Int, CaseIterable, Identifiable {
 
   var id: Int { rawValue }
 
-  /// The user's custom emoji for this level if set, else the default.
-  var emoji: String {
-    if let custom = MoodStyle.shared.emoji(for: rawValue) { return custom }
-    return defaultEmoji
-  }
+  /// The default emoji for this built-in mood. Per-user skins are applied through
+  /// `MoodCatalog` / `MoodOption`, not here.
+  var emoji: String { defaultEmoji }
 
   var defaultEmoji: String {
     switch self {
@@ -53,13 +35,17 @@ enum Mood: Int, CaseIterable, Identifiable {
     }
   }
 
-  var color: Color {
+  var color: Color { Color(hexString: defaultColorHex) }
+
+  /// The default color (hex, no `#`) for this built-in mood. Used as the seed for
+  /// the customizable `MoodOption`.
+  var defaultColorHex: String {
     switch self {
-    case .awful: return Color(hex: 0xE5484D)
-    case .low: return Color(hex: 0xF0883E)
-    case .neutral: return Color(hex: 0xF5C84B)
-    case .good: return Color(hex: 0x8CCF4D)
-    case .great: return Color(hex: 0x34C759)
+    case .awful: return "E5484D"
+    case .low: return "F0883E"
+    case .neutral: return "F5C84B"
+    case .good: return "8CCF4D"
+    case .great: return "34C759"
     }
   }
 }

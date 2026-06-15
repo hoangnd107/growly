@@ -64,8 +64,8 @@ struct MoodHeatmap: View {
   /// mood's color. Future days inside the trailing week are invisible.
   private func fill(for day: HeatmapDay) -> Color {
     guard !day.isFuture else { return .clear }
-    if let mood = day.mood {
-      return mood.color
+    if let raw = day.moodRaw, let option = MoodCatalog.shared.option(forValue: raw) {
+      return option.color
     }
     return DLColor.separator.opacity(0.35)
   }
@@ -80,7 +80,7 @@ struct MoodHeatmap: View {
 
       HStack(spacing: gap) {
         legendSwatch(DLColor.separator.opacity(0.35))
-        ForEach(Mood.allCases) { mood in
+        ForEach(MoodCatalog.shared.options) { mood in
           legendSwatch(mood.color)
         }
       }
@@ -100,13 +100,13 @@ struct MoodHeatmap: View {
 
   // MARK: - Derived data
 
-  /// Map from start-of-day → mood, built once from all entries.
-  private var moodByDay: [Date: Mood] {
-    var map: [Date: Mood] = [:]
+  /// Map from start-of-day → stored mood value, built once from all entries.
+  private var moodByDay: [Date: Int] {
+    var map: [Date: Int] = [:]
     for entry in entries {
       let key = calendar.startOfDay(for: entry.day)
       // Entries are already one-per-day in practice; last write wins.
-      map[key] = entry.mood
+      map[key] = entry.moodRaw
     }
     return map
   }
@@ -139,7 +139,7 @@ struct MoodHeatmap: View {
         days.append(
           HeatmapDay(
             date: key,
-            mood: moods[key],
+            moodRaw: moods[key],
             isFuture: key > today
           )
         )
@@ -163,7 +163,7 @@ struct MoodHeatmap: View {
   private var accessibilitySummary: String {
     let logged = weeks
       .flatMap { $0.days }
-      .filter { !$0.isFuture && $0.mood != nil }
+      .filter { !$0.isFuture && $0.moodRaw != nil }
       .count
     return Lf("Mood calendar. %d days logged in the last %d weeks.", logged, weekCount)
   }
@@ -180,6 +180,6 @@ private struct HeatmapWeek: Identifiable {
 private struct HeatmapDay: Identifiable {
   var id: Date { date }
   let date: Date
-  let mood: Mood?
+  let moodRaw: Int?
   let isFuture: Bool
 }

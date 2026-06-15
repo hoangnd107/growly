@@ -470,7 +470,7 @@ struct SettingsView: View {
           "lesson": entry.lesson,
           "adjustment": entry.adjustment,
           "adjustmentDone": entry.adjustmentDone,
-          "mood": entry.mood.label,
+          "mood": entry.moodOption.label,
           "energy": entry.energy,
           "morningIntention": entry.morningIntention,
           "tags": entry.tags,

@@ -239,21 +239,24 @@ private struct NoteEditorForm: View {
   }
 
   private var moodRow: some View {
-    HStack(spacing: DLSpace.sm) {
-      ForEach(Mood.allCases) { mood in
-        Button {
-          note.moodRaw = (note.moodRaw == mood.rawValue) ? nil : mood.rawValue
-          Haptics.selection()
-        } label: {
-          Text(mood.emoji)
-            .font(.system(size: note.moodRaw == mood.rawValue ? 28 : 22))
-            .padding(6)
-            .background(
-              note.moodRaw == mood.rawValue ? mood.color.opacity(0.18) : Color.clear,
-              in: Circle()
-            )
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(spacing: DLSpace.sm) {
+        ForEach(MoodCatalog.shared.options) { mood in
+          Button {
+            note.moodRaw = (note.moodRaw == mood.value) ? nil : mood.value
+            Haptics.selection()
+          } label: {
+            Text(mood.emoji)
+              .font(.system(size: note.moodRaw == mood.value ? 28 : 22))
+              .padding(6)
+              .background(
+                note.moodRaw == mood.value ? mood.color.opacity(0.18) : Color.clear,
+                in: Circle()
+              )
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel(mood.displayName)
         }
-        .buttonStyle(.plain)
       }
     }
   }

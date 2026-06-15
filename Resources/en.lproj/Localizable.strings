@@ -199,3 +199,28 @@
 "Empty" = "Empty";
 "Swipe a note to restore or delete it permanently." = "Swipe a note to restore or delete it permanently.";
 "Long-press to move" = "Long-press to move";
+
+/* v8 — sorting, history tag filter, chart ranges, custom moods */
+"Sort by" = "Sort by";
+"Newest first" = "Newest first";
+"Oldest first" = "Oldest first";
+"Sort notes" = "Sort notes";
+"Range" = "Range";
+"Range: %@" = "Range: %@";
+"7 days" = "7 days";
+"14 days" = "14 days";
+"30 days" = "30 days";
+"90 days" = "90 days";
+"1 year" = "1 year";
+"All time" = "All time";
+"Mood this week" = "Mood this week";
+"Mood trend" = "Mood trend";
+"Experience points earned per day" = "Experience points earned per day";
+"All tags" = "All tags";
+"Filter by tag" = "Filter by tag";
+"Moods" = "Moods";
+"Add mood" = "Add mood";
+"Mood name" = "Mood name";
+"Remove mood" = "Remove mood";
+"Mood color" = "Mood color";
+"Set an emoji and color for each mood, or add your own — moods show everywhere." = "Set an emoji and color for each mood, or add your own — moods show everywhere.";

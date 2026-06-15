@@ -199,3 +199,28 @@
 "Empty" = "비우기";
 "Swipe a note to restore or delete it permanently." = "메모를 밀어 복원하거나 영구 삭제하세요.";
 "Long-press to move" = "길게 눌러 이동";
+
+/* v8 — sorting, history tag filter, chart ranges, custom moods */
+"Sort by" = "정렬 기준";
+"Newest first" = "최신순";
+"Oldest first" = "오래된순";
+"Sort notes" = "메모 정렬";
+"Range" = "범위";
+"Range: %@" = "범위: %@";
+"7 days" = "7일";
+"14 days" = "14일";
+"30 days" = "30일";
+"90 days" = "90일";
+"1 year" = "1년";
+"All time" = "전체 기간";
+"Mood this week" = "이번 주 기분";
+"Mood trend" = "기분 추이";
+"Experience points earned per day" = "하루에 얻은 경험치";
+"All tags" = "모든 태그";
+"Filter by tag" = "태그로 필터링";
+"Moods" = "기분";
+"Add mood" = "기분 추가";
+"Mood name" = "기분 이름";
+"Remove mood" = "기분 삭제";
+"Mood color" = "기분 색상";
+"Set an emoji and color for each mood, or add your own — moods show everywhere." = "각 기분에 이모지와 색상을 지정하거나 직접 추가하세요 — 기분은 모든 곳에 표시됩니다.";

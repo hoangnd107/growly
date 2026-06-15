@@ -66,6 +66,12 @@ final class DayNote {
 
   var mood: Mood? { moodRaw.flatMap { Mood(rawValue: $0) } }
 
+  /// The mood resolved against the user's customizable catalog (nil when unset).
+  /// Use this for display; `moodRaw` stays the stored ordinal.
+  var moodOption: MoodOption? {
+    moodRaw.flatMap { MoodCatalog.shared.option(forValue: $0) }
+  }
+
   var sortedAttachments: [MediaAttachment] {
     attachments.sorted { $0.order < $1.order }
   }

@@ -67,11 +67,11 @@ struct EntryDetailView: View {
               .font(.dl(.caption, weight: .medium))
               .foregroundStyle(DLColor.textTertiary)
             HStack(spacing: DLSpace.sm) {
-              Text(entry.mood.emoji)
+              Text(entry.moodOption.emoji)
                 .font(.system(size: 28))
-              Text(L(entry.mood.label))
+              Text(entry.moodOption.displayName)
                 .font(.dl(.subheadline, weight: .semibold))
-                .foregroundStyle(entry.mood.color)
+                .foregroundStyle(entry.moodOption.color)
             }
           }
 

@@ -18,10 +18,10 @@ struct DailyXPPoint: Identifiable {
   let xp: Int
 }
 
-/// Count of entries logged on a given Mood value, for the distribution chart.
+/// Count of entries logged on a given mood, for the distribution chart.
 struct MoodCountPoint: Identifiable {
   let id = UUID()
-  let mood: Mood
+  let mood: MoodOption
   let count: Int
 }
 
@@ -109,12 +109,12 @@ struct MoodTrendChart: View {
           y: .value("Mood", point.mood ?? 0)
         )
         .symbolSize(60)
-        .foregroundStyle((Mood(rawValue: point.mood ?? 3) ?? .neutral).color)
+        .foregroundStyle(MoodCatalog.shared.option(forValue: point.mood ?? 3)?.color ?? DLColor.textTertiary)
       }
 
       // Tapped marker: a vertical rule plus an annotation bubble.
-      if let selected = selectedPoint, let raw = selected.mood {
-        let mood = Mood(rawValue: raw) ?? .neutral
+      if let selected = selectedPoint, let raw = selected.mood,
+         let mood = MoodCatalog.shared.option(forValue: raw) {
         RuleMark(x: .value("Day", selected.day, unit: .day))
           .foregroundStyle(DLColor.textTertiary.opacity(0.5))
           .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
@@ -130,7 +130,7 @@ struct MoodTrendChart: View {
                   .foregroundStyle(DLColor.textSecondary)
                 HStack(spacing: 4) {
                   Text(mood.emoji).font(.system(size: 14))
-                  Text(L(mood.label))
+                  Text(mood.displayName)
                     .font(.dl(.caption, weight: .semibold))
                     .foregroundStyle(mood.color)
                 }
@@ -147,19 +147,19 @@ struct MoodTrendChart: View {
       }
     }
     .chartXSelection(value: $selectedDate)
-    .chartYScale(domain: 1...5)
+    .chartYScale(domain: 1...MoodCatalog.shared.maxValue)
     .chartYAxis {
-      AxisMarks(values: [1, 2, 3, 4, 5]) { value in
+      AxisMarks(values: MoodCatalog.shared.options.map(\.value)) { value in
         AxisGridLine().foregroundStyle(DLColor.separator.opacity(0.5))
         AxisValueLabel {
-          if let raw = value.as(Int.self), let mood = Mood(rawValue: raw) {
+          if let raw = value.as(Int.self), let mood = MoodCatalog.shared.option(forValue: raw) {
             Text(mood.emoji).font(.system(size: 13))
           }
         }
       }
     }
     .chartXAxis {
-      AxisMarks(values: .stride(by: .day, count: 3)) { value in
+      AxisMarks(values: .automatic(desiredCount: 6)) { _ in
         AxisGridLine().foregroundStyle(DLColor.separator.opacity(0.4))
         AxisValueLabel(format: .dateTime.month(.abbreviated).day())
           .font(.dl(.caption2))
@@ -240,7 +240,7 @@ struct XPPerDayChart: View {
       }
     }
     .chartXAxis {
-      AxisMarks(values: .stride(by: .day, count: 3)) { _ in
+      AxisMarks(values: .automatic(desiredCount: 6)) { _ in
         AxisGridLine().foregroundStyle(DLColor.separator.opacity(0.4))
         AxisValueLabel(format: .dateTime.month(.abbreviated).day())
           .font(.dl(.caption2))
@@ -259,10 +259,10 @@ struct MoodDistributionChart: View {
   let points: [MoodCountPoint]
   let animate: Bool
 
-  /// Tap-selected mood. Categorical (count) charts have no meaningful
+  /// Tap-selected mood value. Categorical (count) charts have no meaningful
   /// `.chartXSelection` on the value axis, so we drive selection from a tap on
   /// the plot area via `.chartOverlay` instead and emphasize the chosen bar.
-  @State private var selectedMood: Mood?
+  @State private var selectedValue: Int?
 
   private var maxCount: Int { max(1, points.map(\.count).max() ?? 1) }
 
@@ -270,23 +270,23 @@ struct MoodDistributionChart: View {
     Chart(points) { point in
       BarMark(
         x: .value("Count", point.count),
-        y: .value("Mood", point.mood.label)
+        y: .value("Mood", point.mood.displayName)
       )
       .cornerRadius(6)
       .foregroundStyle(point.mood.color)
       // Dim the non-selected bars once a selection exists.
-      .opacity(selectedMood == nil || selectedMood == point.mood ? 1 : 0.35)
+      .opacity(selectedValue == nil || selectedValue == point.mood.value ? 1 : 0.35)
       .annotation(position: .trailing, alignment: .leading) {
         if point.count > 0 {
           Text("\(point.count)")
-            .font(.dl(.caption2, weight: selectedMood == point.mood ? .bold : .semibold))
-            .foregroundStyle(selectedMood == point.mood ? point.mood.color : DLColor.textSecondary)
+            .font(.dl(.caption2, weight: selectedValue == point.mood.value ? .bold : .semibold))
+            .foregroundStyle(selectedValue == point.mood.value ? point.mood.color : DLColor.textSecondary)
             .monospacedDigit()
         }
       }
     }
-    // Stable top-to-bottom ordering: Great … Awful.
-    .chartYScale(domain: Mood.allCases.reversed().map(\.label))
+    // Stable top-to-bottom ordering: best … worst.
+    .chartYScale(domain: MoodCatalog.shared.options.reversed().map(\.displayName))
     .chartXScale(domain: 0...(maxCount + 1))
     .chartXAxis {
       AxisMarks { value in
@@ -322,17 +322,17 @@ struct MoodDistributionChart: View {
             let origin = geo[plotFrame].origin
             let yInPlot = location.y - origin.y
             if let label: String = proxy.value(atY: yInPlot),
-               let mood = Mood.allCases.first(where: { $0.label == label }) {
-              selectedMood = (selectedMood == mood) ? nil : mood
+               let mood = MoodCatalog.shared.options.first(where: { $0.displayName == label }) {
+              selectedValue = (selectedValue == mood.value) ? nil : mood.value
             } else {
-              selectedMood = nil
+              selectedValue = nil
             }
           }
       }
     }
     .frame(height: 200)
     .animation(animate ? DLAnim.standard : nil, value: points.map(\.count))
-    .animation(animate ? DLAnim.quick : nil, value: selectedMood)
+    .animation(animate ? DLAnim.quick : nil, value: selectedValue)
   }
 }
 
