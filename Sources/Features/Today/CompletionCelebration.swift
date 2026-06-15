@@ -2,8 +2,8 @@ import SwiftUI
 import SwiftData
 
 /// Full-screen celebration shown after completing the daily review.
-/// Dimmed scrim + confetti, a big celebrating flame, Ember hopping in joyfully,
-/// XP / streak multiplier / level-up / new badges, an AICoach quote and Continue.
+/// Dimmed scrim + confetti, a big celebrating flame, XP / streak multiplier /
+/// level-up / new badges, an AICoach quote and Continue.
 /// Spring entrance, tap-to-dismiss, Reduce-Motion aware, gradient-theme tinted.
 struct CompletionCelebration: View {
   let result: ReviewResult
@@ -14,7 +14,6 @@ struct CompletionCelebration: View {
 
   @State private var appear = false
   @State private var flameAppear = false
-  @State private var miraAppear = false
   @State private var glowPulse = false
 
   // Stable so a re-render doesn't shuffle the quote.
@@ -107,24 +106,15 @@ struct CompletionCelebration: View {
     .accessibilityAddTraits(.isModal)
   }
 
-  // MARK: Header (flame + mascot + headline)
+  // MARK: Header (flame + headline)
 
   private var celebrationHeader: some View {
     VStack(spacing: DLSpace.sm) {
-      ZStack {
-        // Big celebrating flame with a warm gradient + glow.
-        flame
-          .scaleEffect(flameAppear ? 1 : 0.4)
-          .opacity(flameAppear ? 1 : 0)
-
-        // The mascot hops in joyfully, perched at the flame's lower-right.
-        FlameMascot(size: 120)
-          .offset(x: 64, y: 34)
-          .scaleEffect(miraAppear ? 1 : 0.3, anchor: .bottom)
-          .offset(y: miraAppear ? 0 : 40)
-          .opacity(miraAppear ? 1 : 0)
-      }
-      .frame(maxWidth: .infinity)
+      // Big celebrating flame with a warm gradient + glow.
+      flame
+        .scaleEffect(flameAppear ? 1 : 0.4)
+        .opacity(flameAppear ? 1 : 0)
+        .frame(maxWidth: .infinity)
 
       Text(result.leveledUp ? L("Level Up!") : L("Day complete!"))
         .font(.dl(.largeTitle, weight: .bold))
@@ -173,16 +163,12 @@ struct CompletionCelebration: View {
     guard !reduceMotion else {
       appear = true
       flameAppear = true
-      miraAppear = true
       return
     }
 
     withAnimation(DLAnim.bouncy) { appear = true }
     withAnimation(.spring(response: 0.5, dampingFraction: 0.55).delay(0.08)) {
       flameAppear = true
-    }
-    withAnimation(.spring(response: 0.45, dampingFraction: 0.5).delay(0.22)) {
-      miraAppear = true
     }
     withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
       glowPulse = true

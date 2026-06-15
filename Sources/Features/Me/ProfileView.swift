@@ -76,9 +76,9 @@ private struct ProfileContent: View {
       VStack(spacing: DLSpace.lg) {
         levelHeaderSection
         statsStrip
-        streakFreezeCard
         badgeGallery
         navigationCards
+        streakFreezeCard
       }
       .padding(DLSpace.md)
       .frame(maxWidth: 640)
@@ -92,7 +92,7 @@ private struct ProfileContent: View {
     }
   }
 
-  // MARK: 1. Level header + rank + mascot
+  // MARK: 1. Level header + rank
 
   private var levelHeaderSection: some View {
     let level = progress.levelInfo.level
@@ -102,8 +102,7 @@ private struct ProfileContent: View {
 
       GlassCard {
         HStack(alignment: .center, spacing: DLSpace.md) {
-          FlameMascot(size: 76, quote: congratsQuote(rank: rank, level: level))
-            .frame(width: 76)
+          EmptyGlyph(systemImage: "rosette", size: 76, tint: progress.accentColor)
 
           VStack(alignment: .leading, spacing: DLSpace.xs) {
             Text(L("Your rank"))
@@ -123,11 +122,6 @@ private struct ProfileContent: View {
         }
       }
     }
-  }
-
-  private func congratsQuote(rank: String, level: Int) -> String {
-    if level <= 1 { return L("Let's grow together!") }
-    return Lf("You're a %@ now!", L(rank))
   }
 
   // MARK: 2. Stats strip
@@ -412,7 +406,7 @@ private struct ProfileContent: View {
       } label: {
         navRow(
           title: L("Customize"),
-          subtitle: L("Unlock accent colors by level"),
+          subtitle: L("Themes & accent colors"),
           systemImage: "paintpalette.fill",
           tint: progress.accentColor
         )
@@ -436,7 +430,7 @@ private struct ProfileContent: View {
       } label: {
         navRow(
           title: L("Settings"),
-          subtitle: L("Theme, Face ID, export & about"),
+          subtitle: L("Face ID, reminders, export & about"),
           systemImage: "gearshape.fill",
           tint: DLColor.textSecondary
         )

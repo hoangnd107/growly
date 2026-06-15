@@ -88,11 +88,7 @@ private struct TodayContent: View {
       VStack(spacing: DLSpace.lg) {
         header
 
-        Picker(L("Today"), selection: $mode) {
-          Text(L("Evening")).tag(Mode.evening)
-          Text(L("Morning")).tag(Mode.morning)
-        }
-        .pickerStyle(.segmented)
+        modeSelector
 
         if mode == .evening {
           eveningSection
@@ -121,12 +117,53 @@ private struct TodayContent: View {
     }
   }
 
-  // MARK: Header (level + mascot)
+  // MARK: Header (level)
 
   private var header: some View {
-    // The mascot now floats globally (see FlameMascotOverlay), so the header is
-    // just the level/XP summary.
     LevelHeader(progress: progress, todayXP: entry.xpAwarded)
+  }
+
+  // MARK: Mode selector (Evening / Morning)
+
+  /// A capsule toggle that also responds to a horizontal swipe, so the user can
+  /// swipe between Evening and Morning. The drag is scoped to this control so it
+  /// never steals vertical scrolling or the between-tabs page swipe.
+  private var modeSelector: some View {
+    HStack(spacing: 4) {
+      ForEach([Mode.evening, Mode.morning], id: \.self) { item in
+        let isSelected = mode == item
+        Button {
+          withAnimation(DLAnim.standard) { mode = item }
+          Haptics.selection()
+        } label: {
+          Text(item == .evening ? L("Evening") : L("Morning"))
+            .font(.dl(.subheadline, weight: .semibold))
+            .foregroundStyle(isSelected ? Color.white : DLColor.textSecondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background {
+              if isSelected { Capsule().fill(Color.accentColor) }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+      }
+    }
+    .padding(4)
+    .background(DLColor.surfaceElevated, in: Capsule())
+    .overlay(Capsule().strokeBorder(DLColor.separator.opacity(0.6), lineWidth: 1))
+    .highPriorityGesture(
+      DragGesture(minimumDistance: 24)
+        .onEnded { value in
+          guard abs(value.translation.width) > abs(value.translation.height),
+                abs(value.translation.width) > 40 else { return }
+          withAnimation(DLAnim.standard) {
+            mode = value.translation.width < 0 ? .morning : .evening
+          }
+          Haptics.selection()
+        }
+    )
   }
 
   // MARK: Evening
@@ -138,8 +175,6 @@ private struct TodayContent: View {
     }
 
     MoodEnergyCard(moodRaw: $entry.moodRaw, energy: $entry.energy)
-
-    sleepQuickCard
 
     goalsReminderCard
 
@@ -186,7 +221,8 @@ private struct TodayContent: View {
         attachments: entry.sortedAttachments,
         onAddImage: { data in addAttachment(data: data, type: .image, ext: "jpg") },
         onAddVideo: { data, ext in addAttachment(data: data, type: .video, ext: ext) },
-        onDelete: deleteAttachment
+        onDelete: deleteAttachment,
+        onAddAudio: addAudioAttachment
       )
     }
   }
@@ -337,8 +373,6 @@ private struct TodayContent: View {
       }
     }
 
-    sleepQuickCard
-
     goalsReminderCard
 
     GlassCard {
@@ -384,6 +418,9 @@ private struct TodayContent: View {
         }
       }
     }
+
+    // Sleep is logged in the morning (last night's rest), so it sits at the end.
+    sleepQuickCard
   }
 
   private func habitRow(_ habit: Habit) -> some View {
@@ -432,6 +469,14 @@ private struct TodayContent: View {
   private func addAttachment(data: Data, type: MediaType, ext: String) {
     guard let fileName = MediaStore.save(data, ext: ext) else { return }
     let attachment = MediaAttachment(fileName: fileName, type: type, order: entry.attachments.count)
+    attachment.entry = entry
+    context.insert(attachment)
+    try? context.save()
+  }
+
+  /// Attaches a recorded voice memo (already saved to disk by `AudioRecorder`).
+  private func addAudioAttachment(_ fileName: String) {
+    let attachment = MediaAttachment(fileName: fileName, type: .audio, order: entry.attachments.count)
     attachment.entry = entry
     context.insert(attachment)
     try? context.save()

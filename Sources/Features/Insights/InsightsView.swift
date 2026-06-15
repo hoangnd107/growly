@@ -6,11 +6,11 @@ import Charts
 ///
 /// Sections, top to bottom:
 /// 1. AI Insights  — on-device heuristic patterns from `InsightsEngine`.
-/// 2. Growth score — the compound score plus a cumulative-reviews curve.
-/// 3. Mood calendar — week / month / year views of mood color.
-/// 4. Charts        — mood trend, XP per day, mood distribution.
-/// 5. Sleep summary — averages + a link to the sleep tracker.
-/// 6. Goals summary — active/completed counts + a link to goals.
+/// 2. Goals summary — active/completed counts + a link to goals.
+/// 3. Sleep summary — averages + a link to the sleep tracker.
+/// 4. Growth score — the compound score plus a cumulative-reviews curve.
+/// 5. Mood calendar — week / month / year views of mood color.
+/// 6. Charts        — mood trend, XP per day, mood distribution.
 ///
 /// Everything lives in a `NavigationStack` so the summary cards can push the
 /// Sleep and Goals destinations. The whole screen is reduce-motion aware and
@@ -76,7 +76,7 @@ struct InsightsView: View {
   private var emptyState: some View {
     ContentUnavailableView {
       VStack(spacing: DLSpace.md) {
-        FlameMascot(size: 120, quote: L("Your story starts here!"))
+        EmptyGlyph(systemImage: "chart.line.uptrend.xyaxis", size: 120, tint: theme.accent)
         Text(L("No insights yet"))
           .font(.dl(.title3, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)
@@ -93,6 +93,7 @@ struct InsightsView: View {
       VStack(spacing: DLSpace.lg) {
         aiInsightsCard
         goalsSummaryCard
+        sleepSummaryCard
         growthScoreCard
         moodCalendarCard
         if !entries.isEmpty {
@@ -100,7 +101,6 @@ struct InsightsView: View {
           xpPerDayCard
           moodDistributionCard
         }
-        sleepSummaryCard
       }
       .padding(DLSpace.md)
     }

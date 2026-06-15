@@ -37,7 +37,6 @@ struct SettingsView: View {
   var body: some View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
-        themesCard
         appearanceCard
         languageCard
         securityCard
@@ -82,75 +81,7 @@ struct SettingsView: View {
     }
   }
 
-  // MARK: 1. Themes
-
-  private var themesCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        sectionHeader(L("Themes"), systemImage: "paintpalette.fill", tint: progress.accentColor)
-
-        LazyVGrid(
-          columns: Array(repeating: GridItem(.flexible(), spacing: DLSpace.md), count: 3),
-          spacing: DLSpace.md
-        ) {
-          ForEach(GradientThemeCatalog.all) { theme in
-            themeSwatch(theme)
-          }
-        }
-
-        Text(L("Tap a theme to recolor the whole app."))
-          .font(.dl(.caption2))
-          .foregroundStyle(DLColor.textTertiary)
-      }
-    }
-  }
-
-  private func themeSwatch(_ theme: GradientTheme) -> some View {
-    let selected = progress.gradientThemeID == theme.id
-    return Button {
-      selectTheme(theme)
-    } label: {
-      VStack(spacing: DLSpace.xs) {
-        ZStack {
-          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-            .fill(theme.accentGradient)
-            .frame(height: 56)
-            .overlay(
-              RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-                .strokeBorder(
-                  selected ? DLColor.textPrimary : DLColor.separator.opacity(0.6),
-                  lineWidth: selected ? 3 : 1
-                )
-            )
-          if selected {
-            Image(systemName: "checkmark")
-              .font(.system(size: 18, weight: .bold))
-              .foregroundStyle(.white)
-              .shadow(radius: 1)
-          }
-        }
-        Text(L(theme.name))
-          .font(.dl(.caption2, weight: selected ? .bold : .medium))
-          .foregroundStyle(selected ? DLColor.textPrimary : DLColor.textSecondary)
-          .lineLimit(1)
-          .minimumScaleFactor(0.7)
-      }
-      .contentShape(Rectangle())
-    }
-    .buttonStyle(.plain)
-    .bounceTap()
-    .accessibilityLabel(L(theme.name))
-    .accessibilityAddTraits(selected ? [.isSelected] : [])
-  }
-
-  private func selectTheme(_ theme: GradientTheme) {
-    progress.gradientThemeID = theme.id
-    progress.accentColorHex = theme.accentHexString
-    save()
-    Haptics.selection()
-  }
-
-  // MARK: 2. Appearance
+  // MARK: 1. Appearance
 
   private var appearanceCard: some View {
     GlassCard {
@@ -223,12 +154,15 @@ struct SettingsView: View {
   }
 
   /// Reads/writes the stored `languageCode` as a strongly-typed `AppLanguage`.
-  /// RootView observes `languageCode` and rebuilds, so the UI re-localizes.
+  /// The active bundle is switched synchronously and the locale environment
+  /// change re-runs the visible views' bodies, so the UI re-localizes in place
+  /// without resetting navigation — the user stays here in Settings.
   private var languageBinding: Binding<AppLanguage> {
     Binding(
       get: { AppLanguage(rawValue: progress.languageCode) ?? .system },
       set: {
         progress.languageCode = $0.rawValue
+        LocalizationManager.shared.code = $0.rawValue
         save()
         Haptics.selection()
       }
@@ -629,6 +563,8 @@ struct SettingsView: View {
         infoRow(L("Version"), value: appVersion)
         Divider().overlay(DLColor.separator)
         infoRow(L("Made for"), value: L("Daily reflection"))
+        Divider().overlay(DLColor.separator)
+        infoRow(L("Author"), value: "Nguyen Duy Hoang")
         Divider().overlay(DLColor.separator)
         Text(L("Growly turns a daily Win · Mistake · Lesson · Adjustment review into momentum."))
           .font(.dl(.caption))

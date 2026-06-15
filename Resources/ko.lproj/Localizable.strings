@@ -168,3 +168,6 @@
 "Mood" = "기분";
 "Ember, your flame" = "Ember, 당신의 불꽃";
 "Ember — drag to move, tap to play" = "Ember — 길게 눌러 이동, 탭하여 놀기";
+
+/* v4 — author */
+"Author" = "제작자";

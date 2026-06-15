@@ -92,7 +92,7 @@ struct HistoryView: View {
   private var emptyState: some View {
     ContentUnavailableView {
       VStack(spacing: DLSpace.md) {
-        FlameMascot(size: 110, quote: L("Your story starts here."))
+        EmptyGlyph(systemImage: "book.closed", size: 110, tint: theme.accent)
         Text(L("No entries yet"))
           .font(.dl(.title3, weight: .bold))
           .foregroundStyle(DLColor.textPrimary)

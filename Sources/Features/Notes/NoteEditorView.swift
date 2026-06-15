@@ -65,50 +65,75 @@ private struct NoteEditorForm: View {
   var body: some View {
     NavigationStack {
       ScrollView {
-        VStack(alignment: .leading, spacing: DLSpace.md) {
-          metaRow
-          TextField(L("Title"), text: $note.title, axis: .vertical)
-            .font(.dl(.title, weight: .bold))
-            .foregroundStyle(DLColor.textPrimary)
-            .textInputAutocapitalization(.sentences)
+        VStack(alignment: .leading, spacing: DLSpace.lg) {
+          // The note "page": date, title, body, recording/location cues.
+          GlassCard(padding: DLSpace.lg) {
+            VStack(alignment: .leading, spacing: DLSpace.md) {
+              metaRow
+              TextField(L("Title"), text: $note.title, axis: .vertical)
+                .font(.dl(.title, weight: .bold))
+                .foregroundStyle(DLColor.textPrimary)
+                .textInputAutocapitalization(.sentences)
 
-          Divider().overlay(DLColor.separator)
+              Divider().overlay(DLColor.separator)
 
-          if previewing {
-            Group {
-              if note.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text(L("Nothing to preview yet."))
-                  .font(.dl(.body))
-                  .foregroundStyle(DLColor.textTertiary)
+              if previewing {
+                Group {
+                  if note.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(L("Nothing to preview yet."))
+                      .font(.dl(.body))
+                      .foregroundStyle(DLColor.textTertiary)
+                  } else {
+                    MarkdownText(raw: note.text)
+                  }
+                }
+                .frame(maxWidth: .infinity, minHeight: 160, alignment: .topLeading)
+                .contentShape(Rectangle())
+                .onTapGesture { withAnimation(DLAnim.quick) { previewing = false } }
               } else {
-                MarkdownText(raw: note.text)
+                TextField(L("Write your note…"), text: $note.text, axis: .vertical)
+                  .font(.dl(.body))
+                  .foregroundStyle(DLColor.textPrimary)
+                  .lineLimit(6...40)
+                  .textInputAutocapitalization(.sentences)
               }
+
+              if dictator.isRecording {
+                recordingBanner(L("Listening…"), color: DLColor.warning)
+              }
+              if recorder.isRecording {
+                recordingBanner(Lf("Recording %@", timeString(recorder.elapsed)), color: Color(hex: 0xFF3B30))
+              }
+
+              if note.hasLocation { locationChip }
             }
-            .frame(maxWidth: .infinity, minHeight: 160, alignment: .topLeading)
-            .contentShape(Rectangle())
-            .onTapGesture { withAnimation(DLAnim.quick) { previewing = false } }
-          } else {
-            TextField(L("Write your note…"), text: $note.text, axis: .vertical)
-              .font(.dl(.body))
-              .foregroundStyle(DLColor.textPrimary)
-              .lineLimit(6...40)
-              .textInputAutocapitalization(.sentences)
           }
 
-          if dictator.isRecording {
-            recordingBanner(L("Listening…"), color: DLColor.warning)
-          }
-          if recorder.isRecording {
-            recordingBanner(Lf("Recording %@", timeString(recorder.elapsed)), color: Color(hex: 0xFF3B30))
+          // Mood + color.
+          GlassCard {
+            VStack(alignment: .leading, spacing: DLSpace.md) {
+              fieldLabel(L("Mood"))
+              moodRow
+              Divider().overlay(DLColor.separator)
+              fieldLabel(L("Color"))
+              colorRow
+            }
           }
 
-          if note.hasLocation { locationChip }
-          moodRow
-          colorRow
-          tagsRow
-          mediaSection
+          // Tags.
+          GlassCard {
+            VStack(alignment: .leading, spacing: DLSpace.sm) {
+              fieldLabel(L("Tags"))
+              tagsRow
+            }
+          }
+
+          // Media.
+          GlassCard { mediaSection }
         }
-        .padding(DLSpace.lg)
+        .padding(.horizontal, DLSpace.md)
+        .padding(.top, DLSpace.md)
+        .padding(.bottom, DLSpace.lg)
       }
       .scrollDismissesKeyboard(.interactively)
       .themedBackground(theme)
@@ -180,6 +205,13 @@ private struct NoteEditorForm: View {
   }
 
   // MARK: Mood / color / tags
+
+  private func fieldLabel(_ text: String) -> some View {
+    Text(text)
+      .font(.dl(.caption, weight: .semibold))
+      .foregroundStyle(DLColor.textSecondary)
+      .textCase(.uppercase)
+  }
 
   private var moodRow: some View {
     HStack(spacing: DLSpace.sm) {
@@ -312,7 +344,7 @@ private struct NoteEditorForm: View {
     .padding(.vertical, DLSpace.sm)
     .glass(cornerRadius: DLRadius.pill)
     .padding(.horizontal, DLSpace.md)
-    .padding(.bottom, DLSpace.xs)
+    .padding(.bottom, DLSpace.sm)
   }
 
   private func toolIcon(_ system: String) -> some View {

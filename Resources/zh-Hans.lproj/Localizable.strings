@@ -168,3 +168,6 @@
 "Mood" = "心情";
 "Ember, your flame" = "Ember，你的小火苗";
 "Ember — drag to move, tap to play" = "Ember — 长按拖动，点击互动";
+
+/* v4 — author */
+"Author" = "作者";

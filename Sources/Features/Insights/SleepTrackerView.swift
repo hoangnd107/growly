@@ -60,7 +60,7 @@ struct SleepTrackerView: View {
   private var emptyState: some View {
     ScrollView {
       VStack(spacing: DLSpace.md) {
-        FlameMascot(size: 96, quote: L("Let's track your rest!"))
+        EmptyGlyph(systemImage: "bed.double.fill", size: 96, tint: theme.accent)
         Text(L("No sleep logged yet"))
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)

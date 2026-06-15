@@ -376,6 +376,24 @@ struct NotesView: View {
     .padding(4)
     .background(DLColor.surfaceElevated, in: Capsule())
     .overlay(Capsule().strokeBorder(DLColor.separator.opacity(0.6), lineWidth: 1))
+    .highPriorityGesture(
+      DragGesture(minimumDistance: 24)
+        .onEnded { value in
+          guard abs(value.translation.width) > abs(value.translation.height),
+                abs(value.translation.width) > 40 else { return }
+          shiftGranularity(by: value.translation.width < 0 ? 1 : -1)
+        }
+    )
+  }
+
+  /// Moves the timeline granularity one step (Week ↔ Month ↔ Year), clamped.
+  private func shiftGranularity(by delta: Int) {
+    let all = Granularity.allCases
+    guard let index = all.firstIndex(of: granularity) else { return }
+    let next = min(max(index + delta, 0), all.count - 1)
+    guard next != index else { return }
+    withAnimation(DLAnim.standard) { granularity = all[next] }
+    Haptics.selection()
   }
 
   // MARK: - Folder chips
@@ -632,7 +650,7 @@ struct NotesView: View {
   private var emptyState: some View {
     ContentUnavailableView {
       VStack(spacing: DLSpace.md) {
-        FlameMascot(size: 120, quote: L("Capture your first thought!"))
+        EmptyGlyph(systemImage: "note.text", size: 120, tint: theme.accent)
         Text(L("No notes yet"))
           .font(.dl(.title3, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)

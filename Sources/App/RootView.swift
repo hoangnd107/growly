@@ -16,10 +16,10 @@ struct RootView: View {
         content(for: progress)
           .tint(progress.accentColor)
           .preferredColorScheme(progress.theme.colorScheme)
+          // Changing the locale propagates through the tree and re-runs the
+          // visible views' bodies (so L("…") re-resolves) WITHOUT tearing down
+          // navigation — the user stays exactly where they were.
           .environment(\.locale, locale(for: progress.languageCode))
-          // Force a full rebuild when the in-app language changes so every
-          // L("…") string re-resolves against the new bundle.
-          .id(progress.languageCode)
       } else {
         ProgressView()
       }

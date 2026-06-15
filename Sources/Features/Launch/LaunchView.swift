@@ -1,10 +1,10 @@
 import SwiftUI
 import Foundation
 
-/// Premium opening animation (~2s): a streak flame scales up and glows with
-/// rising fire particles, the streak number fades in, and Ember (the flame
-/// mascot) hops up to greet you — then it hands off to the app. Honors Reduce
-/// Motion (quick fade).
+/// Premium opening animation (~2s): a streak flame scales up from tiny with
+/// rising fire particles and a glow, the streak number fades in, then the whole
+/// emblem zooms up to fill the screen and hands off to the app. No app name.
+/// Honors Reduce Motion (quick fade).
 struct LaunchView: View {
   let theme: GradientTheme
   let streak: Int
@@ -13,11 +13,11 @@ struct LaunchView: View {
   @Environment(\.colorScheme) private var scheme
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-  @State private var flameScale: CGFloat = 0.35
+  @State private var flameScale: CGFloat = 0.18
   @State private var flameGlow: CGFloat = 0
   @State private var showText = false
-  @State private var miraIn = false
   @State private var particlesOn = false
+  @State private var expand = false
 
   var body: some View {
     ZStack {
@@ -26,12 +26,10 @@ struct LaunchView: View {
       if particlesOn && !reduceMotion {
         FireParticles(color: Color(hex: 0xFF8A3D))
           .ignoresSafeArea()
-          .opacity(0.9)
+          .opacity(expand ? 0 : 0.9)
       }
 
       VStack(spacing: DLSpace.lg) {
-        Spacer()
-
         ZStack {
           Circle()
             .fill(
@@ -55,43 +53,30 @@ struct LaunchView: View {
             .shadow(color: Color(hex: 0xFF6B3D).opacity(0.6), radius: 26 * flameGlow)
         }
 
-        if showText {
-          Group {
-            if streak > 0 {
-              VStack(spacing: 2) {
-                Text("\(streak)")
-                  .font(.system(size: 46, weight: .bold, design: .rounded))
-                  .foregroundStyle(DLColor.textPrimary)
-                  .monospacedDigit()
-                Text(L("day streak"))
-                  .font(.dl(.subheadline, weight: .medium))
-                  .foregroundStyle(DLColor.textSecondary)
-              }
-            } else {
-              Text("Growly")
-                .font(.system(size: 42, weight: .bold, design: .rounded))
-                .foregroundStyle(DLColor.textPrimary)
-            }
+        if showText && streak > 0 {
+          VStack(spacing: 2) {
+            Text("\(streak)")
+              .font(.system(size: 46, weight: .bold, design: .rounded))
+              .foregroundStyle(DLColor.textPrimary)
+              .monospacedDigit()
+            Text(L("day streak"))
+              .font(.dl(.subheadline, weight: .medium))
+              .foregroundStyle(DLColor.textSecondary)
           }
           .transition(.opacity.combined(with: .move(edge: .bottom)))
         }
-
-        Spacer()
-
-        FlameMascot(size: 116)
-          .offset(y: miraIn ? 0 : 240)
-          .opacity(miraIn ? 1 : 0)
-          .padding(.bottom, DLSpace.xxl)
-          .allowsHitTesting(false)
       }
+      // The whole emblem grows to fill the screen, opening the app.
+      .scaleEffect(expand ? 16 : 1, anchor: .center)
+      .opacity(expand ? 0 : 1)
     }
     .onAppear(perform: run)
   }
 
   private func run() {
     if reduceMotion {
-      flameScale = 1; flameGlow = 1; showText = true; miraIn = true
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { onFinish() }
+      flameScale = 1; flameGlow = 1; showText = true
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { onFinish() }
       return
     }
 
@@ -102,16 +87,12 @@ struct LaunchView: View {
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
       withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { showText = true }
     }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.95) {
+    // Zoom the emblem up to full screen, then hand off.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.45) {
       Haptics.medium()
-      withAnimation(.spring(response: 0.55, dampingFraction: 0.6)) { miraIn = true }
+      withAnimation(.easeIn(duration: 0.55)) { expand = true }
     }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.15) {
-      withAnimation(.easeInOut(duration: 0.55).repeatCount(2, autoreverses: true)) {
-        flameScale = 1.08
-      }
-    }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 2.1) { onFinish() }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.95) { onFinish() }
   }
 }
 

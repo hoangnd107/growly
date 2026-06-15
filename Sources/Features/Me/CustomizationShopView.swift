@@ -22,6 +22,8 @@ struct CustomizationShopView: View {
         VStack(spacing: DLSpace.lg) {
           header
 
+          gradientThemesCard
+
           GlassCard {
             LazyVGrid(columns: columns, spacing: DLSpace.md) {
               ForEach(AccentTheme.catalog) { theme in
@@ -65,6 +67,76 @@ struct CustomizationShopView: View {
         Spacer()
       }
     }
+  }
+
+  // MARK: Gradient themes (recolor the whole app)
+
+  private var gradientThemesCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        Label(L("Themes"), systemImage: "paintpalette.fill")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(progress.accentColor)
+
+        LazyVGrid(
+          columns: Array(repeating: GridItem(.flexible(), spacing: DLSpace.md), count: 3),
+          spacing: DLSpace.md
+        ) {
+          ForEach(GradientThemeCatalog.all) { theme in
+            themeSwatch(theme)
+          }
+        }
+
+        Text(L("Tap a theme to recolor the whole app."))
+          .font(.dl(.caption2))
+          .foregroundStyle(DLColor.textTertiary)
+      }
+    }
+  }
+
+  private func themeSwatch(_ theme: GradientTheme) -> some View {
+    let selected = progress.gradientThemeID == theme.id
+    return Button {
+      selectGradientTheme(theme)
+    } label: {
+      VStack(spacing: DLSpace.xs) {
+        ZStack {
+          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+            .fill(theme.accentGradient)
+            .frame(height: 56)
+            .overlay(
+              RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+                .strokeBorder(
+                  selected ? DLColor.textPrimary : DLColor.separator.opacity(0.6),
+                  lineWidth: selected ? 3 : 1
+                )
+            )
+          if selected {
+            Image(systemName: "checkmark")
+              .font(.system(size: 18, weight: .bold))
+              .foregroundStyle(.white)
+              .shadow(radius: 1)
+          }
+        }
+        Text(L(theme.name))
+          .font(.dl(.caption2, weight: selected ? .bold : .medium))
+          .foregroundStyle(selected ? DLColor.textPrimary : DLColor.textSecondary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .bounceTap()
+    .accessibilityLabel(L(theme.name))
+    .accessibilityAddTraits(selected ? [.isSelected] : [])
+  }
+
+  private func selectGradientTheme(_ theme: GradientTheme) {
+    progress.gradientThemeID = theme.id
+    progress.accentColorHex = theme.accentHexString
+    try? context.save()
+    Haptics.selection()
   }
 
   private var unlockedCount: Int {
