@@ -140,3 +140,31 @@
 "XP & streak" = "XP 和连续";
 "Everything" = "全部";
 "This cannot be undone." = "此操作无法撤销。";
+
+/* v4 — fixes round */
+"Preview" = "预览";
+"Nothing to preview yet." = "暂无可预览内容。";
+"Logged" = "已记录";
+"Save sleep" = "保存睡眠";
+"Update sleep" = "更新睡眠";
+"%d stars" = "%d 星";
+"View all" = "查看全部";
+"No active goals yet. Tap to set one." = "暂无目标，点击添加。";
+"Select all" = "全选";
+"Deselect all" = "取消全选";
+"All notes" = "所有笔记";
+"With attachments" = "含附件";
+"Any mood" = "任意心情";
+"Filter" = "筛选";
+"Filter notes" = "筛选笔记";
+"Clear filters" = "清除筛选";
+"Pin" = "置顶";
+"Unpin" = "取消置顶";
+"Bookmark" = "收藏";
+"Remove bookmark" = "取消收藏";
+"Bookmarked" = "已收藏";
+"Done selecting" = "完成";
+"Select notes" = "选择笔记";
+"Mood" = "心情";
+"Ember, your flame" = "Ember，你的小火苗";
+"Ember — drag to move, tap to play" = "Ember — 长按拖动，点击互动";

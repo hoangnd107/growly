@@ -57,12 +57,31 @@ private struct TodayContent: View {
   let allEntries: [Entry]
 
   @Query private var badgeRecords: [BadgeRecord]
+  @Query(sort: \SleepLog.date, order: .reverse) private var sleeps: [SleepLog]
+  @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
 
   private enum Mode { case evening, morning }
   @State private var mode: Mode = .evening
   @State private var showCelebration = false
   @State private var showHabitManager = false
+  @State private var showGoals = false
   @State private var result: ReviewResult = .none
+
+  // Sleep quick-entry state (loaded from today's log on appear).
+  @State private var bedTime = Date()
+  @State private var wakeTime = Date()
+  @State private var sleepQuality = 3
+  @State private var sleepLoaded = false
+
+  private var today: Date { Calendar.current.startOfDay(for: Date()) }
+
+  private var todaySleep: SleepLog? {
+    sleeps.first { Calendar.current.isDate($0.date, inSameDayAs: today) }
+  }
+
+  private var activeGoals: [SmartGoal] {
+    goals.filter { !$0.isCompleted }
+  }
 
   var body: some View {
     ScrollView {
@@ -88,6 +107,9 @@ private struct TodayContent: View {
     .sheet(isPresented: $showHabitManager) {
       HabitManagerView()
     }
+    .sheet(isPresented: $showGoals) {
+      NavigationStack { GoalsView() }
+    }
     .overlay {
       if showCelebration {
         CompletionCelebration(result: result, isPresented: $showCelebration)
@@ -95,22 +117,16 @@ private struct TodayContent: View {
     }
     .onAppear {
       mode = Calendar.current.component(.hour, from: Date()) < 12 ? .morning : .evening
+      loadSleep()
     }
   }
 
   // MARK: Header (level + mascot)
 
   private var header: some View {
-    VStack(spacing: DLSpace.md) {
-      HStack(alignment: .top, spacing: DLSpace.md) {
-        LevelHeader(progress: progress, todayXP: entry.xpAwarded)
-        if progress.miraEnabled {
-          MiraView(size: 64, quote: AICoach.quote())
-            .padding(.top, DLSpace.xs)
-            .accessibilityLabel(L("Mira, your companion"))
-        }
-      }
-    }
+    // The mascot now floats globally (see FlameMascotOverlay), so the header is
+    // just the level/XP summary.
+    LevelHeader(progress: progress, todayXP: entry.xpAwarded)
   }
 
   // MARK: Evening
@@ -122,6 +138,10 @@ private struct TodayContent: View {
     }
 
     MoodEnergyCard(moodRaw: $entry.moodRaw, energy: $entry.energy)
+
+    sleepQuickCard
+
+    goalsReminderCard
 
     mediaCard
 
@@ -171,6 +191,116 @@ private struct TodayContent: View {
     }
   }
 
+  // MARK: Sleep quick entry
+
+  /// Lets the user log last night's bed/wake time (and quality) right from Today,
+  /// upserting today's `SleepLog` so it also shows up in Insights.
+  private var sleepQuickCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        HStack {
+          Label(L("Sleep"), systemImage: "bed.double.fill")
+            .font(.dl(.headline, weight: .semibold))
+            .foregroundStyle(Color.accentColor)
+          Spacer()
+          if todaySleep != nil {
+            Label(L("Logged"), systemImage: "checkmark.circle.fill")
+              .font(.dl(.caption, weight: .semibold))
+              .foregroundStyle(DLColor.success)
+          }
+        }
+
+        DatePicker(L("Bedtime"), selection: $bedTime, displayedComponents: .hourAndMinute)
+          .font(.dl(.body))
+          .foregroundStyle(DLColor.textPrimary)
+        DatePicker(L("Wake time"), selection: $wakeTime, displayedComponents: .hourAndMinute)
+          .font(.dl(.body))
+          .foregroundStyle(DLColor.textPrimary)
+
+        HStack {
+          Text(L("Quality"))
+            .font(.dl(.subheadline, weight: .medium))
+            .foregroundStyle(DLColor.textPrimary)
+          Spacer()
+          HStack(spacing: DLSpace.xs) {
+            ForEach(1...5, id: \.self) { rating in
+              Button {
+                sleepQuality = rating
+                Haptics.selection()
+              } label: {
+                Image(systemName: rating <= sleepQuality ? "star.fill" : "star")
+                  .font(.system(size: 18))
+                  .foregroundStyle(DLColor.xpGold)
+              }
+              .buttonStyle(.plain)
+              .accessibilityLabel(Lf("%d stars", rating))
+            }
+          }
+        }
+
+        PrimaryButton(
+          todaySleep == nil ? L("Save sleep") : L("Update sleep"),
+          systemImage: "moon.zzz.fill"
+        ) {
+          saveSleep()
+        }
+      }
+    }
+  }
+
+  // MARK: Goals reminder
+
+  /// A compact reminder of active goals with a tap-through to the full Goals view.
+  private var goalsReminderCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        HStack {
+          Label(L("Goals"), systemImage: "target")
+            .font(.dl(.headline, weight: .semibold))
+            .foregroundStyle(Color.accentColor)
+          Spacer()
+          Button(L("View all")) {
+            Haptics.light()
+            showGoals = true
+          }
+          .font(.dl(.caption, weight: .semibold))
+          .buttonStyle(.plain)
+          .foregroundStyle(Color.accentColor)
+        }
+
+        if activeGoals.isEmpty {
+          Button {
+            Haptics.light()
+            showGoals = true
+          } label: {
+            Text(L("No active goals yet. Tap to set one."))
+              .font(.dl(.subheadline))
+              .foregroundStyle(DLColor.textSecondary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+          .buttonStyle(.plain)
+        } else {
+          ForEach(activeGoals.prefix(3)) { goal in
+            VStack(alignment: .leading, spacing: DLSpace.xs) {
+              HStack {
+                Text(goal.title)
+                  .font(.dl(.subheadline, weight: .semibold))
+                  .foregroundStyle(DLColor.textPrimary)
+                  .lineLimit(1)
+                Spacer(minLength: DLSpace.sm)
+                Text("\(Int((goal.progress * 100).rounded()))%")
+                  .font(.dl(.caption, weight: .semibold))
+                  .foregroundStyle(Color.accentColor)
+                  .monospacedDigit()
+              }
+              XPProgressBar(value: goal.progress, height: 6)
+            }
+          }
+        }
+      }
+    }
+  }
+
   // MARK: Morning
 
   @ViewBuilder
@@ -206,6 +336,10 @@ private struct TodayContent: View {
           .foregroundStyle(DLColor.textPrimary)
       }
     }
+
+    sleepQuickCard
+
+    goalsReminderCard
 
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
@@ -307,6 +441,34 @@ private struct TodayContent: View {
     MediaStore.delete(attachment.fileName)
     context.delete(attachment)
     try? context.save()
+  }
+
+  /// Seeds the sleep pickers from today's log if one exists, else sensible
+  /// defaults (11pm → 7am). Runs once per appearance.
+  private func loadSleep() {
+    guard !sleepLoaded else { return }
+    sleepLoaded = true
+    if let sleep = todaySleep {
+      bedTime = sleep.bedTime
+      wakeTime = sleep.wakeTime
+      sleepQuality = sleep.quality
+    } else {
+      let cal = Calendar.current
+      bedTime = cal.date(bySettingHour: 23, minute: 0, second: 0, of: Date()) ?? Date()
+      wakeTime = cal.date(bySettingHour: 7, minute: 0, second: 0, of: Date()) ?? Date()
+    }
+  }
+
+  private func saveSleep() {
+    if let sleep = todaySleep {
+      sleep.bedTime = bedTime
+      sleep.wakeTime = wakeTime
+      sleep.quality = sleepQuality
+    } else {
+      context.insert(SleepLog(date: today, bedTime: bedTime, wakeTime: wakeTime, quality: sleepQuality))
+    }
+    try? context.save()
+    Haptics.success()
   }
 
   private func toggleHabit(_ habit: Habit) {

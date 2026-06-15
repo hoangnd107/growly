@@ -60,7 +60,7 @@ struct SleepTrackerView: View {
   private var emptyState: some View {
     ScrollView {
       VStack(spacing: DLSpace.md) {
-        MiraView(size: 96, quote: L("Let's track your rest!"))
+        FlameMascot(size: 96, quote: L("Let's track your rest!"))
         Text(L("No sleep logged yet"))
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)

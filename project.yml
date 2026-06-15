@@ -16,7 +16,7 @@ settings:
     CODE_SIGNING_REQUIRED: "NO"
     CODE_SIGNING_ALLOWED: "NO"
     CODE_SIGN_IDENTITY: ""
-    MARKETING_VERSION: "1.3.0"
+    MARKETING_VERSION: "1.4.0"
     CURRENT_PROJECT_VERSION: "1"
 
 targets:
@@ -40,6 +40,7 @@ targets:
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Dictate your reflections with your voice."
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Transcribe your spoken reflections on device."
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Attach a photo to a reflection."
+        INFOPLIST_KEY_NSCameraUsageDescription: "Take a photo to attach to a note or reflection."
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Tag your reflections and notes with where you are."
 
   GrowlyTests:

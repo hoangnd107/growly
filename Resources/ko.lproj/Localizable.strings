@@ -140,3 +140,31 @@
 "XP & streak" = "XP & 연속";
 "Everything" = "모두";
 "This cannot be undone." = "되돌릴 수 없습니다.";
+
+/* v4 — fixes round */
+"Preview" = "미리 보기";
+"Nothing to preview yet." = "미리 볼 내용이 없습니다.";
+"Logged" = "기록됨";
+"Save sleep" = "수면 저장";
+"Update sleep" = "수면 업데이트";
+"%d stars" = "별 %d개";
+"View all" = "전체 보기";
+"No active goals yet. Tap to set one." = "목표가 없습니다. 탭하여 추가하세요.";
+"Select all" = "모두 선택";
+"Deselect all" = "선택 해제";
+"All notes" = "모든 노트";
+"With attachments" = "첨부 포함";
+"Any mood" = "모든 기분";
+"Filter" = "필터";
+"Filter notes" = "노트 필터";
+"Clear filters" = "필터 지우기";
+"Pin" = "고정";
+"Unpin" = "고정 해제";
+"Bookmark" = "북마크";
+"Remove bookmark" = "북마크 제거";
+"Bookmarked" = "북마크됨";
+"Done selecting" = "완료";
+"Select notes" = "노트 선택";
+"Mood" = "기분";
+"Ember, your flame" = "Ember, 당신의 불꽃";
+"Ember — drag to move, tap to play" = "Ember — 길게 눌러 이동, 탭하여 놀기";

@@ -58,6 +58,40 @@ extension View {
   }
 }
 
+// MARK: - Navigation-safe press style
+
+/// A `ButtonStyle` that scales slightly while pressed. Unlike `.bounceTap()`
+/// (which attaches a `simultaneousGesture(DragGesture)` that can swallow a
+/// `NavigationLink`/`Button` activation), this drives the scale from the
+/// button's own `configuration.isPressed`, so navigation and actions still fire.
+/// Use this on `NavigationLink`s and any tappable card that must always trigger.
+struct ScaleButtonStyle: ButtonStyle {
+  var scale: CGFloat = 0.97
+  var haptic: Bool = false
+
+  func makeBody(configuration: Configuration) -> some View {
+    Pressable(configuration: configuration, scale: scale, haptic: haptic)
+  }
+
+  /// Nested view so `@Environment` is actually injected — a bare `ButtonStyle`
+  /// struct does not receive environment values.
+  private struct Pressable: View {
+    let configuration: ButtonStyleConfiguration
+    let scale: CGFloat
+    let haptic: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+      configuration.label
+        .scaleEffect(configuration.isPressed && !reduceMotion ? scale : 1)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
+        .onChange(of: configuration.isPressed) { _, pressed in
+          if pressed && haptic { Haptics.light() }
+        }
+    }
+  }
+}
+
 // MARK: - Extra motion tokens
 
 extension DLAnim {

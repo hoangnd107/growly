@@ -54,6 +54,7 @@ private struct NoteEditorForm: View {
   @State private var newTag = ""
   @State private var undoSnapshot: String?
   @State private var showCamera = false
+  @State private var previewing = false
 
   private let presetColors = ["FF3D5A", "FF9F0A", "FFC83D", "34C759", "00B4A6", "5AC8FA", "7E5BEF", "FF5C8A"]
 
@@ -73,11 +74,26 @@ private struct NoteEditorForm: View {
 
           Divider().overlay(DLColor.separator)
 
-          TextField(L("Write your note…"), text: $note.text, axis: .vertical)
-            .font(.dl(.body))
-            .foregroundStyle(DLColor.textPrimary)
-            .lineLimit(6...40)
-            .textInputAutocapitalization(.sentences)
+          if previewing {
+            Group {
+              if note.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(L("Nothing to preview yet."))
+                  .font(.dl(.body))
+                  .foregroundStyle(DLColor.textTertiary)
+              } else {
+                MarkdownText(raw: note.text)
+              }
+            }
+            .frame(maxWidth: .infinity, minHeight: 160, alignment: .topLeading)
+            .contentShape(Rectangle())
+            .onTapGesture { withAnimation(DLAnim.quick) { previewing = false } }
+          } else {
+            TextField(L("Write your note…"), text: $note.text, axis: .vertical)
+              .font(.dl(.body))
+              .foregroundStyle(DLColor.textPrimary)
+              .lineLimit(6...40)
+              .textInputAutocapitalization(.sentences)
+          }
 
           if dictator.isRecording {
             recordingBanner(L("Listening…"), color: DLColor.warning)
@@ -267,6 +283,11 @@ private struct NoteEditorForm: View {
         Button(L("Highlight")) { insertMarker("==highlight==") }
         Button(L("Bullet")) { insertMarker("\n- ") }
       } label: { toolIcon("textformat") }
+
+      toolButton(previewing ? "eye.fill" : "eye", L("Preview")) {
+        withAnimation(DLAnim.quick) { previewing.toggle() }
+        if previewing { KeyboardHelper.dismiss() }
+      }
 
       toolButton("camera.fill", L("Camera")) {
         if UIImagePickerController.isSourceTypeAvailable(.camera) { showCamera = true }

@@ -84,12 +84,15 @@ private struct ProfileContent: View {
       .frame(maxWidth: 640)
       .frame(maxWidth: .infinity)
     }
+    .scrollDismissesKeyboard(.interactively)
+    .dismissKeyboardOnTap()
+    .keyboardDismissButton()
     .sheet(item: $selectedBadge) { badge in
       badgeDetailSheet(badge)
     }
   }
 
-  // MARK: 1. Level header + rank + Mira
+  // MARK: 1. Level header + rank + mascot
 
   private var levelHeaderSection: some View {
     let level = progress.levelInfo.level
@@ -99,7 +102,7 @@ private struct ProfileContent: View {
 
       GlassCard {
         HStack(alignment: .center, spacing: DLSpace.md) {
-          MiraView(size: 76, quote: congratsQuote(rank: rank, level: level))
+          FlameMascot(size: 76, quote: congratsQuote(rank: rank, level: level))
             .frame(width: 76)
 
           VStack(alignment: .leading, spacing: DLSpace.xs) {
@@ -414,7 +417,7 @@ private struct ProfileContent: View {
           tint: progress.accentColor
         )
       }
-      .buttonStyle(.plain)
+      .buttonStyle(ScaleButtonStyle())
 
       NavigationLink {
         HabitManagerView()
@@ -426,7 +429,7 @@ private struct ProfileContent: View {
           tint: DLColor.success
         )
       }
-      .buttonStyle(.plain)
+      .buttonStyle(ScaleButtonStyle())
 
       NavigationLink {
         SettingsView(progress: progress, entries: entries)
@@ -438,7 +441,7 @@ private struct ProfileContent: View {
           tint: DLColor.textSecondary
         )
       }
-      .buttonStyle(.plain)
+      .buttonStyle(ScaleButtonStyle())
     }
   }
 
@@ -465,7 +468,6 @@ private struct ProfileContent: View {
           .foregroundStyle(DLColor.textTertiary)
       }
     }
-    .bounceTap()
   }
 
   // MARK: Persistence

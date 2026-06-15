@@ -5,14 +5,17 @@ import SwiftData
 ///
 /// Notes are grouped into soft timeline sections by a Week / Month / Year
 /// granularity (Monday-first weeks). Pinned notes float into their own section
-/// on top. A folder chip row and `.searchable` narrow the list. Rows are glass
-/// cards with a color stripe, mood, location, bookmark and attachment cues.
+/// on top. A folder chip row, a filter menu, and `.searchable` narrow the list.
+/// Rows are glass cards with a color stripe, mood, location, bookmark and
+/// attachment cues.
 ///
-/// A multi-select mode exposes a bottom action bar (pin, bookmark, change date,
-/// delete) and a draggable floating "+" composes a new note.
+/// Built on a `List`, so each row gets native **swipe actions** (leading: edit /
+/// pin · trailing: bookmark / delete) and a multi-select **edit mode** that
+/// supports tap-to-select, drag-across-to-select, and "Select all". A bottom
+/// action bar (pin, bookmark, change date, delete) acts on the whole selection,
+/// and a draggable floating "+" composes a new note.
 struct NotesView: View {
   @Environment(\.modelContext) private var context
-  @Environment(\.colorScheme) private var scheme
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   @Query(sort: \DayNote.createdAt, order: .reverse) private var notes: [DayNote]
@@ -22,13 +25,15 @@ struct NotesView: View {
   @State private var query = ""
   @State private var granularity: Granularity = .month
   @State private var folderFilter: String?
+  @State private var filter: NoteFilter = .all
+  @State private var moodFilter: Mood?
 
   // Sheets
   @State private var editorNote: DayNote?
   @State private var creatingNote = false
 
   // Multi-select
-  @State private var selecting = false
+  @State private var editMode: EditMode = .inactive
   @State private var selection = Set<UUID>()
   @State private var showBatchDatePicker = false
   @State private var batchDate = Date()
@@ -47,6 +52,8 @@ struct NotesView: View {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
   }
 
+  private var selecting: Bool { editMode.isEditing }
+
   // MARK: - Granularity
 
   private enum Granularity: String, CaseIterable, Identifiable {
@@ -60,15 +67,15 @@ struct NotesView: View {
       case .year: return L("Year")
       }
     }
-
-    var component: Calendar.Component {
-      switch self {
-      case .week: return .weekOfYear
-      case .month: return .month
-      case .year: return .year
-      }
-    }
   }
+
+  // MARK: - Filter
+
+  private enum NoteFilter: Hashable {
+    case all, pinned, bookmarked, media
+  }
+
+  private var isFiltering: Bool { filter != .all || moodFilter != nil }
 
   // MARK: - Derived data
 
@@ -86,11 +93,18 @@ struct NotesView: View {
     return ordered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
   }
 
-  /// All notes after search + folder filtering (pinned still included here).
+  /// All notes after search + folder + filter narrowing (pinned still included).
   private var matched: [DayNote] {
     let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     return notes.filter { note in
       if let folderFilter, note.folder != folderFilter { return false }
+      switch filter {
+      case .all: break
+      case .pinned: if !note.pinned { return false }
+      case .bookmarked: if !note.bookmarked { return false }
+      case .media: if note.attachments.isEmpty { return false }
+      }
+      if let moodFilter, note.mood != moodFilter { return false }
       guard !q.isEmpty else { return true }
       return note.title.lowercased().contains(q)
         || note.text.lowercased().contains(q)
@@ -99,7 +113,6 @@ struct NotesView: View {
     }
   }
 
-  /// Pinned notes (already newest-first via the @Query sort).
   private var pinnedNotes: [DayNote] {
     matched.filter { $0.pinned }
   }
@@ -120,7 +133,6 @@ struct NotesView: View {
       buckets[key]?.append(note)
     }
 
-    // `order` preserves newest-first because notes arrive newest-first.
     return order.map { key in
       TimelineSection(id: key, label: periodLabel(for: key), notes: buckets[key] ?? [])
     }
@@ -134,6 +146,11 @@ struct NotesView: View {
 
   private var hasResults: Bool {
     !pinnedNotes.isEmpty || !sections.isEmpty
+  }
+
+  /// IDs of every note currently visible (pinned + timeline), for "Select all".
+  private var visibleIDs: [UUID] {
+    pinnedNotes.map(\.id) + sections.flatMap { $0.notes.map(\.id) }
   }
 
   // MARK: - Period helpers
@@ -214,11 +231,26 @@ struct NotesView: View {
   @ToolbarContentBuilder
   private var toolbarContent: some ToolbarContent {
     if !notes.isEmpty {
+      ToolbarItem(placement: .topBarLeading) {
+        if selecting {
+          Button(allSelected ? L("Deselect all") : L("Select all")) {
+            toggleSelectAll()
+          }
+          .font(.dl(.subheadline, weight: .semibold))
+          .accessibilityLabel(allSelected ? L("Deselect all") : L("Select all"))
+        } else {
+          filterMenu
+        }
+      }
       ToolbarItem(placement: .topBarTrailing) {
         Button {
           withAnimation(DLAnim.standard) {
-            selecting.toggle()
-            if !selecting { selection.removeAll() }
+            if selecting {
+              editMode = .inactive
+              selection.removeAll()
+            } else {
+              editMode = .active
+            }
           }
           Haptics.selection()
         } label: {
@@ -230,50 +262,89 @@ struct NotesView: View {
     }
   }
 
+  private var allSelected: Bool {
+    !visibleIDs.isEmpty && selection.count >= visibleIDs.count
+  }
+
+  private var filterMenu: some View {
+    Menu {
+      Picker(L("Filter"), selection: $filter) {
+        Label(L("All notes"), systemImage: "tray.full").tag(NoteFilter.all)
+        Label(L("Pinned"), systemImage: "pin").tag(NoteFilter.pinned)
+        Label(L("Bookmarked"), systemImage: "bookmark").tag(NoteFilter.bookmarked)
+        Label(L("With attachments"), systemImage: "paperclip").tag(NoteFilter.media)
+      }
+      Divider()
+      Picker(L("Mood"), selection: $moodFilter) {
+        Text(L("Any mood")).tag(Mood?.none)
+        ForEach(Mood.allCases) { mood in
+          Text("\(mood.emoji)  \(L(mood.label))").tag(Mood?.some(mood))
+        }
+      }
+      if isFiltering {
+        Divider()
+        Button(role: .destructive) {
+          filter = .all
+          moodFilter = nil
+          Haptics.light()
+        } label: {
+          Label(L("Clear filters"), systemImage: "xmark.circle")
+        }
+      }
+    } label: {
+      Image(systemName: isFiltering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+        .font(.system(size: 17, weight: .semibold))
+    }
+    .accessibilityLabel(L("Filter notes"))
+  }
+
   // MARK: - Timeline list
 
   private var timeline: some View {
-    ScrollView {
-      LazyVStack(alignment: .leading, spacing: DLSpace.md, pinnedViews: []) {
-        granularityPicker
-          .padding(.horizontal, DLSpace.md)
-          .padding(.top, DLSpace.sm)
-
-        if !folders.isEmpty {
-          folderChips
+    List(selection: $selection) {
+      // Controls — never participate in selection.
+      Section {
+        VStack(spacing: DLSpace.sm) {
+          granularityPicker
+          if !folders.isEmpty { folderChips }
         }
-
-        if !pinnedNotes.isEmpty {
-          sectionHeader(
-            label: L("Pinned"),
-            count: pinnedNotes.count,
-            systemImage: "pin.fill",
-            tint: DLColor.xpGold
-          )
-          .padding(.horizontal, DLSpace.md)
-
-          ForEach(pinnedNotes) { note in
-            noteRow(note)
-              .padding(.horizontal, DLSpace.md)
-          }
-        }
-
-        ForEach(sections) { section in
-          sectionHeader(label: section.label, count: section.notes.count)
-            .padding(.horizontal, DLSpace.md)
-
-          ForEach(section.notes) { note in
-            noteRow(note)
-              .padding(.horizontal, DLSpace.md)
-          }
-        }
-
-        // Breathing room so the floating button never covers the last row.
-        Color.clear.frame(height: selecting ? DLSpace.md : 88)
+        .listRowInsets(EdgeInsets(top: DLSpace.sm, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .selectionDisabled()
       }
-      .padding(.bottom, DLSpace.md)
+
+      if !pinnedNotes.isEmpty {
+        Section {
+          ForEach(pinnedNotes) { note in noteRow(note) }
+        } header: {
+          sectionHeader(label: L("Pinned"), count: pinnedNotes.count, systemImage: "pin.fill", tint: DLColor.xpGold)
+        }
+      }
+
+      ForEach(sections) { section in
+        Section {
+          ForEach(section.notes) { note in noteRow(note) }
+        } header: {
+          sectionHeader(label: section.label, count: section.notes.count)
+        }
+      }
+
+      if !selecting {
+        // Breathing room so the floating button never covers the last row.
+        Color.clear
+          .frame(height: 76)
+          .listRowBackground(Color.clear)
+          .listRowSeparator(.hidden)
+          .selectionDisabled()
+      }
     }
+    .listStyle(.plain)
+    .scrollContentBackground(.hidden)
+    .textCase(nil)
+    .environment(\.editMode, $editMode)
     .scrollDismissesKeyboard(.immediately)
+    .animation(reduceMotion ? nil : DLAnim.standard, value: selection)
   }
 
   // MARK: - Granularity picker
@@ -317,7 +388,6 @@ struct NotesView: View {
           folderChip(label: folder, folder: folder, isSelected: folderFilter == folder)
         }
       }
-      .padding(.horizontal, DLSpace.md)
       .padding(.vertical, 2)
     }
   }
@@ -383,7 +453,6 @@ struct NotesView: View {
         .fill(DLColor.separator.opacity(0.7))
         .frame(height: 1)
     }
-    .padding(.top, DLSpace.sm)
     .accessibilityElement(children: .combine)
     .accessibilityLabel(Lf("%@, %d notes", label, count))
   }
@@ -391,34 +460,46 @@ struct NotesView: View {
   // MARK: - Note row
 
   private func noteRow(_ note: DayNote) -> some View {
-    Button {
-      if selecting {
-        toggleSelect(note)
-      } else {
-        editorNote = note
+    rowCard(note)
+      .listRowInsets(EdgeInsets(top: DLSpace.xs, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
+      .listRowBackground(Color.clear)
+      .listRowSeparator(.hidden)
+      .tag(note.id)
+      .contentShape(Rectangle())
+      .onTapGesture {
+        if !selecting { editorNote = note }
       }
-    } label: {
-      HStack(spacing: DLSpace.sm) {
-        if selecting {
-          Image(systemName: selection.contains(note.id) ? "checkmark.circle.fill" : "circle")
-            .font(.system(size: 22))
-            .foregroundStyle(selection.contains(note.id) ? theme.accent : DLColor.textTertiary)
-            .accessibilityHidden(true)
+      .swipeActions(edge: .leading, allowsFullSwipe: true) {
+        Button { editorNote = note } label: {
+          Label(L("Edit"), systemImage: "pencil")
         }
-        rowCard(note)
+        .tint(theme.accent)
+
+        Button { togglePin(note) } label: {
+          Label(note.pinned ? L("Unpin") : L("Pin"),
+                systemImage: note.pinned ? "pin.slash" : "pin")
+        }
+        .tint(DLColor.xpGold)
       }
-    }
-    .buttonStyle(.plain)
-    .bounceTap(scale: 0.98, haptic: false)
-    .contextMenu { contextMenu(note) }
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel(rowAccessibilityLabel(note))
-    .accessibilityAddTraits(selecting && selection.contains(note.id) ? .isSelected : [])
+      .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+        Button(role: .destructive) { delete([note]) } label: {
+          Label(L("Delete"), systemImage: "trash")
+        }
+
+        Button { toggleBookmark(note) } label: {
+          Label(note.bookmarked ? L("Remove bookmark") : L("Bookmark"),
+                systemImage: note.bookmarked ? "bookmark.slash" : "bookmark")
+        }
+        .tint(DLColor.success)
+      }
+      .contextMenu { contextMenu(note) }
+      .accessibilityElement(children: .combine)
+      .accessibilityLabel(rowAccessibilityLabel(note))
+      .accessibilityAddTraits(selecting && selection.contains(note.id) ? .isSelected : [])
   }
 
   private func rowCard(_ note: DayNote) -> some View {
     HStack(spacing: 0) {
-      // Color stripe (always present; falls back to the theme accent).
       RoundedRectangle(cornerRadius: 2, style: .continuous)
         .fill(note.colorHex.map { Color(hexString: $0) } ?? theme.accent.opacity(0.5))
         .frame(width: 4)
@@ -450,8 +531,9 @@ struct NotesView: View {
             }
           }
 
-          if !note.preview.isEmpty {
-            Text(note.preview)
+          let preview = previewText(note)
+          if !preview.isEmpty {
+            Text(preview)
               .font(.dl(.subheadline))
               .foregroundStyle(DLColor.textSecondary)
               .lineLimit(2)
@@ -493,11 +575,18 @@ struct NotesView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
   }
 
+  /// Title text, falling back to a marker-free preview of the body.
   private func displayTitle(_ note: DayNote) -> String {
     let trimmed = note.title.trimmingCharacters(in: .whitespacesAndNewlines)
     if !trimmed.isEmpty { return trimmed }
-    let preview = note.preview
+    let preview = previewText(note)
     return preview.isEmpty ? L("New note") : preview
+  }
+
+  /// Body preview with inline-formatting markers stripped so the list never
+  /// shows raw `**` / `==` syntax.
+  private func previewText(_ note: DayNote) -> String {
+    MarkdownFormatter.plain(note.text)
   }
 
   private func rowAccessibilityLabel(_ note: DayNote) -> String {
@@ -543,7 +632,7 @@ struct NotesView: View {
   private var emptyState: some View {
     ContentUnavailableView {
       VStack(spacing: DLSpace.md) {
-        MiraView(size: 120, quote: L("Capture your first thought!"))
+        FlameMascot(size: 120, quote: L("Capture your first thought!"))
         Text(L("No notes yet"))
           .font(.dl(.title3, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)
@@ -560,6 +649,20 @@ struct NotesView: View {
       Label(L("No matches"), systemImage: "magnifyingglass")
     } description: {
       Text(L("Try a different search or filter."))
+    } actions: {
+      if isFiltering || folderFilter != nil || !query.isEmpty {
+        Button(L("Clear filters")) {
+          withAnimation(DLAnim.standard) {
+            filter = .all
+            moodFilter = nil
+            folderFilter = nil
+            query = ""
+          }
+          Haptics.light()
+        }
+        .font(.dl(.subheadline, weight: .semibold))
+        .tint(theme.accent)
+      }
     }
   }
 
@@ -586,7 +689,6 @@ struct NotesView: View {
       DragGesture()
         .onChanged { value in fabDrag = value.translation }
         .onEnded { value in
-          // Bank the drop position so the button stays where it was released.
           fabBase.width += value.translation.width
           fabBase.height += value.translation.height
           fabDrag = .zero
@@ -610,7 +712,7 @@ struct NotesView: View {
         delete(selectedNotes())
         withAnimation(DLAnim.standard) {
           selection.removeAll()
-          selecting = false
+          editMode = .inactive
         }
       }
     }
@@ -684,11 +786,13 @@ struct NotesView: View {
 
   // MARK: - Selection helpers
 
-  private func toggleSelect(_ note: DayNote) {
-    if selection.contains(note.id) {
-      selection.remove(note.id)
-    } else {
-      selection.insert(note.id)
+  private func toggleSelectAll() {
+    withAnimation(DLAnim.standard) {
+      if allSelected {
+        selection.removeAll()
+      } else {
+        selection = Set(visibleIDs)
+      }
     }
     Haptics.selection()
   }
@@ -717,7 +821,6 @@ struct NotesView: View {
 
   private func batchPin() {
     let targets = selectedNotes()
-    // If every selected note is pinned, unpin them all; otherwise pin all.
     let shouldPin = !targets.allSatisfy { $0.pinned }
     withAnimation(DLAnim.standard) {
       for note in targets {
@@ -771,7 +874,6 @@ struct NotesView: View {
     }
     try? context.save()
 
-    // Clear the folder filter if its last note was just removed.
     if let active = folderFilter, deletedFolders.contains(active),
        !notes.contains(where: { $0.folder == active }) {
       folderFilter = nil

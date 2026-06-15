@@ -92,7 +92,7 @@ struct HistoryView: View {
   private var emptyState: some View {
     ContentUnavailableView {
       VStack(spacing: DLSpace.md) {
-        MiraView(size: 110, quote: L("Your story starts here."))
+        FlameMascot(size: 110, quote: L("Your story starts here."))
         Text(L("No entries yet"))
           .font(.dl(.title3, weight: .bold))
           .foregroundStyle(DLColor.textPrimary)
@@ -174,6 +174,16 @@ struct HistoryView: View {
         .transition(.opacity)
       }
     }
+    .contentShape(Rectangle())
+    // Swipe left → next month, swipe right → previous month. The 24pt minimum
+    // distance keeps day taps working; the axis check ignores vertical scrolls.
+    .gesture(
+      DragGesture(minimumDistance: 24)
+        .onEnded { value in
+          guard abs(value.translation.width) > abs(value.translation.height) else { return }
+          shiftMonth(by: value.translation.width < 0 ? 1 : -1)
+        }
+    )
   }
 
   private var calendarHeader: some View {

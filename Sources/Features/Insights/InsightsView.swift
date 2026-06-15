@@ -76,7 +76,7 @@ struct InsightsView: View {
   private var emptyState: some View {
     ContentUnavailableView {
       VStack(spacing: DLSpace.md) {
-        MiraView(size: 120, quote: L("Your story starts here!"))
+        FlameMascot(size: 120, quote: L("Your story starts here!"))
         Text(L("No insights yet"))
           .font(.dl(.title3, weight: .semibold))
           .foregroundStyle(DLColor.textPrimary)
@@ -92,6 +92,7 @@ struct InsightsView: View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
         aiInsightsCard
+        goalsSummaryCard
         growthScoreCard
         moodCalendarCard
         if !entries.isEmpty {
@@ -100,7 +101,6 @@ struct InsightsView: View {
           moodDistributionCard
         }
         sleepSummaryCard
-        goalsSummaryCard
       }
       .padding(DLSpace.md)
     }
@@ -376,8 +376,7 @@ struct InsightsView: View {
         }
       }
     }
-    .buttonStyle(.plain)
-    .bounceTap(scale: 0.98, haptic: false)
+    .buttonStyle(ScaleButtonStyle(scale: 0.98))
     .accessibilityElement(children: .combine)
     .accessibilityLabel(sleepAccessibilityLabel)
     .accessibilityAddTraits(.isButton)
@@ -430,8 +429,7 @@ struct InsightsView: View {
         }
       }
     }
-    .buttonStyle(.plain)
-    .bounceTap(scale: 0.98, haptic: false)
+    .buttonStyle(ScaleButtonStyle(scale: 0.98))
     .accessibilityElement(children: .combine)
     .accessibilityLabel(goalsAccessibilityLabel)
     .accessibilityAddTraits(.isButton)

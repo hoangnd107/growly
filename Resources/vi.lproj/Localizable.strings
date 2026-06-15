@@ -140,3 +140,31 @@
 "XP & streak" = "XP & chuỗi";
 "Everything" = "Tất cả";
 "This cannot be undone." = "Không thể hoàn tác.";
+
+/* v4 — fixes round */
+"Preview" = "Xem trước";
+"Nothing to preview yet." = "Chưa có gì để xem trước.";
+"Logged" = "Đã ghi";
+"Save sleep" = "Lưu giấc ngủ";
+"Update sleep" = "Cập nhật giấc ngủ";
+"%d stars" = "%d sao";
+"View all" = "Xem tất cả";
+"No active goals yet. Tap to set one." = "Chưa có mục tiêu nào. Chạm để tạo.";
+"Select all" = "Chọn tất cả";
+"Deselect all" = "Bỏ chọn tất cả";
+"All notes" = "Tất cả ghi chú";
+"With attachments" = "Có tệp đính kèm";
+"Any mood" = "Mọi tâm trạng";
+"Filter" = "Lọc";
+"Filter notes" = "Lọc ghi chú";
+"Clear filters" = "Xóa bộ lọc";
+"Pin" = "Ghim";
+"Unpin" = "Bỏ ghim";
+"Bookmark" = "Đánh dấu";
+"Remove bookmark" = "Bỏ đánh dấu";
+"Bookmarked" = "Đã đánh dấu";
+"Done selecting" = "Xong";
+"Select notes" = "Chọn ghi chú";
+"Mood" = "Tâm trạng";
+"Ember, your flame" = "Ember, ngọn lửa của bạn";
+"Ember — drag to move, tap to play" = "Ember — giữ để di chuyển, chạm để chơi";

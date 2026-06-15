@@ -84,7 +84,7 @@ struct HabitManagerView: View {
 
   private var emptyState: some View {
     VStack(spacing: DLSpace.md) {
-      MiraView(size: 96, quote: L("Let's build a habit together!"))
+      FlameMascot(size: 96, quote: L("Let's build a habit together!"))
       Text(L("No habits yet"))
         .font(.dl(.headline, weight: .semibold))
         .foregroundStyle(DLColor.textPrimary)

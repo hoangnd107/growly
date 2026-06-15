@@ -2,8 +2,9 @@ import SwiftUI
 import Foundation
 
 /// Premium opening animation (~2s): a streak flame scales up and glows with
-/// rising fire particles, the streak number fades in, and Mira hops up to greet
-/// you — then it hands off to the app. Honors Reduce Motion (quick fade).
+/// rising fire particles, the streak number fades in, and Ember (the flame
+/// mascot) hops up to greet you — then it hands off to the app. Honors Reduce
+/// Motion (quick fade).
 struct LaunchView: View {
   let theme: GradientTheme
   let streak: Int
@@ -77,7 +78,7 @@ struct LaunchView: View {
 
         Spacer()
 
-        MiraView(size: 116)
+        FlameMascot(size: 116)
           .offset(y: miraIn ? 0 : 240)
           .opacity(miraIn ? 1 : 0)
           .padding(.bottom, DLSpace.xxl)

@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// Full-screen celebration shown after completing the daily review.
-/// Dimmed scrim + confetti, a big celebrating flame, Mira hopping in joyfully,
+/// Dimmed scrim + confetti, a big celebrating flame, Ember hopping in joyfully,
 /// XP / streak multiplier / level-up / new badges, an AICoach quote and Continue.
 /// Spring entrance, tap-to-dismiss, Reduce-Motion aware, gradient-theme tinted.
 struct CompletionCelebration: View {
@@ -107,7 +107,7 @@ struct CompletionCelebration: View {
     .accessibilityAddTraits(.isModal)
   }
 
-  // MARK: Header (flame + Mira + headline)
+  // MARK: Header (flame + mascot + headline)
 
   private var celebrationHeader: some View {
     VStack(spacing: DLSpace.sm) {
@@ -117,8 +117,8 @@ struct CompletionCelebration: View {
           .scaleEffect(flameAppear ? 1 : 0.4)
           .opacity(flameAppear ? 1 : 0)
 
-        // Mira hops in joyfully, perched at the flame's lower-right.
-        MiraView(size: 120)
+        // The mascot hops in joyfully, perched at the flame's lower-right.
+        FlameMascot(size: 120)
           .offset(x: 64, y: 34)
           .scaleEffect(miraAppear ? 1 : 0.3, anchor: .bottom)
           .offset(y: miraAppear ? 0 : 40)

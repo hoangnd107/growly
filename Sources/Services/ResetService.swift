@@ -67,7 +67,32 @@ enum ResetService {
     case .everything:
       for k in Kind.allCases where k != .everything { reset(k, context: context) }
     }
+
+    // Badges are derived from entries, habits, streak and level. When any of
+    // those are cleared, re-evaluate so milestones that no longer hold (e.g. a
+    // 7-day streak badge after resetting the streak) are revoked too.
+    switch kind {
+    case .entries, .habits, .progress:
+      recomputeBadges(context: context)
+    default:
+      break
+    }
+
     try? context.save()
+  }
+
+  /// Removes badge records that are no longer earned given the current data.
+  private static func recomputeBadges(context: ModelContext) {
+    guard let progress = try? context.fetch(FetchDescriptor<UserProgress>()).first else { return }
+    let entries = (try? context.fetch(FetchDescriptor<Entry>())) ?? []
+    let level = LevelSystem.levelInfo(totalXP: progress.totalXP).level
+    let stats = GamificationService.computeStats(progress: progress, allEntries: entries, level: level)
+    let earned = BadgeEngine.earnedBadgeIDs(stats)
+    if let records = try? context.fetch(FetchDescriptor<BadgeRecord>()) {
+      for record in records where !earned.contains(record.badgeID) {
+        context.delete(record)
+      }
+    }
   }
 
   private static func deleteAll<T: PersistentModel>(_ type: T.Type, context: ModelContext) {

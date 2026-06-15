@@ -59,7 +59,7 @@ struct GoalsView: View {
   private var emptyState: some View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
-        MiraView(size: 110, quote: L("What are we working toward?"))
+        FlameMascot(size: 110, quote: L("What are we working toward?"))
           .padding(.top, DLSpace.xl)
         VStack(spacing: DLSpace.sm) {
           Text(L("No goals yet"))

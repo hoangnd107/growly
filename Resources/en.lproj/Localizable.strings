@@ -140,3 +140,31 @@
 "XP & streak" = "XP & streak";
 "Everything" = "Everything";
 "This cannot be undone." = "This cannot be undone.";
+
+/* v4 — fixes round */
+"Preview" = "Preview";
+"Nothing to preview yet." = "Nothing to preview yet.";
+"Logged" = "Logged";
+"Save sleep" = "Save sleep";
+"Update sleep" = "Update sleep";
+"%d stars" = "%d stars";
+"View all" = "View all";
+"No active goals yet. Tap to set one." = "No active goals yet. Tap to set one.";
+"Select all" = "Select all";
+"Deselect all" = "Deselect all";
+"All notes" = "All notes";
+"With attachments" = "With attachments";
+"Any mood" = "Any mood";
+"Filter" = "Filter";
+"Filter notes" = "Filter notes";
+"Clear filters" = "Clear filters";
+"Pin" = "Pin";
+"Unpin" = "Unpin";
+"Bookmark" = "Bookmark";
+"Remove bookmark" = "Remove bookmark";
+"Bookmarked" = "Bookmarked";
+"Done selecting" = "Done selecting";
+"Select notes" = "Select notes";
+"Mood" = "Mood";
+"Ember, your flame" = "Ember, your flame";
+"Ember — drag to move, tap to play" = "Ember — drag to move, tap to play";
