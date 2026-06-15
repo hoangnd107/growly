@@ -171,3 +171,18 @@
 
 /* v4 — author */
 "Author" = "Author";
+
+/* v6 — locations, audio, download */
+"Choose location" = "Choose location";
+"Search address or place" = "Search address or place";
+"Location name" = "Location name";
+"Selected location" = "Selected location";
+"No results found." = "No results found.";
+"Pinned location" = "Pinned location";
+"Search an address, or tap the map to drop a pin." = "Search an address, or tap the map to drop a pin.";
+"Locations" = "Locations";
+"Add location" = "Add location";
+"Remove location" = "Remove location";
+"Attach audio file" = "Attach audio file";
+"Download" = "Download";
+"Stop" = "Stop";

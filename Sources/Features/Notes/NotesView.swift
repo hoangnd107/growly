@@ -491,24 +491,25 @@ struct NotesView: View {
         Button { editorNote = note } label: {
           Label(L("Edit"), systemImage: "pencil")
         }
-        .tint(theme.accent)
+        .tint(Color(hex: 0x0A84FF))   // blue — edit
 
         Button { togglePin(note) } label: {
           Label(note.pinned ? L("Unpin") : L("Pin"),
                 systemImage: note.pinned ? "pin.slash" : "pin")
         }
-        .tint(DLColor.xpGold)
+        .tint(DLColor.xpGold)         // gold — pin
       }
       .swipeActions(edge: .trailing, allowsFullSwipe: true) {
         Button(role: .destructive) { delete([note]) } label: {
           Label(L("Delete"), systemImage: "trash")
         }
+        .tint(DLColor.streakEnd)      // red — delete
 
         Button { toggleBookmark(note) } label: {
           Label(note.bookmarked ? L("Remove bookmark") : L("Bookmark"),
                 systemImage: note.bookmarked ? "bookmark.slash" : "bookmark")
         }
-        .tint(DLColor.success)
+        .tint(Color(hex: 0xAF52DE))   // purple — bookmark
       }
       .contextMenu { contextMenu(note) }
       .accessibilityElement(children: .combine)
@@ -573,7 +574,7 @@ struct NotesView: View {
 
       if note.hasLocation {
         Label {
-          Text(note.locationName ?? L("Location")).lineLimit(1)
+          Text(locationLabel(note)).lineLimit(1)
         } icon: {
           Image(systemName: "mappin.and.ellipse")
         }
@@ -605,6 +606,13 @@ struct NotesView: View {
   /// shows raw `**` / `==` syntax.
   private func previewText(_ note: DayNote) -> String {
     MarkdownFormatter.plain(note.text)
+  }
+
+  /// "Cafe +2" — the primary place plus a count when a note has several.
+  private func locationLabel(_ note: DayNote) -> String {
+    let base = note.primaryLocationName ?? L("Location")
+    let count = note.locations.count
+    return count > 1 ? "\(base) +\(count - 1)" : base
   }
 
   private func rowAccessibilityLabel(_ note: DayNote) -> String {

@@ -222,7 +222,8 @@ private struct TodayContent: View {
         onAddImage: { data in addAttachment(data: data, type: .image, ext: "jpg") },
         onAddVideo: { data, ext in addAttachment(data: data, type: .video, ext: ext) },
         onDelete: deleteAttachment,
-        onAddAudio: addAudioAttachment
+        onAddAudio: addAudioAttachment,
+        showVoiceRecorder: true
       )
     }
   }

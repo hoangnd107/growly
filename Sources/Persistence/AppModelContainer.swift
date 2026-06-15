@@ -11,6 +11,7 @@ enum AppModelContainer {
     BadgeRecord.self,
     DayNote.self,
     MediaAttachment.self,
+    NoteLocation.self,
     SleepLog.self,
     SmartGoal.self,
   ])

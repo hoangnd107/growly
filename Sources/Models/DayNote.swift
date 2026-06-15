@@ -28,6 +28,12 @@ final class DayNote {
   @Relationship(deleteRule: .cascade, inverse: \MediaAttachment.note)
   var attachments: [MediaAttachment]
 
+  /// Multiple tagged places (map-picked or current location). Additive — older
+  /// notes default to an empty list and may still carry the legacy single fields
+  /// above until migrated on edit.
+  @Relationship(deleteRule: .cascade, inverse: \NoteLocation.note)
+  var locations: [NoteLocation] = []
+
   init(
     title: String = "",
     text: String = "",
@@ -61,5 +67,17 @@ final class DayNote {
     attachments.sorted { $0.order < $1.order }
   }
 
-  var hasLocation: Bool { locationName != nil || (latitude != nil && longitude != nil) }
+  var sortedLocations: [NoteLocation] {
+    locations.sorted { $0.order < $1.order }
+  }
+
+  var hasLocation: Bool {
+    !locations.isEmpty || locationName != nil || (latitude != nil && longitude != nil)
+  }
+
+  /// A short label for the row metadata: the first tagged place, falling back to
+  /// the legacy single-location name.
+  var primaryLocationName: String? {
+    sortedLocations.first?.name ?? locationName
+  }
 }

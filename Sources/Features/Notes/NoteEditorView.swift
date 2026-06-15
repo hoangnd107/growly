@@ -47,7 +47,6 @@ private struct NoteEditorForm: View {
   @Environment(\.dismiss) private var dismiss
   @Query private var progressList: [UserProgress]
 
-  @StateObject private var location = LocationService()
   @StateObject private var recorder = AudioRecorder()
   @StateObject private var dictator = SpeechDictator()
 
@@ -55,6 +54,7 @@ private struct NoteEditorForm: View {
   @State private var undoSnapshot: String?
   @State private var showCamera = false
   @State private var previewing = false
+  @State private var showLocationPicker = false
 
   private let presetColors = ["FF3D5A", "FF9F0A", "FFC83D", "34C759", "00B4A6", "5AC8FA", "7E5BEF", "FF5C8A"]
 
@@ -104,8 +104,6 @@ private struct NoteEditorForm: View {
               if recorder.isRecording {
                 recordingBanner(Lf("Recording %@", timeString(recorder.elapsed)), color: Color(hex: 0xFF3B30))
               }
-
-              if note.hasLocation { locationChip }
             }
           }
 
@@ -128,10 +126,18 @@ private struct NoteEditorForm: View {
             }
           }
 
+          // Locations.
+          GlassCard {
+            VStack(alignment: .leading, spacing: DLSpace.sm) {
+              fieldLabel(L("Locations"))
+              locationsSection
+            }
+          }
+
           // Media.
           GlassCard { mediaSection }
         }
-        .padding(.horizontal, DLSpace.md)
+        .padding(.horizontal, DLSpace.lg)
         .padding(.top, DLSpace.md)
         .padding(.bottom, DLSpace.lg)
       }
@@ -154,14 +160,15 @@ private struct NoteEditorForm: View {
         CameraPicker { image in addCamera(image) }
           .ignoresSafeArea()
       }
-      .onChange(of: location.placeName) { _, name in
-        if let name { note.locationName = name }
-        note.latitude = location.latitude
-        note.longitude = location.longitude
+      .sheet(isPresented: $showLocationPicker) {
+        MapLocationPicker { name, latitude, longitude in
+          addLocation(name: name, latitude: latitude, longitude: longitude)
+        }
       }
       .onChange(of: dictator.isRecording) { was, now in
         if was && !now { appendToBody(dictator.transcript) }
       }
+      .onAppear(perform: migrateLegacyLocation)
     }
   }
 
@@ -185,23 +192,41 @@ private struct NoteEditorForm: View {
     }
   }
 
-  private var locationChip: some View {
-    HStack(spacing: DLSpace.xs) {
-      Image(systemName: "mappin.and.ellipse").foregroundStyle(theme.accent)
-      Text(note.locationName ?? L("Location"))
-        .font(.dl(.caption, weight: .medium))
-        .foregroundStyle(DLColor.textPrimary)
-        .lineLimit(1)
-      Button {
-        note.locationName = nil; note.latitude = nil; note.longitude = nil
-        location.clear()
-      } label: {
-        Image(systemName: "xmark.circle.fill").foregroundStyle(DLColor.textTertiary)
+  // MARK: Locations (multiple, map-picked)
+
+  @ViewBuilder
+  private var locationsSection: some View {
+    ForEach(note.sortedLocations) { place in
+      HStack(spacing: DLSpace.sm) {
+        Image(systemName: "mappin.circle.fill")
+          .font(.system(size: 18))
+          .foregroundStyle(theme.accent)
+        Text(place.name)
+          .font(.dl(.subheadline, weight: .medium))
+          .foregroundStyle(DLColor.textPrimary)
+          .lineLimit(1)
+        Spacer(minLength: DLSpace.sm)
+        Button {
+          removeLocation(place)
+        } label: {
+          Image(systemName: "xmark.circle.fill")
+            .font(.system(size: 18))
+            .foregroundStyle(DLColor.textTertiary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L("Remove location"))
       }
     }
-    .padding(.horizontal, DLSpace.sm)
-    .padding(.vertical, DLSpace.xs)
-    .glass(cornerRadius: DLRadius.pill)
+
+    Button {
+      Haptics.light()
+      showLocationPicker = true
+    } label: {
+      Label(L("Add location"), systemImage: "mappin.and.ellipse")
+        .font(.dl(.subheadline, weight: .semibold))
+        .foregroundStyle(theme.accent)
+    }
+    .buttonStyle(.plain)
   }
 
   // MARK: Mood / color / tags
@@ -301,7 +326,8 @@ private struct NoteEditorForm: View {
       attachments: note.sortedAttachments,
       onAddImage: { data in addAttachment(data: data, type: .image, ext: "jpg") },
       onAddVideo: { data, ext in addAttachment(data: data, type: .video, ext: ext) },
-      onDelete: deleteAttachment
+      onDelete: deleteAttachment,
+      onAddAudio: addAudioAttachment
     )
   }
 
@@ -331,9 +357,9 @@ private struct NoteEditorForm: View {
         Task { if await SpeechDictator.requestAuthorization() { dictator.toggle() } }
       }
 
-      toolButton(location.isResolving ? "location.fill" : "location", L("Location")) {
-        location.capture()
+      toolButton("location", L("Location")) {
         Haptics.light()
+        showLocationPicker = true
       }
 
       toolButton("arrow.uturn.backward", L("Undo")) {
@@ -344,7 +370,7 @@ private struct NoteEditorForm: View {
     .padding(.vertical, DLSpace.sm)
     .glass(cornerRadius: DLRadius.pill)
     .padding(.horizontal, DLSpace.md)
-    .padding(.bottom, DLSpace.sm)
+    .padding(.bottom, DLSpace.xs)
   }
 
   private func toolIcon(_ system: String) -> some View {
@@ -418,9 +444,45 @@ private struct NoteEditorForm: View {
     try? context.save()
   }
 
+  /// Attaches an already-saved audio file (recorded or imported) to the note.
+  private func addAudioAttachment(_ fileName: String) {
+    let media = MediaAttachment(fileName: fileName, type: .audio, order: note.attachments.count)
+    media.note = note
+    context.insert(media)
+    try? context.save()
+  }
+
   private func addCamera(_ image: UIImage) {
     guard let data = image.jpegData(compressionQuality: 0.9) else { return }
     addAttachment(data: data, type: .image, ext: "jpg")
+  }
+
+  // MARK: Location actions
+
+  private func addLocation(name: String, latitude: Double, longitude: Double) {
+    let place = NoteLocation(name: name, latitude: latitude, longitude: longitude, order: note.locations.count)
+    place.note = note
+    context.insert(place)
+    try? context.save()
+  }
+
+  private func removeLocation(_ place: NoteLocation) {
+    context.delete(place)
+    try? context.save()
+    Haptics.selection()
+  }
+
+  /// One-time migration: fold a legacy single location (from older notes) into
+  /// the new multi-location list so it stays visible and manageable.
+  private func migrateLegacyLocation() {
+    guard note.locations.isEmpty, let lat = note.latitude, let lon = note.longitude else { return }
+    let place = NoteLocation(name: note.locationName ?? L("Location"), latitude: lat, longitude: lon, order: 0)
+    place.note = note
+    context.insert(place)
+    note.locationName = nil
+    note.latitude = nil
+    note.longitude = nil
+    try? context.save()
   }
 
   private func deleteAttachment(_ media: MediaAttachment) {

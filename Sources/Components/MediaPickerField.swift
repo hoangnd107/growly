@@ -3,25 +3,35 @@ import PhotosUI
 import UniformTypeIdentifiers
 import AVKit
 
-/// A labeled media section: a PhotosPicker (images + videos), an optional voice
-/// recorder, plus a horizontal grid of the current attachments, each a
-/// `MediaViewer` with a delete button.
+/// A labeled media section: a PhotosPicker (images + videos), optional voice
+/// recording, optional audio-file import, plus a horizontal grid of the current
+/// attachments. Each thumbnail has a delete button and a download button (which
+/// shares the underlying file so it can be saved to Photos / Files).
 ///
-/// The parent owns persistence — this view only loads the picked `Data` (or the
-/// recorded audio file name) and reports it back via the closures, deciding image
-/// vs. video from the picked item's `supportedContentTypes`.
+/// The parent owns persistence — this view loads the picked `Data` (or the
+/// recorded/imported audio file name) and reports it back via the closures.
 struct MediaPickerField: View {
   let attachments: [MediaAttachment]
   let onAddImage: (Data) -> Void
   let onAddVideo: (Data, String) -> Void
   let onDelete: (MediaAttachment) -> Void
-  /// When provided, a mic button appears and a recorded `.m4a` file name is
-  /// reported back so the parent can attach it as an audio attachment.
+  /// When provided, an "import audio file" button appears and any
+  /// recorded/imported `.m4a`/`.mp3`/… file name is reported back to attach.
   var onAddAudio: ((String) -> Void)? = nil
+  /// When true (and `onAddAudio` is set), a mic button records a voice memo.
+  var showVoiceRecorder: Bool = false
 
   @State private var selection: [PhotosPickerItem] = []
   @State private var isImporting = false
+  @State private var showAudioImporter = false
   @StateObject private var recorder = AudioRecorder()
+
+  /// Wraps a file URL so it can drive a share `.sheet(item:)`.
+  private struct ShareItem: Identifiable {
+    let id = UUID()
+    let url: URL
+  }
+  @State private var shareItem: ShareItem?
 
   private let thumbSize: CGFloat = 96
 
@@ -41,6 +51,16 @@ struct MediaPickerField: View {
       guard !items.isEmpty else { return }
       importItems(items)
     }
+    .fileImporter(
+      isPresented: $showAudioImporter,
+      allowedContentTypes: [.audio],
+      allowsMultipleSelection: true
+    ) { result in
+      importAudioFiles(result)
+    }
+    .sheet(item: $shareItem) { item in
+      ShareSheet(items: [item.url])
+    }
   }
 
   // MARK: - Header / picker
@@ -55,15 +75,27 @@ struct MediaPickerField: View {
 
       if onAddAudio != nil {
         Button {
-          toggleRecording()
+          showAudioImporter = true
         } label: {
-          Image(systemName: recorder.isRecording ? "stop.circle.fill" : "mic.circle.fill")
-            .font(.system(size: 26))
-            .foregroundStyle(recorder.isRecording ? Color(hex: 0xFF3B30) : Color.accentColor)
-            .symbolEffect(.pulse, isActive: recorder.isRecording)
+          Image(systemName: "waveform.badge.plus")
+            .font(.system(size: 24))
+            .foregroundStyle(Color.accentColor)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(recorder.isRecording ? L("Stop") : L("Voice memo"))
+        .accessibilityLabel(L("Attach audio file"))
+
+        if showVoiceRecorder {
+          Button {
+            toggleRecording()
+          } label: {
+            Image(systemName: recorder.isRecording ? "stop.circle.fill" : "mic.circle.fill")
+              .font(.system(size: 26))
+              .foregroundStyle(recorder.isRecording ? Color(hex: 0xFF3B30) : Color.accentColor)
+              .symbolEffect(.pulse, isActive: recorder.isRecording)
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel(recorder.isRecording ? L("Stop") : L("Voice memo"))
+        }
       }
 
       PhotosPicker(
@@ -118,6 +150,21 @@ struct MediaPickerField: View {
               }
               .accessibilityLabel(L("Delete"))
             }
+            .overlay(alignment: .bottomLeading) {
+              Button {
+                Haptics.light()
+                shareItem = ShareItem(url: MediaStore.url(for: attachment.fileName))
+              } label: {
+                Image(systemName: "square.and.arrow.down")
+                  .font(.system(size: 15, weight: .semibold))
+                  .foregroundStyle(.white)
+                  .padding(6)
+                  .background(.black.opacity(0.45), in: Circle())
+                  .padding(4)
+              }
+              .buttonStyle(.plain)
+              .accessibilityLabel(L("Download"))
+            }
         }
       }
       .padding(.horizontal, 2)
@@ -167,5 +214,20 @@ struct MediaPickerField: View {
         isImporting = false
       }
     }
+  }
+
+  /// Copies imported audio files (any format, e.g. `.m4a`, `.mp3`, `.wav`) into
+  /// the media store and reports each file name back to attach.
+  private func importAudioFiles(_ result: Result<[URL], Error>) {
+    guard case .success(let urls) = result else { return }
+    for url in urls {
+      let scoped = url.startAccessingSecurityScopedResource()
+      defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+      let ext = url.pathExtension.isEmpty ? "m4a" : url.pathExtension
+      if let data = try? Data(contentsOf: url), let name = MediaStore.save(data, ext: ext) {
+        onAddAudio?(name)
+      }
+    }
+    Haptics.success()
   }
 }

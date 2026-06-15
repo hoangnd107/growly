@@ -171,3 +171,18 @@
 
 /* v4 — author */
 "Author" = "Tác giả";
+
+/* v6 — locations, audio, download */
+"Choose location" = "Chọn vị trí";
+"Search address or place" = "Tìm địa chỉ hoặc địa điểm";
+"Location name" = "Tên vị trí";
+"Selected location" = "Vị trí đã chọn";
+"No results found." = "Không tìm thấy kết quả.";
+"Pinned location" = "Vị trí đã ghim";
+"Search an address, or tap the map to drop a pin." = "Tìm địa chỉ hoặc chạm vào bản đồ để ghim vị trí.";
+"Locations" = "Vị trí";
+"Add location" = "Thêm vị trí";
+"Remove location" = "Xóa vị trí";
+"Attach audio file" = "Đính kèm tệp âm thanh";
+"Download" = "Tải xuống";
+"Stop" = "Dừng";

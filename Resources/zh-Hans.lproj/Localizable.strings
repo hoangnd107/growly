@@ -171,3 +171,18 @@
 
 /* v4 — author */
 "Author" = "作者";
+
+/* v6 — locations, audio, download */
+"Choose location" = "选择位置";
+"Search address or place" = "搜索地址或地点";
+"Location name" = "位置名称";
+"Selected location" = "已选位置";
+"No results found." = "未找到结果。";
+"Pinned location" = "已固定位置";
+"Search an address, or tap the map to drop a pin." = "搜索地址，或点按地图放置图钉。";
+"Locations" = "位置";
+"Add location" = "添加位置";
+"Remove location" = "移除位置";
+"Attach audio file" = "附加音频文件";
+"Download" = "下载";
+"Stop" = "停止";
