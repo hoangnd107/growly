@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import UniformTypeIdentifiers
 
 /// App preferences and data tools. Pushed from `ProfileView`'s `NavigationStack`,
 /// so this view does NOT create its own. Controls bind directly to `UserProgress`
@@ -18,6 +19,9 @@ struct SettingsView: View {
   /// Entries used to build the export payloads (PDF + JSON).
   let entries: [Entry]
 
+  /// Import sources (e.g. Apple Journal), newest first — managed in this screen.
+  @Query(sort: \ImportSource.importedAt, order: .reverse) private var importSources: [ImportSource]
+
   // Data tools
   @State private var exportConfirmed = false
   @State private var backupConfirmed = false
@@ -34,6 +38,12 @@ struct SettingsView: View {
   // Reset
   @State private var pendingReset: ResetService.Kind?
 
+  // Journal import
+  @State private var showJournalImporter = false
+  @State private var importing = false
+  @State private var importResult: String?
+  @State private var pendingDeleteSource: ImportSource?
+
   var body: some View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
@@ -43,6 +53,7 @@ struct SettingsView: View {
         remindersCard
         testingCard
         dataCard
+        journalImportCard
         resetCard
         aboutCard
       }
@@ -56,6 +67,25 @@ struct SettingsView: View {
     .onAppear { lastBackupDisplay = progress.lastBackupAt ?? BackupService.lastModified }
     .sheet(item: $shareItem) { item in
       ShareSheet(items: [item.url])
+    }
+    .fileImporter(
+      isPresented: $showJournalImporter,
+      allowedContentTypes: [.folder],
+      allowsMultipleSelection: false
+    ) { result in
+      handleJournalPick(result)
+    }
+    .confirmationDialog(
+      pendingDeleteSource.map { Lf("Delete \"%@\"?", $0.name) } ?? L("Delete import"),
+      isPresented: deleteSourceBinding,
+      titleVisibility: .visible
+    ) {
+      if let source = pendingDeleteSource {
+        Button(L("Delete import"), role: .destructive) { deleteSource(source) }
+      }
+      Button(L("Cancel"), role: .cancel) { pendingDeleteSource = nil }
+    } message: {
+      Text(L("Removes the imported notes and their media. Your own notes and other imports are not affected."))
     }
     .confirmationDialog(
       L("Restore from backup"),
@@ -494,6 +524,148 @@ struct SettingsView: View {
       return "{\"app\":\"Growly\",\"entries\":[]}"
     }
     return string
+  }
+
+  // MARK: 7b. Journal import
+
+  private var journalImportCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        sectionHeader(L("Journal import"), systemImage: "square.and.arrow.down.fill", tint: progress.accentColor)
+
+        Text(L("Import notes from an Apple Journal export folder. Each entry becomes a note on its original date. Remove an import any time — your own notes and other imports are untouched."))
+          .font(.dl(.caption2))
+          .foregroundStyle(DLColor.textTertiary)
+          .fixedSize(horizontal: false, vertical: true)
+
+        Button { showJournalImporter = true } label: {
+          dataRow(
+            systemImage: importing ? "hourglass" : "tray.and.arrow.down.fill",
+            tint: progress.accentColor,
+            title: importing ? L("Importing…") : L("Import from Journal"),
+            subtitle: L("Choose an exported journal folder.")
+          )
+        }
+        .buttonStyle(.plain)
+        .disabled(importing)
+        .accessibilityLabel(L("Import from Journal"))
+
+        if let importResult {
+          Text(importResult)
+            .font(.dl(.caption, weight: .semibold))
+            .foregroundStyle(DLColor.success)
+        }
+
+        if !importSources.isEmpty {
+          Divider().overlay(DLColor.separator)
+          ForEach(importSources) { source in
+            importSourceRow(source)
+            if source.id != importSources.last?.id {
+              Divider().overlay(DLColor.separator.opacity(0.5))
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private func importSourceRow(_ source: ImportSource) -> some View {
+    HStack(spacing: DLSpace.sm) {
+      Image(systemName: "doc.text.fill")
+        .font(.system(size: 18))
+        .foregroundStyle(progress.accentColor)
+        .frame(width: 24)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(source.name)
+          .font(.dl(.body, weight: .medium))
+          .foregroundStyle(DLColor.textPrimary)
+          .lineLimit(1)
+        Text(Lf("%d notes · %@", source.noteCount, source.importedAt.formatted(date: .abbreviated, time: .omitted)))
+          .font(.dl(.caption2))
+          .foregroundStyle(DLColor.textSecondary)
+      }
+      Spacer(minLength: DLSpace.sm)
+      Button(role: .destructive) { pendingDeleteSource = source } label: {
+        Image(systemName: "trash")
+          .font(.system(size: 16, weight: .semibold))
+          .foregroundStyle(DLColor.streakEnd)
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(L("Delete import"))
+    }
+    .contentShape(Rectangle())
+  }
+
+  private var deleteSourceBinding: Binding<Bool> {
+    Binding(
+      get: { pendingDeleteSource != nil },
+      set: { if !$0 { pendingDeleteSource = nil } }
+    )
+  }
+
+  /// Picks the folder, parses off the main thread, then applies the import on the
+  /// main actor (while the security-scoped folder is still accessible).
+  private func handleJournalPick(_ result: Result<[URL], Error>) {
+    guard case .success(let urls) = result, let folder = urls.first else { return }
+    importResult = nil
+    importing = true
+    Task {
+      let scoped = folder.startAccessingSecurityScopedResource()
+      defer { if scoped { folder.stopAccessingSecurityScopedResource() } }
+      let parsed = await Task.detached(priority: .userInitiated) {
+        JournalImporter.parse(folder: folder)
+      }.value
+      applyJournalImport(parsed, folderName: friendlyName(folder))
+      importing = false
+    }
+  }
+
+  private func friendlyName(_ folder: URL) -> String {
+    let name = folder.lastPathComponent
+    return name.isEmpty ? L("Journal") : name
+  }
+
+  private func applyJournalImport(_ parsed: [JournalImporter.ParsedEntry], folderName: String) {
+    guard !parsed.isEmpty else {
+      importResult = L("No journal entries found in that folder.")
+      Haptics.warning()
+      return
+    }
+    let source = ImportSource(name: folderName, importedAt: Date(), noteCount: parsed.count)
+    modelContext.insert(source)
+    for item in parsed {
+      let note = DayNote(title: item.title, text: item.body, createdAt: item.date)
+      note.importSourceID = source.id
+      modelContext.insert(note)
+      var order = 0
+      for mediaURL in item.media {
+        guard let type = MediaStore.mediaType(forExtension: mediaURL.pathExtension),
+              let name = MediaStore.copyFile(at: mediaURL) else { continue }
+        let media = MediaAttachment(fileName: name, type: type, order: order)
+        media.note = note
+        modelContext.insert(media)
+        order += 1
+      }
+    }
+    try? modelContext.save()
+    importResult = Lf("Imported %d notes.", parsed.count)
+    Haptics.success()
+  }
+
+  /// Deletes one import: removes its notes (and their media files) and the record,
+  /// leaving app-created notes and other imports untouched.
+  private func deleteSource(_ source: ImportSource) {
+    let id = source.id
+    let notes = (try? modelContext.fetch(FetchDescriptor<DayNote>())) ?? []
+    for note in notes where note.importSourceID == id {
+      for media in note.attachments { MediaStore.delete(media.fileName) }
+      modelContext.delete(note)
+    }
+    modelContext.delete(source)
+    try? modelContext.save()
+    pendingDeleteSource = nil
+    importResult = nil
+    Haptics.warning()
   }
 
   // MARK: 8. Reset data

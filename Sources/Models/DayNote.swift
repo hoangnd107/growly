@@ -28,6 +28,10 @@ final class DayNote {
   /// When set, the note is in the Trash (soft-deleted) — restorable until purged.
   var deletedAt: Date? = nil
 
+  /// When this note came from an external import, the `ImportSource.id` it belongs
+  /// to (nil for notes created in the app). Lets a whole import be removed cleanly.
+  var importSourceID: UUID? = nil
+
   @Relationship(deleteRule: .cascade, inverse: \MediaAttachment.note)
   var attachments: [MediaAttachment]
 

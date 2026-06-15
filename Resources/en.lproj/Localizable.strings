@@ -224,3 +224,17 @@
 "Remove mood" = "Remove mood";
 "Mood color" = "Mood color";
 "Set an emoji and color for each mood, or add your own — moods show everywhere." = "Set an emoji and color for each mood, or add your own — moods show everywhere.";
+
+/* v9 — journal import */
+"Journal import" = "Journal import";
+"Import notes from an Apple Journal export folder. Each entry becomes a note on its original date. Remove an import any time — your own notes and other imports are untouched." = "Import notes from an Apple Journal export folder. Each entry becomes a note on its original date. Remove an import any time — your own notes and other imports are untouched.";
+"Import from Journal" = "Import from Journal";
+"Importing…" = "Importing…";
+"Choose an exported journal folder." = "Choose an exported journal folder.";
+"No journal entries found in that folder." = "No journal entries found in that folder.";
+"Imported %d notes." = "Imported %d notes.";
+"%d notes · %@" = "%d notes · %@";
+"Delete import" = "Delete import";
+"Delete \"%@\"?" = "Delete \"%@\"?";
+"Removes the imported notes and their media. Your own notes and other imports are not affected." = "Removes the imported notes and their media. Your own notes and other imports are not affected.";
+"Journal" = "Journal";

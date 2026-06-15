@@ -14,6 +14,7 @@ enum AppModelContainer {
     NoteLocation.self,
     SleepLog.self,
     SmartGoal.self,
+    ImportSource.self,
   ])
 
   static let shared: ModelContainer = {

@@ -224,3 +224,17 @@
 "Remove mood" = "기분 삭제";
 "Mood color" = "기분 색상";
 "Set an emoji and color for each mood, or add your own — moods show everywhere." = "각 기분에 이모지와 색상을 지정하거나 직접 추가하세요 — 기분은 모든 곳에 표시됩니다.";
+
+/* v9 — journal import */
+"Journal import" = "저널 가져오기";
+"Import notes from an Apple Journal export folder. Each entry becomes a note on its original date. Remove an import any time — your own notes and other imports are untouched." = "Apple 저널 내보내기 폴더에서 메모를 가져옵니다. 각 항목은 원래 날짜의 메모가 됩니다. 언제든지 가져오기를 제거할 수 있으며 내 메모와 다른 가져오기에는 영향을 주지 않습니다.";
+"Import from Journal" = "저널에서 가져오기";
+"Importing…" = "가져오는 중…";
+"Choose an exported journal folder." = "내보낸 저널 폴더를 선택하세요.";
+"No journal entries found in that folder." = "해당 폴더에서 저널 항목을 찾을 수 없습니다.";
+"Imported %d notes." = "메모 %d개를 가져왔습니다.";
+"%d notes · %@" = "메모 %d개 · %@";
+"Delete import" = "가져오기 삭제";
+"Delete \"%@\"?" = "\"%@\"을(를) 삭제할까요?";
+"Removes the imported notes and their media. Your own notes and other imports are not affected." = "가져온 메모와 미디어를 삭제합니다. 내 메모와 다른 가져오기에는 영향을 주지 않습니다.";
+"Journal" = "저널";

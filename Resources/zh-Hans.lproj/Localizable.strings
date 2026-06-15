@@ -224,3 +224,17 @@
 "Remove mood" = "删除心情";
 "Mood color" = "心情颜色";
 "Set an emoji and color for each mood, or add your own — moods show everywhere." = "为每种心情设置表情和颜色，或添加自定义心情——心情会显示在各处。";
+
+/* v9 — journal import */
+"Journal import" = "日记导入";
+"Import notes from an Apple Journal export folder. Each entry becomes a note on its original date. Remove an import any time — your own notes and other imports are untouched." = "从 Apple 日记导出文件夹导入笔记。每条记录会按其原始日期成为一条笔记。可随时移除某次导入——你自己的笔记和其他导入不受影响。";
+"Import from Journal" = "从日记导入";
+"Importing…" = "正在导入…";
+"Choose an exported journal folder." = "选择导出的日记文件夹。";
+"No journal entries found in that folder." = "在该文件夹中未找到日记条目。";
+"Imported %d notes." = "已导入 %d 条笔记。";
+"%d notes · %@" = "%d 条笔记 · %@";
+"Delete import" = "删除导入";
+"Delete \"%@\"?" = "删除“%@”？";
+"Removes the imported notes and their media. Your own notes and other imports are not affected." = "移除导入的笔记及其媒体。你自己的笔记和其他导入不受影响。";
+"Journal" = "日记";

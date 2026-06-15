@@ -224,3 +224,17 @@
 "Remove mood" = "Xoá tâm trạng";
 "Mood color" = "Màu tâm trạng";
 "Set an emoji and color for each mood, or add your own — moods show everywhere." = "Đặt emoji và màu cho mỗi tâm trạng, hoặc tự thêm — tâm trạng hiển thị ở mọi nơi.";
+
+/* v9 — journal import */
+"Journal import" = "Nhập từ Nhật ký";
+"Import notes from an Apple Journal export folder. Each entry becomes a note on its original date. Remove an import any time — your own notes and other imports are untouched." = "Nhập ghi chú từ thư mục xuất của Apple Journal. Mỗi mục trở thành một ghi chú theo đúng ngày gốc. Có thể xoá một lần nhập bất cứ lúc nào — ghi chú của bạn và các lần nhập khác không bị ảnh hưởng.";
+"Import from Journal" = "Nhập từ Journal";
+"Importing…" = "Đang nhập…";
+"Choose an exported journal folder." = "Chọn thư mục nhật ký đã xuất.";
+"No journal entries found in that folder." = "Không tìm thấy mục nhật ký nào trong thư mục đó.";
+"Imported %d notes." = "Đã nhập %d ghi chú.";
+"%d notes · %@" = "%d ghi chú · %@";
+"Delete import" = "Xoá lần nhập";
+"Delete \"%@\"?" = "Xoá \"%@\"?";
+"Removes the imported notes and their media. Your own notes and other imports are not affected." = "Xoá các ghi chú đã nhập và phương tiện của chúng. Ghi chú của bạn và các lần nhập khác không bị ảnh hưởng.";
+"Journal" = "Nhật ký";
