@@ -195,36 +195,34 @@ private struct ProfileContent: View {
 
         Divider().overlay(DLColor.separator.opacity(0.5))
 
-        // Adjust streak directly (full customization).
-        Stepper(value: $progress.currentStreak, in: 0...3650) {
-          HStack {
-            Text(L("Adjust streak"))
-              .font(.dl(.subheadline, weight: .medium))
-              .foregroundStyle(DLColor.textPrimary)
-            Spacer()
-            Text("\(progress.currentStreak)")
-              .font(.dl(.subheadline, weight: .bold))
-              .foregroundStyle(DLColor.streakStart)
-              .monospacedDigit()
-          }
+        // Adjust streak — type a value or nudge with the stepper.
+        HStack {
+          Text(L("Adjust streak"))
+            .font(.dl(.subheadline, weight: .medium))
+            .foregroundStyle(DLColor.textPrimary)
+          Spacer()
+          numberField($progress.currentStreak, tint: DLColor.streakStart, placeholder: L("Streak"))
+          Stepper("", value: $progress.currentStreak, in: 0...3650)
+            .labelsHidden()
         }
         .onChange(of: progress.currentStreak) { _, newValue in
+          if newValue < 0 { progress.currentStreak = 0 }
           if newValue > progress.longestStreak { progress.longestStreak = newValue }
           save()
         }
 
-        // Days to freeze.
-        Stepper(value: $freezeDays, in: 1...14) {
-          HStack {
-            Text(L("Freeze days"))
-              .font(.dl(.subheadline, weight: .medium))
-              .foregroundStyle(DLColor.textPrimary)
-            Spacer()
-            Text("\(freezeDays)")
-              .font(.dl(.subheadline, weight: .bold))
-              .foregroundStyle(DLColor.textPrimary)
-              .monospacedDigit()
-          }
+        // Days to freeze — type a value or nudge with the stepper.
+        HStack {
+          Text(L("Freeze days"))
+            .font(.dl(.subheadline, weight: .medium))
+            .foregroundStyle(DLColor.textPrimary)
+          Spacer()
+          numberField($freezeDays, tint: DLColor.textPrimary, placeholder: L("Days"))
+          Stepper("", value: $freezeDays, in: 1...365)
+            .labelsHidden()
+        }
+        .onChange(of: freezeDays) { _, newValue in
+          if newValue < 1 { freezeDays = 1 }
         }
 
         // Cost per day — freely settable, can be 0 (free), no upper limit.
@@ -465,6 +463,22 @@ private struct ProfileContent: View {
   }
 
   // MARK: Persistence
+
+  /// A compact, typeable number field (matches the XP-cost input style).
+  private func numberField(_ value: Binding<Int>, tint: Color, placeholder: String) -> some View {
+    TextField(placeholder, value: value, format: .number)
+      .keyboardType(.numberPad)
+      .multilineTextAlignment(.trailing)
+      .font(.dl(.subheadline, weight: .bold))
+      .foregroundStyle(tint)
+      .frame(width: 64)
+      .padding(.vertical, 6)
+      .padding(.horizontal, DLSpace.sm)
+      .background(
+        RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+          .fill(DLColor.separator.opacity(0.35))
+      )
+  }
 
   private func save() {
     try? context.save()

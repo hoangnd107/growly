@@ -30,6 +30,7 @@ struct InsightsView: View {
 
   /// Selected granularity for the mood calendar section.
   @State private var calendarScale: CalendarScale = .month
+  @Namespace private var scaleNS
 
   init() {}
 
@@ -265,7 +266,10 @@ struct InsightsView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .background {
-              if isSelected { Capsule().fill(theme.accent) }
+              if isSelected {
+                Capsule().fill(theme.accent)
+                  .matchedGeometryEffect(id: "calendarScalePill", in: scaleNS)
+              }
             }
             .contentShape(Capsule())
         }

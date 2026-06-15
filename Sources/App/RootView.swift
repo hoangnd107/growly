@@ -29,8 +29,9 @@ struct RootView: View {
 
   @ViewBuilder
   private func content(for progress: UserProgress) -> some View {
-    // Apply the language synchronously before children read L(...).
+    // Apply the language + mood emojis synchronously before children render.
     let _ = (LocalizationManager.shared.code = progress.languageCode)
+    let _ = (MoodStyle.shared.emojis = progress.moodEmojis)
 
     Group {
       if !progress.onboarded {

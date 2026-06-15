@@ -2,6 +2,22 @@ import SwiftUI
 
 // MARK: - Mood
 
+/// Holds the user's optional per-level mood emoji overrides so a custom emoji
+/// shows everywhere `Mood.emoji` is read (set from `UserProgress.moodEmojis`).
+/// `emojis` is either empty (use defaults) or holds one entry per mood level.
+final class MoodStyle {
+  static let shared = MoodStyle()
+  var emojis: [String] = []
+
+  /// The override for a 1-based mood level, or nil to fall back to the default.
+  func emoji(for level: Int) -> String? {
+    let index = level - 1
+    guard emojis.indices.contains(index) else { return nil }
+    let value = emojis[index].trimmingCharacters(in: .whitespaces)
+    return value.isEmpty ? nil : value
+  }
+}
+
 enum Mood: Int, CaseIterable, Identifiable {
   case awful = 1
   case low
@@ -11,7 +27,13 @@ enum Mood: Int, CaseIterable, Identifiable {
 
   var id: Int { rawValue }
 
+  /// The user's custom emoji for this level if set, else the default.
   var emoji: String {
+    if let custom = MoodStyle.shared.emoji(for: rawValue) { return custom }
+    return defaultEmoji
+  }
+
+  var defaultEmoji: String {
     switch self {
     case .awful: return "😣"
     case .low: return "😔"
@@ -151,6 +173,15 @@ enum ThemePreference: String, CaseIterable, Identifiable {
     case .system: return "System"
     case .light: return "Light"
     case .dark: return "Dark"
+    }
+  }
+
+  /// Icon shown in the Appearance picker (instead of text).
+  var icon: String {
+    switch self {
+    case .system: return "circle.lefthalf.filled"
+    case .light: return "sun.max.fill"
+    case .dark: return "moon.fill"
     }
   }
 

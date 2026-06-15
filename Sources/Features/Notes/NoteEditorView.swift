@@ -334,7 +334,7 @@ private struct NoteEditorForm: View {
   // MARK: Floating toolbar
 
   private var toolbar: some View {
-    HStack(spacing: DLSpace.lg) {
+    HStack(spacing: DLSpace.sm) {
       Menu {
         Button(L("Bold")) { insertMarker("**bold**") }
         Button(L("Italic")) { insertMarker("_italic_") }
@@ -366,18 +366,18 @@ private struct NoteEditorForm: View {
         if let snap = undoSnapshot { note.text = snap; Haptics.light() }
       }
     }
-    .padding(.horizontal, DLSpace.lg)
+    .padding(.horizontal, DLSpace.sm)
     .padding(.vertical, DLSpace.sm)
     .glass(cornerRadius: DLRadius.pill)
-    .padding(.horizontal, DLSpace.md)
-    .padding(.bottom, DLSpace.xs)
+    .padding(.bottom, DLSpace.sm)
+    .frame(maxWidth: .infinity)   // keep the pill compact and centered, with side margins
   }
 
   private func toolIcon(_ system: String) -> some View {
     Image(systemName: system)
-      .font(.system(size: 20, weight: .semibold))
+      .font(.system(size: 18, weight: .semibold))
       .foregroundStyle(theme.accent)
-      .frame(width: 36, height: 36)
+      .frame(width: 32, height: 32)
   }
 
   private func toolButton(_ system: String, _ label: String, action: @escaping () -> Void) -> some View {

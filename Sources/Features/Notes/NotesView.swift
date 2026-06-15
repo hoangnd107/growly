@@ -30,7 +30,7 @@ struct NotesView: View {
 
   // Sheets
   @State private var editorNote: DayNote?
-  @State private var creatingNote = false
+  @State private var showTrash = false
 
   // Multi-select
   @State private var editMode: EditMode = .inactive
@@ -38,9 +38,8 @@ struct NotesView: View {
   @State private var showBatchDatePicker = false
   @State private var batchDate = Date()
 
-  // Floating button drag
-  @State private var fabDrag: CGSize = .zero
-  @State private var fabBase: CGSize = .zero
+  // Sliding pill namespace for the granularity selector.
+  @Namespace private var granularityNS
 
   private let calendar: Calendar = {
     var cal = Calendar.current
@@ -79,11 +78,21 @@ struct NotesView: View {
 
   // MARK: - Derived data
 
-  /// Distinct, sorted folder names across all notes (nil folders excluded).
+  /// Notes not in the Trash (soft-deleted notes are excluded everywhere).
+  private var activeNotes: [DayNote] {
+    notes.filter { $0.deletedAt == nil }
+  }
+
+  /// Notes currently in the Trash.
+  private var trashedNotes: [DayNote] {
+    notes.filter { $0.deletedAt != nil }
+  }
+
+  /// Distinct, sorted folder names across active notes (nil folders excluded).
   private var folders: [String] {
     var seen = Set<String>()
     var ordered: [String] = []
-    for note in notes {
+    for note in activeNotes {
       if let folder = note.folder?.trimmingCharacters(in: .whitespacesAndNewlines),
          !folder.isEmpty, !seen.contains(folder) {
         seen.insert(folder)
@@ -93,10 +102,10 @@ struct NotesView: View {
     return ordered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
   }
 
-  /// All notes after search + folder + filter narrowing (pinned still included).
+  /// All active notes after search + folder + filter narrowing (pinned still included).
   private var matched: [DayNote] {
     let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    return notes.filter { note in
+    return activeNotes.filter { note in
       if let folderFilter, note.folder != folderFilter { return false }
       switch filter {
       case .all: break
@@ -194,19 +203,15 @@ struct NotesView: View {
 
   var body: some View {
     NavigationStack {
-      ZStack(alignment: .bottomTrailing) {
+      ZStack {
         ThemedBackground(theme: theme)
 
-        if notes.isEmpty {
+        if activeNotes.isEmpty {
           emptyState
         } else if !hasResults {
           noMatchesState
         } else {
           timeline
-        }
-
-        if !selecting {
-          floatingAddButton
         }
       }
       .safeAreaInset(edge: .bottom) {
@@ -218,9 +223,7 @@ struct NotesView: View {
       .sheet(item: $editorNote) { note in
         NavigationStack { NoteEditorView(note: note) }
       }
-      .sheet(isPresented: $creatingNote) {
-        NavigationStack { NoteEditorView(note: nil) }
-      }
+      .sheet(isPresented: $showTrash) { TrashView() }
       .sheet(isPresented: $showBatchDatePicker) { batchDateSheet }
       .tint(theme.accent)
     }
@@ -230,7 +233,7 @@ struct NotesView: View {
 
   @ToolbarContentBuilder
   private var toolbarContent: some ToolbarContent {
-    if !notes.isEmpty {
+    if !activeNotes.isEmpty {
       ToolbarItem(placement: .topBarLeading) {
         if selecting {
           Button(allSelected ? L("Deselect all") : L("Select all")) {
@@ -242,6 +245,16 @@ struct NotesView: View {
           filterMenu
         }
       }
+    }
+    if !trashedNotes.isEmpty {
+      ToolbarItem(placement: .topBarTrailing) {
+        Button { showTrash = true } label: {
+          Image(systemName: "trash")
+        }
+        .accessibilityLabel(L("Recently deleted"))
+      }
+    }
+    if !activeNotes.isEmpty {
       ToolbarItem(placement: .topBarTrailing) {
         Button {
           withAnimation(DLAnim.standard) {
@@ -365,6 +378,7 @@ struct NotesView: View {
             .background {
               if isSelected {
                 Capsule().fill(theme.accent)
+                  .matchedGeometryEffect(id: "granularityPill", in: granularityNS)
               }
             }
             .contentShape(Capsule())
@@ -692,38 +706,6 @@ struct NotesView: View {
     }
   }
 
-  // MARK: - Floating add button
-
-  private var floatingAddButton: some View {
-    Button {
-      creatingNote = true
-    } label: {
-      Image(systemName: "plus")
-        .font(.system(size: 24, weight: .bold))
-        .foregroundStyle(.white)
-        .frame(width: 56, height: 56)
-        .background(theme.accentGradient, in: Circle())
-        .shadow(color: theme.accent.opacity(0.45), radius: 14, x: 0, y: 8)
-    }
-    .buttonStyle(.plain)
-    .bounceTap()
-    .accessibilityLabel(L("New note"))
-    .offset(x: fabBase.width + fabDrag.width, y: fabBase.height + fabDrag.height)
-    .padding(.trailing, DLSpace.lg)
-    .padding(.bottom, DLSpace.lg)
-    .gesture(
-      DragGesture()
-        .onChanged { value in fabDrag = value.translation }
-        .onEnded { value in
-          fabBase.width += value.translation.width
-          fabBase.height += value.translation.height
-          fabDrag = .zero
-          Haptics.soft()
-        }
-    )
-    .animation(reduceMotion ? nil : DLAnim.standard, value: fabBase)
-  }
-
   // MARK: - Batch action bar
 
   private var batchActionBar: some View {
@@ -883,25 +865,24 @@ struct NotesView: View {
     Haptics.success()
   }
 
-  // MARK: - Delete (also removes media binaries from disk)
+  // MARK: - Delete (soft-delete → Trash; media is kept until purged there)
 
   private func delete(_ targets: [DayNote]) {
     guard !targets.isEmpty else { return }
     let deletedFolders = Set(targets.compactMap { $0.folder })
+    let now = Date()
 
     withAnimation(DLAnim.standard) {
       for note in targets {
-        for attachment in note.attachments {
-          MediaStore.delete(attachment.fileName)
-        }
+        note.deletedAt = now
+        note.updatedAt = now
         selection.remove(note.id)
-        context.delete(note)
       }
     }
     try? context.save()
 
     if let active = folderFilter, deletedFolders.contains(active),
-       !notes.contains(where: { $0.folder == active }) {
+       !activeNotes.contains(where: { $0.folder == active }) {
       folderFilter = nil
     }
     Haptics.warning()

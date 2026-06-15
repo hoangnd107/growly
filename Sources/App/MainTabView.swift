@@ -13,21 +13,26 @@ struct MainTabView: View {
     // in-app language changes — without resetting the selected tab / navigation.
     let _ = progressList.first?.languageCode
 
-    TabView {
-      TodayView()
-        .tabItem { Label(L("Today"), systemImage: "sun.max.fill") }
+    ZStack {
+      TabView {
+        TodayView()
+          .tabItem { Label(L("Today"), systemImage: "sun.max.fill") }
 
-      NotesView()
-        .tabItem { Label(L("Notes"), systemImage: "note.text") }
+        NotesView()
+          .tabItem { Label(L("Notes"), systemImage: "note.text") }
 
-      HistoryView()
-        .tabItem { Label(L("History"), systemImage: "calendar") }
+        HistoryView()
+          .tabItem { Label(L("History"), systemImage: "calendar") }
 
-      InsightsView()
-        .tabItem { Label(L("Insights"), systemImage: "chart.line.uptrend.xyaxis") }
+        InsightsView()
+          .tabItem { Label(L("Insights"), systemImage: "chart.line.uptrend.xyaxis") }
 
-      ProfileView()
-        .tabItem { Label(L("Me"), systemImage: "person.fill") }
+        ProfileView()
+          .tabItem { Label(L("Me"), systemImage: "person.fill") }
+      }
+
+      // A draggable "+" that composes a new note from any tab.
+      FloatingNoteButton()
     }
   }
 }

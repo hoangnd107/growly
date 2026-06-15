@@ -94,7 +94,9 @@ struct SettingsView: View {
             .foregroundStyle(DLColor.textPrimary)
           Picker(L("Theme"), selection: themeBinding) {
             ForEach(ThemePreference.allCases) { theme in
-              Text(L(theme.label)).tag(theme)
+              Image(systemName: theme.icon)
+                .accessibilityLabel(L(theme.label))
+                .tag(theme)
             }
           }
           .pickerStyle(.segmented)

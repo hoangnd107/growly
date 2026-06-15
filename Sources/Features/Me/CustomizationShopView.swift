@@ -24,6 +24,8 @@ struct CustomizationShopView: View {
 
           gradientThemesCard
 
+          moodEmojisCard
+
           GlassCard {
             LazyVGrid(columns: columns, spacing: DLSpace.md) {
               ForEach(AccentTheme.catalog) { theme in
@@ -137,6 +139,74 @@ struct CustomizationShopView: View {
     progress.accentColorHex = theme.accentHexString
     try? context.save()
     Haptics.selection()
+  }
+
+  // MARK: Mood emojis (custom per level, applied app-wide)
+
+  private var moodEmojisCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        HStack {
+          Label(L("Mood emojis"), systemImage: "face.smiling")
+            .font(.dl(.headline, weight: .semibold))
+            .foregroundStyle(progress.accentColor)
+          Spacer()
+          if !progress.moodEmojis.isEmpty {
+            Button(L("Reset")) { resetMoodEmojis() }
+              .font(.dl(.subheadline, weight: .semibold))
+              .foregroundStyle(progress.accentColor)
+          }
+        }
+
+        Text(L("Pick your own emoji for each mood — it shows everywhere."))
+          .font(.dl(.caption2))
+          .foregroundStyle(DLColor.textTertiary)
+
+        ForEach(Mood.allCases) { mood in
+          HStack(spacing: DLSpace.sm) {
+            Circle().fill(mood.color).frame(width: 12, height: 12)
+            Text(L(mood.label))
+              .font(.dl(.body))
+              .foregroundStyle(DLColor.textPrimary)
+            Spacer()
+            TextField(mood.defaultEmoji, text: emojiBinding(for: mood))
+              .multilineTextAlignment(.center)
+              .font(.system(size: 24))
+              .frame(width: 56)
+              .padding(.vertical, 6)
+              .background(
+                RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+                  .fill(DLColor.separator.opacity(0.35))
+              )
+            }
+        }
+      }
+    }
+  }
+
+  private func emojiBinding(for mood: Mood) -> Binding<String> {
+    let index = mood.rawValue - 1
+    return Binding(
+      get: {
+        progress.moodEmojis.indices.contains(index) ? progress.moodEmojis[index] : ""
+      },
+      set: { newValue in
+        var emojis = progress.moodEmojis
+        while emojis.count < Mood.allCases.count { emojis.append("") }
+        emojis[index] = String(newValue.prefix(1))
+        progress.moodEmojis = emojis
+        MoodStyle.shared.emojis = emojis
+        try? context.save()
+        Haptics.selection()
+      }
+    )
+  }
+
+  private func resetMoodEmojis() {
+    progress.moodEmojis = []
+    MoodStyle.shared.emojis = []
+    try? context.save()
+    Haptics.medium()
   }
 
   private var unlockedCount: Int {

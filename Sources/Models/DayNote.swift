@@ -25,6 +25,9 @@ final class DayNote {
   var latitude: Double?
   var longitude: Double?
 
+  /// When set, the note is in the Trash (soft-deleted) — restorable until purged.
+  var deletedAt: Date? = nil
+
   @Relationship(deleteRule: .cascade, inverse: \MediaAttachment.note)
   var attachments: [MediaAttachment]
 

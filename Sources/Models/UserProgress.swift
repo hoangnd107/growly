@@ -45,6 +45,9 @@ final class UserProgress {
   // Streak freeze: days the streak was protected with XP (so a gap doesn't break it).
   var streakFreezeDates: [Date] = []
 
+  // Optional custom emoji per mood level (empty = use defaults). Index 0 → level 1.
+  var moodEmojis: [String] = []
+
   init() {
     self.id = UUID()
     self.totalXP = 0

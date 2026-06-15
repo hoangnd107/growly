@@ -62,6 +62,7 @@ private struct TodayContent: View {
 
   private enum Mode { case evening, morning }
   @State private var mode: Mode = .evening
+  @Namespace private var modeNS
   @State private var showCelebration = false
   @State private var showHabitManager = false
   @State private var showGoals = false
@@ -142,7 +143,10 @@ private struct TodayContent: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .background {
-              if isSelected { Capsule().fill(Color.accentColor) }
+              if isSelected {
+                Capsule().fill(Color.accentColor)
+                  .matchedGeometryEffect(id: "todayModePill", in: modeNS)
+              }
             }
             .contentShape(Capsule())
         }

@@ -186,3 +186,16 @@
 "Attach audio file" = "Đính kèm tệp âm thanh";
 "Download" = "Tải xuống";
 "Stop" = "Dừng";
+
+/* v7 — moods, trash, fab */
+"Mood emojis" = "Emoji tâm trạng";
+"Pick your own emoji for each mood — it shows everywhere." = "Chọn emoji riêng cho mỗi tâm trạng — áp dụng ở mọi nơi.";
+"Reset" = "Đặt lại";
+"Days" = "Ngày";
+"Recently deleted" = "Đã xóa gần đây";
+"Trash is empty" = "Thùng rác trống";
+"Deleted notes appear here so you can restore them." = "Các ghi chú đã xóa xuất hiện ở đây để bạn khôi phục.";
+"Restore" = "Khôi phục";
+"Empty" = "Dọn sạch";
+"Swipe a note to restore or delete it permanently." = "Vuốt một ghi chú để khôi phục hoặc xóa vĩnh viễn.";
+"Long-press to move" = "Nhấn giữ để di chuyển";

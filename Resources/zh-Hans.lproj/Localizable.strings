@@ -186,3 +186,16 @@
 "Attach audio file" = "附加音频文件";
 "Download" = "下载";
 "Stop" = "停止";
+
+/* v7 — moods, trash, fab */
+"Mood emojis" = "心情表情";
+"Pick your own emoji for each mood — it shows everywhere." = "为每种心情选择自己的表情 — 全局生效。";
+"Reset" = "重置";
+"Days" = "天数";
+"Recently deleted" = "最近删除";
+"Trash is empty" = "回收站为空";
+"Deleted notes appear here so you can restore them." = "已删除的笔记会显示在此处，可恢复。";
+"Restore" = "恢复";
+"Empty" = "清空";
+"Swipe a note to restore or delete it permanently." = "滑动笔记以恢复或永久删除。";
+"Long-press to move" = "长按以移动";

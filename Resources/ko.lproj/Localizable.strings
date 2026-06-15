@@ -186,3 +186,16 @@
 "Attach audio file" = "오디오 파일 첨부";
 "Download" = "다운로드";
 "Stop" = "중지";
+
+/* v7 — moods, trash, fab */
+"Mood emojis" = "기분 이모지";
+"Pick your own emoji for each mood — it shows everywhere." = "각 기분에 사용할 이모지를 선택하세요 — 모든 곳에 적용됩니다.";
+"Reset" = "재설정";
+"Days" = "일수";
+"Recently deleted" = "최근 삭제됨";
+"Trash is empty" = "휴지통이 비어 있습니다";
+"Deleted notes appear here so you can restore them." = "삭제된 메모가 여기에 표시되어 복원할 수 있습니다.";
+"Restore" = "복원";
+"Empty" = "비우기";
+"Swipe a note to restore or delete it permanently." = "메모를 밀어 복원하거나 영구 삭제하세요.";
+"Long-press to move" = "길게 눌러 이동";
