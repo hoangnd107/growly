@@ -16,6 +16,16 @@ final class SmartGoal {
   var isCompleted: Bool
   var colorHex: String?
 
+  // v1.10 additions (additive migration; all default-valued):
+  var updatedAt: Date = Date()
+  /// When the goal was marked complete (nil if never completed). Drives the
+  /// "goals completed that day" day-detail section.
+  var completedAt: Date? = nil
+  /// Soft-delete timestamp (nil = active). Mirrors `DayNote.deletedAt` for the Trash.
+  var deletedAt: Date? = nil
+  /// Optional free-text category for grouping/filtering (mirrors `DayNote.folder`).
+  var category: String? = nil
+
   init(
     title: String,
     detail: String = "",

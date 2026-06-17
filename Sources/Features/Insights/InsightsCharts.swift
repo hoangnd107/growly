@@ -389,3 +389,64 @@ struct GrowthCurveChart: View {
     .animation(animate ? DLAnim.standard : nil, value: points.map(\.total))
   }
 }
+
+// MARK: - Monthly entries/notes (Stats)
+
+/// A stacked monthly bar chart of entry vs note counts across a year. Feeds the
+/// Stats card; consumes `MonthCount` from `ActivityStats`.
+struct MonthlyCountChart: View {
+  let points: [MonthCount]
+  let entriesLabel: String
+  let notesLabel: String
+  let entriesColor: Color
+  let notesColor: Color
+  let animate: Bool
+
+  var body: some View {
+    Chart {
+      ForEach(points) { point in
+        BarMark(
+          x: .value("Month", point.label),
+          y: .value("Count", point.entries)
+        )
+        .foregroundStyle(by: .value("Type", entriesLabel))
+        .cornerRadius(3)
+
+        BarMark(
+          x: .value("Month", point.label),
+          y: .value("Count", point.notes)
+        )
+        .foregroundStyle(by: .value("Type", notesLabel))
+        .cornerRadius(3)
+      }
+    }
+    .chartForegroundStyleScale([entriesLabel: entriesColor, notesLabel: notesColor])
+    .chartXScale(domain: points.map(\.label))
+    .chartLegend(position: .bottom, spacing: DLSpace.sm)
+    .chartYAxis {
+      AxisMarks(position: .leading) { value in
+        AxisGridLine().foregroundStyle(DLColor.separator.opacity(0.4))
+        AxisValueLabel {
+          if let count = value.as(Int.self) {
+            Text("\(count)")
+              .font(.dl(.caption2))
+              .foregroundStyle(DLColor.textSecondary)
+          }
+        }
+      }
+    }
+    .chartXAxis {
+      AxisMarks { value in
+        AxisValueLabel {
+          if let label = value.as(String.self) {
+            Text(label)
+              .font(.system(size: 9))
+              .foregroundStyle(DLColor.textSecondary)
+          }
+        }
+      }
+    }
+    .frame(height: 200)
+    .animation(animate ? DLAnim.standard : nil, value: points)
+  }
+}

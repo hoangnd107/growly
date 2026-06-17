@@ -68,6 +68,13 @@ final class DayNote {
     text.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
+  /// Approximate word count across the title + body (for the Stats view).
+  var wordCount: Int {
+    (title + " " + text)
+      .split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\t" })
+      .count
+  }
+
   var mood: Mood? { moodRaw.flatMap { Mood(rawValue: $0) } }
 
   /// The mood resolved against the user's customizable catalog (nil when unset).

@@ -1,22 +1,42 @@
 import SwiftUI
 import SwiftData
 
-/// History — a premium 2026 calendar + searchable journal of every reflection.
-/// A glass calendar card (tappable month/year header + chevron paging) sits above
-/// a mood filter row and a searchable list. Tapping a day with an entry, or a list
-/// row, slides up a read-only `EntryDetailView` sheet.
+/// History — a calendar + searchable journal, plus Streak and Stats views (a
+/// segmented control switches between them). The calendar dots days that have a
+/// reflection and/or notes; tapping any day (or a list row) opens a `DayDetailView`
+/// summarizing that day's reflection, notes, completed goals/habits, media, and sleep.
 struct HistoryView: View {
   @Query(sort: \Entry.day, order: .reverse) private var entries: [Entry]
+  @Query private var notes: [DayNote]
   @Query private var progressList: [UserProgress]
 
   @State private var query = ""
   @State private var moodFilter: Int?
   @State private var tagFilter: String?
   @State private var visibleMonth = Calendar.current.startOfDay(for: Date())
-  @State private var selectedEntry: Entry?
+  @State private var selectedDay: DaySelection?
   @State private var showMonthPicker = false
+  @State private var historyMode: HistoryMode = .calendar
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  private enum HistoryMode: String, CaseIterable, Identifiable {
+    case calendar, streak, stats
+    var id: String { rawValue }
+    var label: String {
+      switch self {
+      case .calendar: return L("Calendar")
+      case .streak: return L("Streak")
+      case .stats: return L("Stats")
+      }
+    }
+  }
+
+  /// Wraps a day for `.sheet(item:)` presentation of `DayDetailView`.
+  private struct DaySelection: Identifiable {
+    let day: Date
+    var id: Date { day }
+  }
 
   private var calendar: Calendar { Calendar.current }
 
@@ -24,14 +44,30 @@ struct HistoryView: View {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
   }
 
-  /// Day-start -> mood color for the calendar dots. Respects the active mood +
-  /// tag filters so the calendar mirrors the list below it.
-  private var entriesByDay: [Date: Color] {
-    var map: [Date: Color] = [:]
+  /// Notes not in the Trash.
+  private var activeNotes: [DayNote] {
+    notes.filter { $0.deletedAt == nil }
+  }
+
+  /// Day-start -> what that day contains (reflection dot and/or note dot). Respects
+  /// the active mood + tag filters so the calendar mirrors the list.
+  private var dayMarks: [Date: CalendarDayMark] {
+    var map: [Date: CalendarDayMark] = [:]
     for entry in entries where passesFilters(entry) {
-      map[calendar.startOfDay(for: entry.day)] = entry.moodOption.color
+      let key = calendar.startOfDay(for: entry.day)
+      map[key, default: CalendarDayMark()].entryColor = entry.moodOption.color
+    }
+    for note in activeNotes where notePassesFilters(note) {
+      map[note.day, default: CalendarDayMark()].noteColor = note.moodOption?.color ?? theme.accent
     }
     return map
+  }
+
+  /// Whether a note passes the active mood + tag filters (for calendar dots).
+  private func notePassesFilters(_ note: DayNote) -> Bool {
+    if let moodFilter, note.moodRaw != moodFilter { return false }
+    if let tagFilter, !note.tags.contains(tagFilter) { return false }
+    return true
   }
 
   /// Whether an entry passes the active mood + tag filters (used by both the
@@ -77,10 +113,6 @@ struct HistoryView: View {
     }
   }
 
-  private func entry(on day: Date) -> Entry? {
-    entries.first { calendar.isDate($0.day, inSameDayAs: day) }
-  }
-
   // MARK: - Body
 
   var body: some View {
@@ -88,7 +120,7 @@ struct HistoryView: View {
       ZStack {
         ThemedBackground(theme: theme)
 
-        if entries.isEmpty {
+        if entries.isEmpty && activeNotes.isEmpty {
           emptyState
         } else {
           content
@@ -97,16 +129,14 @@ struct HistoryView: View {
       .navigationTitle(L("History"))
       .searchable(text: $query, prompt: Text(L("Search reflections")))
       .toolbar {
-        if !allTags.isEmpty {
+        if !allTags.isEmpty && historyMode == .calendar {
           ToolbarItem(placement: .topBarTrailing) { tagMenu }
         }
       }
-      .sheet(item: $selectedEntry) { entry in
-        NavigationStack {
-          EntryDetailView(entry: entry)
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+      .sheet(item: $selectedDay) { selection in
+        DayDetailView(day: selection.day)
+          .presentationDetents([.large])
+          .presentationDragIndicator(.visible)
       }
       .sheet(isPresented: $showMonthPicker) {
         monthPickerSheet
@@ -116,9 +146,9 @@ struct HistoryView: View {
     }
   }
 
-  private func open(_ entry: Entry) {
+  private func open(day: Date) {
     Haptics.selection()
-    selectedEntry = entry
+    selectedDay = DaySelection(day: calendar.startOfDay(for: day))
   }
 
   // MARK: - Tag filter menu
@@ -169,30 +199,64 @@ struct HistoryView: View {
   private var content: some View {
     ScrollView {
       LazyVStack(spacing: DLSpace.md) {
-        calendarCard
-
-        moodFilterChips
-
-        if filtered.isEmpty {
-          noMatchesState
-        } else {
-          ForEach(filtered) { entry in
-            Button {
-              open(entry)
-            } label: {
-              row(entry)
-            }
-            .buttonStyle(.plain)
-            .bounceTap()
-          }
+        modePicker
+        switch historyMode {
+        case .calendar: calendarSection
+        case .streak: StreakCard()
+        case .stats: StatsCard()
         }
       }
       .padding(DLSpace.md)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: moodFilter)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: tagFilter)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: query)
+      .animation(reduceMotion ? nil : DLAnim.smooth, value: historyMode)
     }
     .scrollDismissesKeyboard(.interactively)
+  }
+
+  private var modePicker: some View {
+    Picker("", selection: $historyMode) {
+      ForEach(HistoryMode.allCases) { mode in
+        Text(mode.label).tag(mode)
+      }
+    }
+    .pickerStyle(.segmented)
+    .accessibilityLabel(L("History view"))
+  }
+
+  @ViewBuilder
+  private var calendarSection: some View {
+    calendarCard
+
+    moodFilterChips
+
+    if filtered.isEmpty {
+      if isFiltering {
+        noMatchesState
+      } else {
+        calendarHint
+      }
+    } else {
+      ForEach(filtered) { entry in
+        Button {
+          open(day: entry.day)
+        } label: {
+          row(entry)
+        }
+        .buttonStyle(.plain)
+        .bounceTap()
+      }
+    }
+  }
+
+  private var calendarHint: some View {
+    Text(L("Tap a highlighted day to see its details."))
+      .font(.dl(.caption))
+      .foregroundStyle(DLColor.textTertiary)
+      .multilineTextAlignment(.center)
+      .frame(maxWidth: .infinity)
+      .padding(.top, DLSpace.lg)
   }
 
   private var noMatchesState: some View {
@@ -227,10 +291,8 @@ struct HistoryView: View {
 
         CalendarMonthView(
           month: visibleMonth,
-          entriesByDay: entriesByDay,
-          onSelect: { day in
-            if let entry = entry(on: day) { open(entry) }
-          }
+          marks: dayMarks,
+          onSelect: { day in open(day: day) }
         )
         .id(calendar.startOfMonth(for: visibleMonth))
         .transition(.opacity)

@@ -36,6 +36,11 @@ struct NotesView: View {
   // Multi-select
   @State private var editMode: EditMode = .inactive
   @State private var selection = Set<UUID>()
+
+  // Collapsed timeline sections, keyed by the section's period-start date
+  // (`pinnedSectionKey` stands in for the Pinned section).
+  @State private var collapsedSections: Set<Date> = []
+  private let pinnedSectionKey = Date.distantPast
   @State private var showBatchDatePicker = false
   @State private var batchDate = Date()
 
@@ -416,17 +421,21 @@ struct NotesView: View {
 
       if !pinnedNotes.isEmpty {
         Section {
-          ForEach(pinnedNotes) { note in noteRow(note) }
+          if !collapsedSections.contains(pinnedSectionKey) {
+            ForEach(pinnedNotes) { note in noteRow(note) }
+          }
         } header: {
-          sectionHeader(label: L("Pinned"), count: pinnedNotes.count, systemImage: "pin.fill", tint: DLColor.xpGold)
+          sectionHeader(label: L("Pinned"), count: pinnedNotes.count, sectionKey: pinnedSectionKey, systemImage: "pin.fill", tint: DLColor.xpGold)
         }
       }
 
       ForEach(sections) { section in
         Section {
-          ForEach(section.notes) { note in noteRow(note) }
+          if !collapsedSections.contains(section.id) {
+            ForEach(section.notes) { note in noteRow(note) }
+          }
         } header: {
-          sectionHeader(label: section.label, count: section.notes.count)
+          sectionHeader(label: section.label, count: section.notes.count, sectionKey: section.id)
         }
       }
 
@@ -546,34 +555,56 @@ struct NotesView: View {
   private func sectionHeader(
     label: String,
     count: Int,
+    sectionKey: Date,
     systemImage: String? = nil,
     tint: Color? = nil
   ) -> some View {
-    HStack(spacing: DLSpace.sm) {
-      if let systemImage {
-        Image(systemName: systemImage)
-          .font(.system(size: 12, weight: .semibold))
-          .foregroundStyle(tint ?? DLColor.textSecondary)
+    let collapsed = collapsedSections.contains(sectionKey)
+    return Button {
+      withAnimation(reduceMotion ? nil : DLAnim.standard) {
+        if collapsed {
+          collapsedSections.remove(sectionKey)
+        } else {
+          collapsedSections.insert(sectionKey)
+        }
       }
-      Text(label)
-        .font(.dl(.subheadline, weight: .semibold))
-        .foregroundStyle(DLColor.textPrimary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.8)
+      Haptics.selection()
+    } label: {
+      HStack(spacing: DLSpace.sm) {
+        Image(systemName: "chevron.right")
+          .font(.system(size: 11, weight: .bold))
+          .foregroundStyle(DLColor.textTertiary)
+          .rotationEffect(.degrees(collapsed ? 0 : 90))
 
-      Text("\(count)")
-        .font(.dl(.caption2, weight: .semibold))
-        .foregroundStyle(DLColor.textSecondary)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 2)
-        .background(DLColor.surfaceElevated, in: Capsule())
+        if let systemImage {
+          Image(systemName: systemImage)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(tint ?? DLColor.textSecondary)
+        }
+        Text(label)
+          .font(.dl(.subheadline, weight: .semibold))
+          .foregroundStyle(DLColor.textPrimary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
 
-      Rectangle()
-        .fill(DLColor.separator.opacity(0.7))
-        .frame(height: 1)
+        Text("\(count)")
+          .font(.dl(.caption2, weight: .semibold))
+          .foregroundStyle(DLColor.textSecondary)
+          .padding(.horizontal, 7)
+          .padding(.vertical, 2)
+          .background(DLColor.surfaceElevated, in: Capsule())
+
+        Rectangle()
+          .fill(DLColor.separator.opacity(0.7))
+          .frame(height: 1)
+      }
+      .contentShape(Rectangle())
     }
+    .buttonStyle(.plain)
     .accessibilityElement(children: .combine)
     .accessibilityLabel(Lf("%@, %d notes", label, count))
+    .accessibilityHint(collapsed ? L("Collapsed. Tap to expand.") : L("Expanded. Tap to collapse."))
+    .accessibilityAddTraits(.isButton)
   }
 
   // MARK: - Note row

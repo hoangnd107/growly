@@ -24,6 +24,7 @@ struct InsightsView: View {
   @Query private var habitLogs: [HabitLog]
   @Query(sort: \SleepLog.date, order: .reverse) private var sleeps: [SleepLog]
   @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
+  @Query private var allNotes: [DayNote]
 
   /// Drives a spring entrance for the AI-insight cards.
   @State private var appeared = false
@@ -73,9 +74,10 @@ struct InsightsView: View {
     }
   }
 
-  /// "Truly empty" — no reflections, no sleep, no goals to show anything for.
+  /// "Truly empty" — no reflections, notes, sleep, or goals to show anything for.
   private var isEmpty: Bool {
     entries.isEmpty && sleeps.isEmpty && goals.isEmpty
+      && !allNotes.contains { $0.deletedAt == nil }
   }
 
   private var emptyState: some View {
@@ -97,6 +99,7 @@ struct InsightsView: View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
         aiInsightsCard
+        StreakCard()
         goalsSummaryCard
         sleepSummaryCard
         growthScoreCard
@@ -106,6 +109,7 @@ struct InsightsView: View {
           xpPerDayCard
           moodDistributionCard
         }
+        StatsCard()
       }
       .padding(DLSpace.md)
     }

@@ -5,10 +5,9 @@ import SwiftData
 /// Relevant (detail) · Time-bound (deadline). Presented via NavigationLink from
 /// Insights, so it owns no NavigationStack — only a `.navigationTitle`.
 ///
-/// Each goal renders as a glassy card with a color stripe, a progress bar,
-/// +/- adjustment, and a "Mark complete" toggle. A sheet form creates new goals.
-/// Swipe-to-delete removes them. Reads the per-user gradient theme so the
-/// backdrop matches the rest of the app and persists every change immediately.
+/// Goals can be filtered (all/active/completed), grouped by category, edited,
+/// reused once completed, and soft-deleted into a Trash (restorable). Reads the
+/// per-user gradient theme and persists every change immediately.
 struct GoalsView: View {
   @Environment(\.modelContext) private var context
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -17,6 +16,10 @@ struct GoalsView: View {
   @Query private var progressList: [UserProgress]
 
   @State private var showAddSheet = false
+  @State private var editingGoal: SmartGoal?
+  @State private var showTrash = false
+  @State private var goalFilter: GoalFilter = .all
+  @State private var categoryFilter: String?
 
   private var theme: GradientTheme {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
@@ -24,11 +27,55 @@ struct GoalsView: View {
 
   private var animate: Bool { !reduceMotion }
 
-  // MARK: Body
+  private enum GoalFilter: String, CaseIterable, Identifiable {
+    case all, active, completed
+    var id: String { rawValue }
+    var label: String {
+      switch self {
+      case .all: return L("All")
+      case .active: return L("Active")
+      case .completed: return L("Completed")
+      }
+    }
+  }
+
+  // MARK: - Derived
+
+  private var activeGoals: [SmartGoal] { goals.filter { $0.deletedAt == nil } }
+  private var trashedGoals: [SmartGoal] { goals.filter { $0.deletedAt != nil } }
+
+  private var categories: [String] {
+    var seen = Set<String>()
+    var ordered: [String] = []
+    for goal in activeGoals {
+      if let category = goal.category?.trimmingCharacters(in: .whitespacesAndNewlines),
+         !category.isEmpty, !seen.contains(category) {
+        seen.insert(category)
+        ordered.append(category)
+      }
+    }
+    return ordered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+  }
+
+  private var matched: [SmartGoal] {
+    activeGoals.filter { goal in
+      switch goalFilter {
+      case .all: break
+      case .active: if goal.isCompleted { return false }
+      case .completed: if !goal.isCompleted { return false }
+      }
+      if let categoryFilter, goal.category != categoryFilter { return false }
+      return true
+    }
+  }
+
+  private var isFiltering: Bool { goalFilter != .all || categoryFilter != nil }
+
+  // MARK: - Body
 
   var body: some View {
     Group {
-      if goals.isEmpty {
+      if activeGoals.isEmpty {
         emptyState
       } else {
         goalList
@@ -37,24 +84,75 @@ struct GoalsView: View {
     .themedBackground(theme)
     .navigationTitle(L("Goals"))
     .navigationBarTitleDisplayMode(.large)
-    .toolbar {
-      ToolbarItem(placement: .topBarTrailing) {
-        Button {
-          Haptics.light()
-          showAddSheet = true
-        } label: {
-          Image(systemName: "plus")
-        }
-        .tint(theme.accent)
-        .accessibilityLabel(L("New goal"))
-      }
-    }
+    .toolbar { toolbarContent }
     .sheet(isPresented: $showAddSheet) {
-      GoalEditorSheet(theme: theme)
+      GoalEditorSheet(theme: theme, goal: nil, existingCategories: categories)
+    }
+    .sheet(item: $editingGoal) { goal in
+      GoalEditorSheet(theme: theme, goal: goal, existingCategories: categories)
+    }
+    .sheet(isPresented: $showTrash) {
+      GoalsTrashView()
     }
   }
 
-  // MARK: Empty state
+  @ToolbarContentBuilder
+  private var toolbarContent: some ToolbarContent {
+    if !activeGoals.isEmpty {
+      ToolbarItem(placement: .topBarLeading) { filterMenu }
+    }
+    if !trashedGoals.isEmpty {
+      ToolbarItem(placement: .topBarTrailing) { trashButton }
+    }
+    ToolbarItem(placement: .topBarTrailing) { addButton }
+  }
+
+  private var addButton: some View {
+    Button {
+      Haptics.light()
+      showAddSheet = true
+    } label: {
+      Image(systemName: "plus")
+    }
+    .tint(theme.accent)
+    .accessibilityLabel(L("New goal"))
+  }
+
+  private var trashButton: some View {
+    Button { showTrash = true } label: {
+      Image(systemName: "trash")
+        .font(.system(size: 17, weight: .semibold))
+    }
+    .tint(theme.accent)
+    .accessibilityLabel(L("Recently deleted"))
+  }
+
+  private var filterMenu: some View {
+    Menu {
+      Picker(L("Filter"), selection: $goalFilter) {
+        ForEach(GoalFilter.allCases) { filter in
+          Text(filter.label).tag(filter)
+        }
+      }
+      if isFiltering {
+        Divider()
+        Button(role: .destructive) {
+          goalFilter = .all
+          categoryFilter = nil
+          Haptics.light()
+        } label: {
+          Label(L("Clear filters"), systemImage: "xmark.circle")
+        }
+      }
+    } label: {
+      Image(systemName: isFiltering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+        .font(.system(size: 17, weight: .semibold))
+    }
+    .tint(theme.accent)
+    .accessibilityLabel(L("Filter goals"))
+  }
+
+  // MARK: - Empty state
 
   private var emptyState: some View {
     ScrollView {
@@ -81,20 +179,55 @@ struct GoalsView: View {
     }
   }
 
-  // MARK: Goal list
+  // MARK: - Goal list
 
   private var goalList: some View {
     List {
-      Section {
-        ForEach(goals) { goal in
-          GoalCard(goal: goal, accent: theme.accent, animate: animate) { save() }
-            .listRowInsets(EdgeInsets(top: DLSpace.xs, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
+      if !categories.isEmpty {
+        Section {
+          categoryChips
+            .listRowInsets(EdgeInsets(top: DLSpace.sm, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
         }
-        .onDelete(perform: deleteGoals)
+      }
+
+      Section {
+        if matched.isEmpty {
+          Text(L("No goals match the filter."))
+            .font(.dl(.subheadline))
+            .foregroundStyle(DLColor.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+        } else {
+          ForEach(matched) { goal in
+            GoalCard(goal: goal, accent: theme.accent, animate: animate) { save() }
+              .listRowInsets(EdgeInsets(top: DLSpace.xs, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
+              .listRowBackground(Color.clear)
+              .listRowSeparator(.hidden)
+              .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button(role: .destructive) { softDelete(goal) } label: {
+                  Label(L("Delete"), systemImage: "trash")
+                }
+                Button { editingGoal = goal } label: {
+                  Label(L("Edit"), systemImage: "pencil")
+                }
+                .tint(Color(hex: 0x0A84FF))
+              }
+              .swipeActions(edge: .leading) {
+                if goal.isCompleted {
+                  Button { reuse(goal) } label: {
+                    Label(L("Reuse"), systemImage: "arrow.counterclockwise")
+                  }
+                  .tint(DLColor.success)
+                }
+              }
+              .contextMenu { goalContextMenu(goal) }
+          }
+        }
       } footer: {
-        Text(L("Swipe a goal left to delete it."))
+        Text(L("Swipe a goal to edit, reuse, or move it to Trash."))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
           .padding(.horizontal, DLSpace.xs)
@@ -102,16 +235,96 @@ struct GoalsView: View {
     }
     .listStyle(.plain)
     .scrollContentBackground(.hidden)
+    .animation(animate ? DLAnim.standard : nil, value: goalFilter)
+    .animation(animate ? DLAnim.standard : nil, value: categoryFilter)
   }
 
-  // MARK: Actions
+  @ViewBuilder
+  private func goalContextMenu(_ goal: SmartGoal) -> some View {
+    Button { editingGoal = goal } label: {
+      Label(L("Edit"), systemImage: "pencil")
+    }
+    if goal.isCompleted {
+      Button { reuse(goal) } label: {
+        Label(L("Reuse"), systemImage: "arrow.counterclockwise")
+      }
+    }
+    Divider()
+    Button(role: .destructive) { softDelete(goal) } label: {
+      Label(L("Delete"), systemImage: "trash")
+    }
+  }
 
-  private func deleteGoals(at offsets: IndexSet) {
-    for index in offsets {
-      context.delete(goals[index])
+  // MARK: - Category chips
+
+  private var categoryChips: some View {
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(spacing: DLSpace.sm) {
+        categoryChip(label: L("All"), category: nil, isSelected: categoryFilter == nil)
+        ForEach(categories, id: \.self) { category in
+          categoryChip(label: category, category: category, isSelected: categoryFilter == category)
+        }
+      }
+      .padding(.vertical, 2)
+    }
+  }
+
+  private func categoryChip(label: String, category: String?, isSelected: Bool) -> some View {
+    Button {
+      withAnimation(animate ? DLAnim.quick : nil) {
+        categoryFilter = (categoryFilter == category) ? nil : category
+      }
+      Haptics.selection()
+    } label: {
+      HStack(spacing: 4) {
+        if category != nil {
+          Image(systemName: "folder.fill").font(.system(size: 11))
+        }
+        Text(label)
+          .font(.dl(.subheadline, weight: .medium))
+          .lineLimit(1)
+      }
+      .padding(.horizontal, 12)
+      .padding(.vertical, 8)
+      .background(
+        isSelected ? theme.accent.opacity(0.22) : DLColor.surfaceElevated,
+        in: Capsule()
+      )
+      .overlay(
+        Capsule().strokeBorder(isSelected ? theme.accent : Color.clear, lineWidth: 1.5)
+      )
+      .foregroundStyle(isSelected ? theme.accent : DLColor.textSecondary)
+    }
+    .buttonStyle(.plain)
+    .accessibilityAddTraits(isSelected ? .isSelected : [])
+  }
+
+  // MARK: - Actions
+
+  private func softDelete(_ goal: SmartGoal) {
+    let category = goal.category
+    withAnimation(animate ? DLAnim.standard : nil) {
+      goal.deletedAt = Date()
+      goal.updatedAt = Date()
+    }
+    if let active = categoryFilter, active == category,
+       !activeGoals.contains(where: { $0.category == active }) {
+      categoryFilter = nil
     }
     save()
-    Haptics.medium()
+    Haptics.warning()
+  }
+
+  /// Re-open a completed goal as a fresh active goal (progress reset).
+  private func reuse(_ goal: SmartGoal) {
+    withAnimation(animate ? DLAnim.standard : nil) {
+      goal.isCompleted = false
+      goal.completedAt = nil
+      goal.currentValue = 0
+      goal.updatedAt = Date()
+    }
+    save()
+    Haptics.success()
   }
 
   private func save() {
@@ -182,6 +395,15 @@ private struct GoalCard: View {
         .foregroundStyle(goal.isCompleted ? DLColor.textSecondary : DLColor.textPrimary)
         .strikethrough(goal.isCompleted, color: DLColor.textSecondary)
         .fixedSize(horizontal: false, vertical: true)
+      if let category = goal.category, !category.isEmpty {
+        Text(category)
+          .font(.dl(.caption2, weight: .semibold))
+          .foregroundStyle(accent)
+          .padding(.horizontal, 8)
+          .padding(.vertical, 3)
+          .background(accent.opacity(0.14), in: Capsule())
+          .lineLimit(1)
+      }
       Spacer(minLength: 0)
       if goal.isCompleted {
         Image(systemName: "checkmark.seal.fill")
@@ -306,6 +528,8 @@ private struct GoalCard: View {
         Haptics.success()
         withAnimation(animate ? DLAnim.standard : nil) {
           goal.isCompleted.toggle()
+          goal.completedAt = goal.isCompleted ? Date() : nil
+          goal.updatedAt = Date()
         }
         onChange()
       } label: {
@@ -346,25 +570,47 @@ private struct GoalCard: View {
     withAnimation(animate ? DLAnim.standard : nil) {
       goal.currentValue = next
     }
+    goal.updatedAt = Date()
     onChange()
   }
 }
 
-// MARK: - New goal editor
+// MARK: - Goal editor (create + edit)
 
-/// Sheet form capturing a SMART goal. Inserts and saves on "Add".
+/// Sheet form capturing a SMART goal. Creates a new goal when `goal` is nil, or
+/// edits the passed goal in place.
 private struct GoalEditorSheet: View {
   @Environment(\.modelContext) private var context
   @Environment(\.dismiss) private var dismiss
 
   let theme: GradientTheme
+  let goal: SmartGoal?
+  let existingCategories: [String]
 
-  @State private var title = ""
-  @State private var detail = ""
-  @State private var unit = ""
-  @State private var targetText = ""
-  @State private var hasDeadline = false
-  @State private var deadline = Calendar.current.date(byAdding: .day, value: 30, to: Date()) ?? Date()
+  @State private var title: String
+  @State private var detail: String
+  @State private var unit: String
+  @State private var targetText: String
+  @State private var currentText: String
+  @State private var category: String
+  @State private var hasDeadline: Bool
+  @State private var deadline: Date
+
+  init(theme: GradientTheme, goal: SmartGoal?, existingCategories: [String]) {
+    self.theme = theme
+    self.goal = goal
+    self.existingCategories = existingCategories
+    _title = State(initialValue: goal?.title ?? "")
+    _detail = State(initialValue: goal?.detail ?? "")
+    _unit = State(initialValue: goal?.unit ?? "")
+    _targetText = State(initialValue: goal.map { Self.numberString($0.targetValue) } ?? "")
+    _currentText = State(initialValue: goal.map { Self.numberString($0.currentValue) } ?? "")
+    _category = State(initialValue: goal?.category ?? "")
+    _hasDeadline = State(initialValue: goal?.deadline != nil)
+    _deadline = State(initialValue: goal?.deadline ?? (Calendar.current.date(byAdding: .day, value: 30, to: Date()) ?? Date()))
+  }
+
+  private var isEditing: Bool { goal != nil }
 
   private var trimmedTitle: String {
     title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -375,6 +621,16 @@ private struct GoalEditorSheet: View {
     let cleaned = targetText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard let value = Double(cleaned), value > 0 else { return 1 }
     return value
+  }
+
+  /// Parsed current value; defaults to 0.
+  private var currentValue: Double {
+    let cleaned = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+    return max(0, Double(cleaned) ?? 0)
+  }
+
+  private static func numberString(_ value: Double) -> String {
+    value == value.rounded() ? String(format: "%.0f", value) : String(format: "%.1f", value)
   }
 
   var body: some View {
@@ -401,6 +657,18 @@ private struct GoalEditorSheet: View {
         }
 
         Section {
+          HStack {
+            Text(L("Current"))
+              .font(.dl(.body))
+              .foregroundStyle(DLColor.textPrimary)
+            Spacer()
+            TextField(L("Amount"), text: $currentText)
+              .font(.dl(.body, weight: .semibold))
+              .keyboardType(.decimalPad)
+              .multilineTextAlignment(.trailing)
+              .monospacedDigit()
+              .frame(maxWidth: 120)
+          }
           HStack {
             Text(L("Target"))
               .font(.dl(.body))
@@ -431,6 +699,32 @@ private struct GoalEditorSheet: View {
         }
 
         Section {
+          HStack {
+            Text(L("Category"))
+              .font(.dl(.body))
+              .foregroundStyle(DLColor.textPrimary)
+            Spacer()
+            TextField(L("e.g. Health"), text: $category)
+              .font(.dl(.body))
+              .multilineTextAlignment(.trailing)
+              .frame(maxWidth: 180)
+          }
+          if !existingCategories.isEmpty {
+            Menu {
+              ForEach(existingCategories, id: \.self) { option in
+                Button(option) { category = option }
+              }
+            } label: {
+              Label(L("Choose existing"), systemImage: "folder")
+                .font(.dl(.subheadline))
+            }
+            .tint(theme.accent)
+          }
+        } header: {
+          Text(L("Category"))
+        }
+
+        Section {
           Toggle(isOn: $hasDeadline.animation(DLAnim.standard)) {
             Text(L("Set a deadline"))
               .font(.dl(.body))
@@ -453,7 +747,7 @@ private struct GoalEditorSheet: View {
       }
       .scrollContentBackground(.hidden)
       .themedBackground(theme)
-      .navigationTitle(L("New goal"))
+      .navigationTitle(isEditing ? L("Edit goal") : L("New goal"))
       .navigationBarTitleDisplayMode(.inline)
       .keyboardDismissButton()
       .toolbar {
@@ -465,8 +759,8 @@ private struct GoalEditorSheet: View {
           .tint(theme.accent)
         }
         ToolbarItem(placement: .topBarTrailing) {
-          Button(L("Add")) {
-            addGoal()
+          Button(isEditing ? L("Save") : L("Add")) {
+            saveGoal()
           }
           .font(.dl(.body, weight: .semibold))
           .tint(theme.accent)
@@ -477,18 +771,35 @@ private struct GoalEditorSheet: View {
     .presentationDetents([.large])
   }
 
-  private func addGoal() {
+  private func saveGoal() {
     let name = trimmedTitle
     guard !name.isEmpty else { return }
-    let goal = SmartGoal(
-      title: name,
-      detail: detail.trimmingCharacters(in: .whitespacesAndNewlines),
-      unit: unit.trimmingCharacters(in: .whitespacesAndNewlines),
-      targetValue: targetValue,
-      deadline: hasDeadline ? Calendar.current.startOfDay(for: deadline) : nil,
-      colorHex: theme.accentHexString
-    )
-    context.insert(goal)
+    let trimmedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+    let resolvedCategory = trimmedCategory.isEmpty ? nil : trimmedCategory
+    let resolvedDeadline = hasDeadline ? Calendar.current.startOfDay(for: deadline) : nil
+
+    if let goal {
+      goal.title = name
+      goal.detail = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+      goal.unit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
+      goal.targetValue = targetValue
+      goal.currentValue = currentValue
+      goal.deadline = resolvedDeadline
+      goal.category = resolvedCategory
+      goal.updatedAt = Date()
+    } else {
+      let new = SmartGoal(
+        title: name,
+        detail: detail.trimmingCharacters(in: .whitespacesAndNewlines),
+        unit: unit.trimmingCharacters(in: .whitespacesAndNewlines),
+        targetValue: targetValue,
+        currentValue: currentValue,
+        deadline: resolvedDeadline,
+        colorHex: theme.accentHexString
+      )
+      new.category = resolvedCategory
+      context.insert(new)
+    }
     try? context.save()
     Haptics.success()
     dismiss()

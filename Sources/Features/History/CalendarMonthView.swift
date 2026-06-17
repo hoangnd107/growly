@@ -1,15 +1,24 @@
 import SwiftUI
 
-/// A 7-column month grid. Each day cell shows the day number and, when an
-/// entry exists for that day, a dot tinted by that entry's `Mood.color`.
-/// Today is highlighted. Tapping a day that has an entry fires `onSelect`.
+/// What a calendar day contains: a reflection (entry) dot and/or a note dot,
+/// each tinted by its mood color. Either may be nil.
+struct CalendarDayMark: Equatable {
+  var entryColor: Color?
+  var noteColor: Color?
+
+  var hasContent: Bool { entryColor != nil || noteColor != nil }
+}
+
+/// A 7-column month grid. Each day cell shows the day number and up to two dots:
+/// a reflection dot (entry mood color) and a note dot. Today is highlighted.
+/// Tapping a day that has any content fires `onSelect`.
 struct CalendarMonthView: View {
   /// The month to display (any date within the month works; the view
   /// normalizes to the first day internally).
   let month: Date
-  /// Map of day-start dates -> the entry's mood color, for dot tinting.
-  let entriesByDay: [Date: Color]
-  /// Called with the day-start `Date` when a day that has an entry is tapped.
+  /// Map of day-start dates -> what that day contains (entry and/or note dots).
+  let marks: [Date: CalendarDayMark]
+  /// Called with the day-start `Date` when a day that has content is tapped.
   let onSelect: (Date) -> Void
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -78,12 +87,12 @@ struct CalendarMonthView: View {
   @ViewBuilder
   private func dayCell(_ day: Date) -> some View {
     let isToday = calendar.isDate(day, inSameDayAs: today)
-    let moodColor = entriesByDay[day]
-    let hasEntry = moodColor != nil
+    let mark = marks[day]
+    let hasContent = mark?.hasContent ?? false
     let dayNumber = calendar.component(.day, from: day)
 
     Button {
-      guard hasEntry else { return }
+      guard hasContent else { return }
       onSelect(day)
       Haptics.selection()
     } label: {
@@ -98,18 +107,36 @@ struct CalendarMonthView: View {
               Circle().fill(Color.accentColor)
             }
           }
-        Circle()
-          .fill(moodColor ?? Color.clear)
-          .frame(width: 6, height: 6)
+        // Up to two dots: reflection (entry) and note.
+        HStack(spacing: 2) {
+          if let entryColor = mark?.entryColor {
+            Circle().fill(entryColor).frame(width: 6, height: 6)
+          }
+          if let noteColor = mark?.noteColor {
+            Circle().fill(noteColor).frame(width: 6, height: 6)
+          }
+        }
+        .frame(height: 6)
       }
       .frame(maxWidth: .infinity)
       .frame(height: 44)
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
-    .disabled(!hasEntry)
+    .disabled(!hasContent)
     .accessibilityLabel(Text(day, format: .dateTime.month().day()))
-    .accessibilityValue(Text(hasEntry ? "Has reflection" : "No reflection"))
-    .accessibilityAddTraits(hasEntry ? .isButton : [])
+    .accessibilityValue(Text(accessibilityValue(for: mark)))
+    .accessibilityAddTraits(hasContent ? .isButton : [])
+  }
+
+  private func accessibilityValue(for mark: CalendarDayMark?) -> String {
+    let hasEntry = mark?.entryColor != nil
+    let hasNote = mark?.noteColor != nil
+    switch (hasEntry, hasNote) {
+    case (true, true): return L("Reflection and notes")
+    case (true, false): return L("Has reflection")
+    case (false, true): return L("Has notes")
+    case (false, false): return L("No reflection")
+    }
   }
 }

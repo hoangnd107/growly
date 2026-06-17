@@ -636,6 +636,7 @@ struct SettingsView: View {
     for item in parsed {
       let note = DayNote(title: item.title, text: item.body, createdAt: item.date)
       note.importSourceID = source.id
+      note.moodRaw = Mood.neutral.rawValue   // default mood, so imports count like app notes
       modelContext.insert(note)
       var order = 0
       for mediaURL in item.media {
