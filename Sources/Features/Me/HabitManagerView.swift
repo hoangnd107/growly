@@ -16,19 +16,29 @@ struct HabitManagerView: View {
   @State private var newEmoji: String = "✅"
   @State private var newXP: Int = 12
   @State private var showAddSheet = false
+  @State private var showTrash = false
 
   private var theme: GradientTheme {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
   }
 
+  /// Active (non-trashed) habits — the only ones shown and reordered here.
+  private var activeHabits: [Habit] {
+    habits.filter { $0.deletedAt == nil }
+  }
+
+  private var trashedCount: Int {
+    habits.filter { $0.deletedAt != nil }.count
+  }
+
   var body: some View {
     NavigationStack {
       List {
-        if habits.isEmpty {
+        if activeHabits.isEmpty {
           emptyState
         } else {
           Section {
-            ForEach(habits) { habit in
+            ForEach(activeHabits) { habit in
               HabitRow(habit: habit, accent: theme.accent, onArchiveToggle: { toggleArchive(habit) })
             }
             .onDelete(perform: deleteHabits)
@@ -38,7 +48,7 @@ struct HabitManagerView: View {
               .font(.dl(.caption, weight: .semibold))
               .foregroundStyle(DLColor.textSecondary)
           } footer: {
-            Text(L("Drag to reorder, swipe to delete, or archive to hide a habit without losing its history."))
+            Text(L("Drag to reorder, swipe to move to Trash, or archive to hide a habit without losing its history."))
               .font(.dl(.caption2))
               .foregroundStyle(DLColor.textTertiary)
           }
@@ -52,11 +62,19 @@ struct HabitManagerView: View {
       .scrollDismissesKeyboard(.interactively)
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
-          Button(L("Done")) {
-            Haptics.light()
-            dismiss()
+          HStack(spacing: DLSpace.md) {
+            Button(L("Done")) {
+              Haptics.light()
+              dismiss()
+            }
+            .font(.dl(.body, weight: .semibold))
+            if trashedCount > 0 {
+              Button { showTrash = true } label: {
+                Image(systemName: "trash")
+              }
+              .accessibilityLabel(L("Recently deleted"))
+            }
           }
-          .font(.dl(.body, weight: .semibold))
           .tint(theme.accent)
         }
         ToolbarItem(placement: .topBarTrailing) {
@@ -76,6 +94,9 @@ struct HabitManagerView: View {
       }
       .sheet(isPresented: $showAddSheet) {
         addSheet
+      }
+      .sheet(isPresented: $showTrash) {
+        HabitTrashView()
       }
     }
   }
@@ -199,9 +220,13 @@ struct HabitManagerView: View {
     showAddSheet = false
   }
 
+  /// Swipe-delete moves the habit to the Trash (soft delete) rather than removing
+  /// it immediately, so its history is preserved and it can be restored (feature 5).
   private func deleteHabits(at offsets: IndexSet) {
-    for index in offsets {
-      context.delete(habits[index])
+    let visible = activeHabits
+    let now = Date()
+    for index in offsets where visible.indices.contains(index) {
+      visible[index].deletedAt = now
     }
     try? context.save()
     normalizeSortIndices()
@@ -209,7 +234,7 @@ struct HabitManagerView: View {
   }
 
   private func moveHabits(from source: IndexSet, to destination: Int) {
-    var ordered = habits
+    var ordered = activeHabits
     ordered.move(fromOffsets: source, toOffset: destination)
     for (index, habit) in ordered.enumerated() {
       habit.sortIndex = index
@@ -224,10 +249,10 @@ struct HabitManagerView: View {
     Haptics.selection()
   }
 
-  /// Re-pack sort indices to a contiguous 0..<n range after a deletion so future
+  /// Re-pack sort indices to a contiguous 0..<n range over active habits so future
   /// inserts and reorders stay stable.
   private func normalizeSortIndices() {
-    for (index, habit) in habits.enumerated() where habit.sortIndex != index {
+    for (index, habit) in activeHabits.enumerated() where habit.sortIndex != index {
       habit.sortIndex = index
     }
     try? context.save()

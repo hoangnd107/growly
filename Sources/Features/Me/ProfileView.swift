@@ -8,6 +8,7 @@ import SwiftData
 struct ProfileView: View {
   @Query private var progressList: [UserProgress]
   @Query(sort: \Entry.day, order: .reverse) private var entries: [Entry]
+  @Query private var notes: [DayNote]
   @Query(sort: \BadgeRecord.earnedAt, order: .reverse) private var badgeRecords: [BadgeRecord]
 
   @Environment(\.modelContext) private var context
@@ -19,6 +20,7 @@ struct ProfileView: View {
           ProfileContent(
             progress: progress,
             entries: entries,
+            notes: notes,
             badgeRecords: badgeRecords,
             context: context
           )
@@ -40,6 +42,7 @@ struct ProfileView: View {
 private struct ProfileContent: View {
   @Bindable var progress: UserProgress
   let entries: [Entry]
+  let notes: [DayNote]
   let badgeRecords: [BadgeRecord]
   let context: ModelContext
 
@@ -54,6 +57,7 @@ private struct ProfileContent: View {
     GamificationService.computeStats(
       progress: progress,
       allEntries: entries,
+      notes: notes,
       level: progress.levelInfo.level
     )
   }
@@ -92,33 +96,9 @@ private struct ProfileContent: View {
   // MARK: 1. Level header + rank
 
   private var levelHeaderSection: some View {
-    let level = progress.levelInfo.level
-    let rank = LevelSystem.title(for: level)
-    return VStack(spacing: DLSpace.md) {
-      LevelHeader(progress: progress)
-
-      GlassCard {
-        HStack(alignment: .center, spacing: DLSpace.md) {
-          EmptyGlyph(systemImage: "rosette", size: 76, tint: progress.accentColor)
-
-          VStack(alignment: .leading, spacing: DLSpace.xs) {
-            Text(L("Your rank"))
-              .font(.dl(.caption, weight: .medium))
-              .foregroundStyle(DLColor.textSecondary)
-              .textCase(.uppercase)
-            Text(L(rank))
-              .font(.dl(.largeTitle, weight: .bold))
-              .foregroundStyle(progress.accentColor)
-              .lineLimit(1)
-              .minimumScaleFactor(0.6)
-            Text(Lf("Level %d", level))
-              .font(.dl(.subheadline, weight: .semibold))
-              .foregroundStyle(DLColor.textPrimary)
-          }
-          Spacer(minLength: 0)
-        }
-      }
-    }
+    // The "Your rank" card was removed (feature 15); rank/level/streak still live
+    // in the header at the top.
+    LevelHeader(progress: progress)
   }
 
   // MARK: 2. Stats strip
@@ -128,7 +108,7 @@ private struct ProfileContent: View {
       HStack(spacing: 0) {
         statCell(value: "\(progress.totalXP)", label: L("Total XP"), tint: DLColor.xpGold, icon: "bolt.fill")
         statDivider
-        statCell(value: "\(progress.currentStreak)", label: L("Streak"), tint: DLColor.streakStart, icon: "flame.fill")
+        statCell(value: "\(progress.currentStreak)", label: L("Completion streak"), tint: DLColor.streakStart, icon: "flame.fill")
         statDivider
         statCell(value: "\(progress.longestStreak)", label: L("Longest"), tint: DLColor.streakEnd, icon: "trophy.fill")
         statDivider
@@ -176,7 +156,7 @@ private struct ProfileContent: View {
     } label: {
       navRow(
         title: L("Streak Freeze"),
-        subtitle: Lf("%d day streak · %d frozen days ahead", progress.currentStreak, upcomingFrozenCount),
+        subtitle: Lf("%d-day completion streak · %d frozen days ahead", progress.currentStreak, upcomingFrozenCount),
         systemImage: "snowflake",
         tint: Color(hex: 0x5AC8FA)
       )
@@ -194,10 +174,19 @@ private struct ProfileContent: View {
             .font(.dl(.headline, weight: .semibold))
             .foregroundStyle(DLColor.textPrimary)
           Spacer()
-          Text("\(earnedIDs.count)/\(BadgeCatalog.all.count)")
-            .font(.dl(.subheadline, weight: .semibold))
+          NavigationLink {
+            BadgeShowcaseView()
+          } label: {
+            HStack(spacing: 4) {
+              Text("\(earnedIDs.count)/\(BadgeCatalog.all.count)")
+                .font(.dl(.subheadline, weight: .semibold))
+                .monospacedDigit()
+              Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+            }
             .foregroundStyle(DLColor.textSecondary)
-            .monospacedDigit()
+          }
+          .accessibilityLabel(L("See all achievements"))
         }
 
         LazyVGrid(
@@ -270,6 +259,42 @@ private struct ProfileContent: View {
 
   private var navigationCards: some View {
     VStack(spacing: DLSpace.md) {
+      NavigationLink {
+        IdentityView()
+      } label: {
+        navRow(
+          title: L("Identity"),
+          subtitle: L("The person you want to become"),
+          systemImage: "figure.mind.and.body",
+          tint: Color(hex: 0xAF8CFF)
+        )
+      }
+      .buttonStyle(ScaleButtonStyle())
+
+      NavigationLink {
+        ManifestoView()
+      } label: {
+        navRow(
+          title: L("Manifesto"),
+          subtitle: L("What you stand for"),
+          systemImage: "doc.text.fill",
+          tint: Color(hex: 0x5AC8FA)
+        )
+      }
+      .buttonStyle(ScaleButtonStyle())
+
+      NavigationLink {
+        LifeAreaInsightsView()
+      } label: {
+        navRow(
+          title: L("Life areas"),
+          subtitle: L("Review & track health, work, and more"),
+          systemImage: "chart.xyaxis.line",
+          tint: DLColor.success
+        )
+      }
+      .buttonStyle(ScaleButtonStyle())
+
       NavigationLink {
         CustomizationShopView(progress: progress)
       } label: {

@@ -100,8 +100,11 @@ struct InsightsView: View {
       VStack(spacing: DLSpace.lg) {
         aiInsightsCard
         StreakCard()
+        CompleteDayStreakCard()
         goalsSummaryCard
         sleepSummaryCard
+        lifeAreasCard
+        HabitStatsCard()
         growthScoreCard
         moodCalendarCard
         if !entries.isEmpty {
@@ -507,6 +510,28 @@ struct InsightsView: View {
     .accessibilityAddTraits(.isButton)
   }
 
+  // MARK: Life areas (feature 21)
+
+  private var lifeAreasCard: some View {
+    NavigationLink {
+      LifeAreaInsightsView()
+    } label: {
+      GlassCard {
+        HStack {
+          Label(L("Life areas"), systemImage: "chart.xyaxis.line")
+            .font(.dl(.headline, weight: .semibold))
+            .foregroundStyle(theme.accent)
+          Spacer()
+          Image(systemName: "chevron.right")
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(DLColor.textTertiary)
+        }
+      }
+    }
+    .buttonStyle(ScaleButtonStyle(scale: 0.98))
+    .accessibilityLabel(L("Life areas. Opens your life-area reviews."))
+  }
+
   // MARK: 6 — Goals summary
 
   private var goalsSummaryCard: some View {
@@ -672,7 +697,7 @@ struct InsightsView: View {
 
   private var avgSleepQuality: Double {
     guard !sleeps.isEmpty else { return 0 }
-    return Double(sleeps.map(\.quality).reduce(0, +)) / Double(sleeps.count)
+    return Double(sleeps.map(\.computedQuality).reduce(0, +)) / Double(sleeps.count)
   }
 
   private var sleepAccessibilityLabel: String {

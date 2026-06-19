@@ -17,6 +17,8 @@ struct HistoryView: View {
   @State private var selectedDay: DaySelection?
   @State private var showMonthPicker = false
   @State private var historyMode: HistoryMode = .calendar
+  /// A4: the per-day mood list under the calendar — month-scoped vs. all history.
+  @State private var moodListAllMonths = false
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -49,16 +51,19 @@ struct HistoryView: View {
     notes.filter { $0.deletedAt == nil }
   }
 
-  /// Day-start -> what that day contains (reflection dot and/or note dot). Respects
-  /// the active mood + tag filters so the calendar mirrors the list.
+  /// Day-start -> the three dots that day earns (note / mood / complete-the-day).
+  /// Respects the active mood + tag filters so the calendar mirrors the list.
   private var dayMarks: [Date: CalendarDayMark] {
     var map: [Date: CalendarDayMark] = [:]
     for entry in entries where passesFilters(entry) {
       let key = calendar.startOfDay(for: entry.day)
-      map[key, default: CalendarDayMark()].entryColor = entry.moodOption.color
+      // Reviews always carry a mood; a full WMLA review also lights the green dot.
+      map[key, default: CalendarDayMark()].hasMood = true
+      if entry.isComplete { map[key, default: CalendarDayMark()].hasComplete = true }
     }
     for note in activeNotes where notePassesFilters(note) {
-      map[note.day, default: CalendarDayMark()].noteColor = note.moodOption?.color ?? theme.accent
+      map[note.day, default: CalendarDayMark()].hasNote = true
+      if note.moodRaw != nil { map[note.day, default: CalendarDayMark()].hasMood = true }
     }
     return map
   }
@@ -183,12 +188,12 @@ struct HistoryView: View {
     ContentUnavailableView {
       VStack(spacing: DLSpace.md) {
         EmptyGlyph(systemImage: "book.closed", size: 110, tint: theme.accent)
-        Text(L("No entries yet"))
+        Text(L("Nothing here yet"))
           .font(.dl(.title3, weight: .bold))
           .foregroundStyle(DLColor.textPrimary)
       }
     } description: {
-      Text(L("Your daily reflections will appear here, on the calendar and in this list."))
+      Text(L("Your daily reviews and notes will appear here, on the calendar and in this list."))
         .foregroundStyle(DLColor.textSecondary)
     }
     .padding(DLSpace.lg)
@@ -202,7 +207,7 @@ struct HistoryView: View {
         modePicker
         switch historyMode {
         case .calendar: calendarSection
-        case .streak: StreakCard()
+        case .streak: StreakDetailView()
         case .stats: StatsCard()
         }
       }
@@ -216,18 +221,20 @@ struct HistoryView: View {
   }
 
   private var modePicker: some View {
-    Picker("", selection: $historyMode) {
-      ForEach(HistoryMode.allCases) { mode in
-        Text(mode.label).tag(mode)
-      }
-    }
-    .pickerStyle(.segmented)
+    SlidingSegmentedControl(
+      items: HistoryMode.allCases,
+      label: { $0.label },
+      selection: $historyMode,
+      accent: theme.accent
+    )
     .accessibilityLabel(L("History view"))
   }
 
   @ViewBuilder
   private var calendarSection: some View {
     calendarCard
+
+    moodDayListCard
 
     moodFilterChips
 
@@ -296,6 +303,8 @@ struct HistoryView: View {
         )
         .id(calendar.startOfMonth(for: visibleMonth))
         .transition(.opacity)
+
+        calendarLegend
       }
     }
     .contentShape(Rectangle())
@@ -308,6 +317,28 @@ struct HistoryView: View {
           shiftMonth(by: value.translation.width < 0 ? 1 : -1)
         }
     )
+  }
+
+  /// Explains the three calendar dots: note (blue), mood (orange), complete (green).
+  private var calendarLegend: some View {
+    HStack(spacing: DLSpace.md) {
+      legendItem(color: CalendarDayMark.noteColor, label: L("Note"))
+      legendItem(color: CalendarDayMark.moodColor, label: L("Mood"))
+      legendItem(color: CalendarDayMark.completeColor, label: L("Completed"))
+      Spacer(minLength: 0)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private func legendItem(color: Color, label: String) -> some View {
+    HStack(spacing: 4) {
+      Circle().fill(color).frame(width: 6, height: 6)
+      Text(label)
+        .font(.dl(.caption2, weight: .medium))
+        .foregroundStyle(DLColor.textTertiary)
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(label)
   }
 
   private var calendarHeader: some View {
@@ -443,6 +474,110 @@ struct HistoryView: View {
         visibleMonth = calendar.startOfDay(for: date)
       }
     }
+  }
+
+  // MARK: - Per-day mood list (A4)
+
+  private struct MoodDayRow: Identifiable {
+    let day: Date
+    let moodValue: Int      // 0 when the day has a note but no mood
+    let hasNote: Bool
+    var id: Date { day }
+  }
+
+  /// Days (most recent first) that have a mood and/or a note, scoped to the
+  /// visible month or all history depending on the toggle.
+  private var moodDayRows: [MoodDayRow] {
+    var moodByDay: [Date: Int] = [:]
+    var noteByDay: [Date: Bool] = [:]
+    for entry in entries where passesFilters(entry) {
+      moodByDay[calendar.startOfDay(for: entry.day)] = entry.moodRaw
+    }
+    for note in activeNotes where notePassesFilters(note) {
+      noteByDay[note.day] = true
+      if let mood = note.moodRaw, moodByDay[note.day] == nil { moodByDay[note.day] = mood }
+    }
+    var days = Set(moodByDay.keys).union(noteByDay.keys)
+    if !moodListAllMonths {
+      days = days.filter { calendar.isDate($0, equalTo: visibleMonth, toGranularity: .month) }
+    }
+    return days.sorted(by: >).map { day in
+      MoodDayRow(day: day, moodValue: moodByDay[day] ?? 0, hasNote: noteByDay[day] ?? false)
+    }
+  }
+
+  private var moodDayListCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        HStack {
+          Label(L("Daily moods"), systemImage: "face.smiling")
+            .font(.dl(.headline, weight: .semibold))
+            .foregroundStyle(theme.accent)
+          Spacer()
+          Button {
+            withAnimation(reduceMotion ? nil : DLAnim.standard) { moodListAllMonths.toggle() }
+            Haptics.selection()
+          } label: {
+            Text(moodListAllMonths ? L("All time") : L("This month"))
+              .font(.dl(.caption, weight: .semibold))
+              .padding(.horizontal, DLSpace.sm)
+              .padding(.vertical, 5)
+              .background(theme.accent.opacity(0.14), in: Capsule())
+              .foregroundStyle(theme.accent)
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel(moodListAllMonths ? L("Showing all history. Tap to show this month.") : L("Showing this month. Tap to show all history."))
+        }
+
+        if moodDayRows.isEmpty {
+          Text(L("No moods logged for this period yet."))
+            .font(.dl(.caption))
+            .foregroundStyle(DLColor.textTertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, DLSpace.xs)
+        } else {
+          ForEach(moodDayRows) { row in
+            Button { open(day: row.day) } label: { moodDayRowView(row) }
+              .buttonStyle(.plain)
+          }
+        }
+      }
+    }
+    .animation(reduceMotion ? nil : DLAnim.standard, value: moodListAllMonths)
+  }
+
+  private func moodDayRowView(_ row: MoodDayRow) -> some View {
+    let option = row.moodValue > 0 ? MoodCatalog.shared.option(forValue: row.moodValue) : nil
+    return HStack(spacing: DLSpace.sm) {
+      Text(row.day, format: .dateTime.day().month(.abbreviated))
+        .font(.dl(.subheadline, weight: .semibold))
+        .foregroundStyle(DLColor.textPrimary)
+        .frame(width: 72, alignment: .leading)
+
+      if let option {
+        Text(option.emoji).font(.system(size: 20))
+        Text(option.displayName)
+          .font(.dl(.subheadline))
+          .foregroundStyle(option.color)
+      } else {
+        Text("—").foregroundStyle(DLColor.textTertiary)
+      }
+
+      Spacer(minLength: 0)
+
+      if row.hasNote {
+        Image(systemName: "note.text")
+          .font(.system(size: 13))
+          .foregroundStyle(CalendarDayMark.noteColor)
+          .accessibilityLabel(L("Has note"))
+      }
+      Image(systemName: "chevron.right")
+        .font(.system(size: 11, weight: .semibold))
+        .foregroundStyle(DLColor.textTertiary)
+    }
+    .padding(.vertical, 4)
+    .contentShape(Rectangle())
+    .accessibilityElement(children: .combine)
   }
 
   // MARK: - Mood filter chips

@@ -162,6 +162,7 @@ struct ReflectionCard: View {
           Button { append(suggestion) } label: {
             Text(suggestion)
               .font(.dl(.caption, weight: .semibold))
+              .fixedSize(horizontal: true, vertical: false)
               .padding(.horizontal, DLSpace.md)
               .padding(.vertical, DLSpace.sm)
               .background(kind.accent.opacity(0.16), in: Capsule())
@@ -174,6 +175,7 @@ struct ReflectionCard: View {
       }
       .padding(.vertical, 2)
     }
+    .scrollClipDisabled()
   }
 
   // MARK: Text helpers

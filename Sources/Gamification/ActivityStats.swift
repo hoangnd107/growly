@@ -92,6 +92,126 @@ struct StreakStats: Equatable {
   }
 }
 
+// MARK: - Detailed streaks (with date ranges, per activity type)
+
+/// One run of consecutive active days, with its endpoints (nil when length is 0).
+struct StreakRun: Equatable {
+  var length: Int
+  var start: Date?
+  var end: Date?
+
+  static let empty = StreakRun(length: 0, start: nil, end: nil)
+}
+
+/// Current + longest streak for a single activity type, each with a date range.
+/// Powers the History "Streak" detail cards (feature 8).
+struct DetailedStreak: Equatable {
+  var current: StreakRun
+  var longest: StreakRun
+
+  static let empty = DetailedStreak(current: .empty, longest: .empty)
+
+  /// Computes current and longest consecutive-day runs from a set of active days.
+  static func compute(
+    days: Set<Date>,
+    calendar baseCalendar: Calendar = .current,
+    today todayInput: Date = Date()
+  ) -> DetailedStreak {
+    let calendar = baseCalendar
+    let normalized = Set(days.map { calendar.startOfDay(for: $0) })
+    guard !normalized.isEmpty else { return .empty }
+
+    let sorted = normalized.sorted()
+
+    // Longest run across all history.
+    var longest = StreakRun(length: 1, start: sorted[0], end: sorted[0])
+    var runStart = sorted[0]
+    var runLength = 1
+    if sorted.count > 1 {
+      for i in 1..<sorted.count {
+        let diff = calendar.dateComponents([.day], from: sorted[i - 1], to: sorted[i]).day ?? 0
+        if diff == 1 {
+          runLength += 1
+        } else {
+          runStart = sorted[i]
+          runLength = 1
+        }
+        if runLength > longest.length {
+          longest = StreakRun(length: runLength, start: runStart, end: sorted[i])
+        }
+      }
+    }
+
+    // Current run: consecutive days ending today (or yesterday — still "alive").
+    let today = calendar.startOfDay(for: todayInput)
+    let anchor: Date?
+    if normalized.contains(today) {
+      anchor = today
+    } else if let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
+              normalized.contains(yesterday) {
+      anchor = yesterday
+    } else {
+      anchor = nil
+    }
+
+    var current = StreakRun.empty
+    if let end = anchor {
+      var cursor = end
+      var length = 0
+      var start = end
+      while normalized.contains(cursor) {
+        length += 1
+        start = cursor
+        guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+        cursor = prev
+      }
+      current = StreakRun(length: length, start: start, end: end)
+    }
+
+    return DetailedStreak(current: current, longest: longest)
+  }
+}
+
+/// The three streak types shown in History → Streak (feature 8): notes, completed
+/// reviews (full WMLA), and recorded mood — each with current/longest + ranges.
+struct StreakBundle: Equatable {
+  var note: DetailedStreak
+  var completeDay: DetailedStreak
+  var mood: DetailedStreak
+
+  static func compute(
+    entries: [Entry],
+    notes: [DayNote],
+    calendar: Calendar = .current,
+    today: Date = Date()
+  ) -> StreakBundle {
+    let activeNotes = notes.filter { $0.deletedAt == nil }
+
+    // Note days: any active note (app-created or imported).
+    var noteDays = Set<Date>()
+    for note in activeNotes { noteDays.insert(calendar.startOfDay(for: note.createdAt)) }
+
+    // Complete-the-day: entries with all four WMLA fields filled.
+    var completeDays = Set<Date>()
+    for entry in entries where entry.isComplete {
+      completeDays.insert(calendar.startOfDay(for: entry.day))
+    }
+
+    // Mood days: any entry (mood always recorded) or any note with a mood set.
+    var moodDays = Set<Date>()
+    for entry in entries { moodDays.insert(calendar.startOfDay(for: entry.day)) }
+    for note in activeNotes where note.moodRaw != nil {
+      moodDays.insert(calendar.startOfDay(for: note.createdAt))
+    }
+
+    return StreakBundle(
+      note: DetailedStreak.compute(days: noteDays, calendar: calendar, today: today),
+      completeDay: DetailedStreak.compute(days: completeDays, calendar: calendar, today: today),
+      mood: DetailedStreak.compute(days: moodDays, calendar: calendar, today: today)
+    )
+  }
+}
+
 // MARK: - Stats summary (per-month counts + totals)
 
 /// One month's entry/note counts (for the Stats bar chart).

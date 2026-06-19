@@ -86,12 +86,12 @@ final class GamificationTests: XCTestCase {
   // MARK: Badges
 
   func testFirstReflectionBadge() {
-    let stats = GamificationStats(totalReviews: 1, currentStreak: 1, longestStreak: 1, lessonsCount: 0, adjustmentsCompleted: 0, habitCompletions: 0, totalWords: 0, level: 1, earlyReviews: 0, tagCounts: [:])
+    let stats = GamificationStats(totalReviews: 1, currentStreak: 1, longestStreak: 1, lessonsCount: 0, adjustmentsCompleted: 0, habitCompletions: 0, totalWords: 0, noteCount: 0, level: 1, earlyReviews: 0, tagCounts: [:])
     XCTAssertTrue(BadgeEngine.earnedBadgeIDs(stats).contains("first_reflection"))
   }
 
   func testStreakBadges() {
-    var stats = GamificationStats(totalReviews: 10, currentStreak: 7, longestStreak: 7, lessonsCount: 0, adjustmentsCompleted: 0, habitCompletions: 0, totalWords: 0, level: 3, earlyReviews: 0, tagCounts: [:])
+    var stats = GamificationStats(totalReviews: 10, currentStreak: 7, longestStreak: 7, lessonsCount: 0, adjustmentsCompleted: 0, habitCompletions: 0, totalWords: 0, noteCount: 0, level: 3, earlyReviews: 0, tagCounts: [:])
     XCTAssertTrue(BadgeEngine.earnedBadgeIDs(stats).contains("sage_7"))
     XCTAssertFalse(BadgeEngine.earnedBadgeIDs(stats).contains("perfectionist_30"))
     stats.longestStreak = 30
@@ -99,7 +99,7 @@ final class GamificationTests: XCTestCase {
   }
 
   func testBadgeProgress() {
-    let stats = GamificationStats(totalReviews: 0, currentStreak: 0, longestStreak: 15, lessonsCount: 0, adjustmentsCompleted: 0, habitCompletions: 0, totalWords: 0, level: 1, earlyReviews: 0, tagCounts: [:])
+    let stats = GamificationStats(totalReviews: 0, currentStreak: 0, longestStreak: 15, lessonsCount: 0, adjustmentsCompleted: 0, habitCompletions: 0, totalWords: 0, noteCount: 0, level: 1, earlyReviews: 0, tagCounts: [:])
     XCTAssertEqual(BadgeEngine.progress(for: "perfectionist_30", stats: stats), 0.5, accuracy: 0.0001)
   }
 }

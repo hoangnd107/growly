@@ -75,6 +75,9 @@ final class DayNote {
       .count
   }
 
+  /// Character count of the note body (feature 10), shown on each note row.
+  var charCount: Int { text.count }
+
   var mood: Mood? { moodRaw.flatMap { Mood(rawValue: $0) } }
 
   /// The mood resolved against the user's customizable catalog (nil when unset).

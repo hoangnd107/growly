@@ -401,6 +401,10 @@ struct MonthlyCountChart: View {
   let entriesColor: Color
   let notesColor: Color
   let animate: Bool
+  /// Tapped month label (feature 9). Optional so the chart works without selection.
+  var selection: Binding<String?>? = nil
+
+  private var selectedLabel: String? { selection?.wrappedValue }
 
   var body: some View {
     Chart {
@@ -411,6 +415,7 @@ struct MonthlyCountChart: View {
         )
         .foregroundStyle(by: .value("Type", entriesLabel))
         .cornerRadius(3)
+        .opacity(selectedLabel == nil || selectedLabel == point.label ? 1 : 0.35)
 
         BarMark(
           x: .value("Month", point.label),
@@ -418,8 +423,10 @@ struct MonthlyCountChart: View {
         )
         .foregroundStyle(by: .value("Type", notesLabel))
         .cornerRadius(3)
+        .opacity(selectedLabel == nil || selectedLabel == point.label ? 1 : 0.35)
       }
     }
+    .chartXSelectionOptional(selection)
     .chartForegroundStyleScale([entriesLabel: entriesColor, notesLabel: notesColor])
     .chartXScale(domain: points.map(\.label))
     .chartLegend(position: .bottom, spacing: DLSpace.sm)
@@ -448,5 +455,19 @@ struct MonthlyCountChart: View {
     }
     .frame(height: 200)
     .animation(animate ? DLAnim.standard : nil, value: points)
+    .animation(animate ? DLAnim.quick : nil, value: selectedLabel)
+  }
+}
+
+private extension View {
+  /// Applies `.chartXSelection` only when a binding is supplied, so the chart can
+  /// be used both with and without tap selection.
+  @ViewBuilder
+  func chartXSelectionOptional(_ binding: Binding<String?>?) -> some View {
+    if let binding {
+      self.chartXSelection(value: binding)
+    } else {
+      self
+    }
   }
 }

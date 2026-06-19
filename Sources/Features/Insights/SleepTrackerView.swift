@@ -15,6 +15,8 @@ struct SleepTrackerView: View {
   @Query private var progressList: [UserProgress]
 
   @State private var showAddSheet = false
+  @State private var editingSleep: SleepLog?
+  @State private var pendingDelete: SleepLog?
 
   private var theme: GradientTheme {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
@@ -49,10 +51,23 @@ struct SleepTrackerView: View {
       }
     }
     .sheet(isPresented: $showAddSheet) {
-      AddSleepSheet(theme: theme) { date, bedTime, wakeTime, quality in
-        addSleep(date: date, bedTime: bedTime, wakeTime: wakeTime, quality: quality)
+      AddSleepSheet(theme: theme) { date, bedTime, wakeTime in
+        addSleep(date: date, bedTime: bedTime, wakeTime: wakeTime)
       }
     }
+    .sheet(item: $editingSleep) { sleep in
+      SleepLogEditorSheet(sleep: sleep)
+    }
+    .alert(L("Delete this sleep log?"), isPresented: deleteBinding) {
+      Button(L("Cancel"), role: .cancel) { pendingDelete = nil }
+      Button(L("Delete"), role: .destructive) { confirmDelete() }
+    } message: {
+      Text(L("This can't be undone."))
+    }
+  }
+
+  private var deleteBinding: Binding<Bool> {
+    Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
   }
 
   // MARK: Empty state
@@ -161,14 +176,26 @@ struct SleepTrackerView: View {
           .foregroundStyle(theme.accent)
 
         ForEach(sleeps) { sleep in
-          SleepRow(sleep: sleep)
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-              Button(role: .destructive) {
-                delete(sleep)
-              } label: {
-                Label(L("Delete"), systemImage: "trash")
-              }
+          // This list lives in a GlassCard (not a List), so edit/delete are exposed
+          // as explicit controls + a context menu rather than swipe actions.
+          HStack(spacing: DLSpace.sm) {
+            SleepRow(sleep: sleep)
+              .contentShape(Rectangle())
+              .onTapGesture { editingSleep = sleep }
+            Button { pendingDelete = sleep } label: {
+              Image(systemName: "trash")
+                .font(.system(size: 15))
+                .foregroundStyle(DLColor.streakEnd)
+                .frame(width: 36, height: 36)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L("Delete sleep"))
+          }
+          .contextMenu {
+            Button { editingSleep = sleep } label: { Label(L("Edit"), systemImage: "pencil") }
+            Button(role: .destructive) { pendingDelete = sleep } label: { Label(L("Delete"), systemImage: "trash") }
+          }
           if sleep.id != sleeps.last?.id {
             Divider().overlay(DLColor.separator)
           }
@@ -186,7 +213,7 @@ struct SleepTrackerView: View {
 
   private var averageQuality: Double {
     guard !sleeps.isEmpty else { return 0 }
-    return Double(sleeps.map(\.quality).reduce(0, +)) / Double(sleeps.count)
+    return Double(sleeps.map(\.computedQuality).reduce(0, +)) / Double(sleeps.count)
   }
 
   /// The most recent 14 logs in chronological order (oldest → newest) for the bar chart.
@@ -209,17 +236,19 @@ struct SleepTrackerView: View {
 
   // MARK: Actions
 
-  private func addSleep(date: Date, bedTime: Date, wakeTime: Date, quality: Int) {
-    let log = SleepLog(date: date, bedTime: bedTime, wakeTime: wakeTime, quality: quality)
+  private func addSleep(date: Date, bedTime: Date, wakeTime: Date) {
+    let log = SleepLog(date: date, bedTime: bedTime, wakeTime: wakeTime)
     context.insert(log)
     try? context.save()
     Haptics.success()
   }
 
-  private func delete(_ sleep: SleepLog) {
+  private func confirmDelete() {
+    guard let sleep = pendingDelete else { return }
     context.delete(sleep)
     try? context.save()
-    Haptics.medium()
+    pendingDelete = nil
+    Haptics.warning()
   }
 }
 
@@ -288,7 +317,10 @@ private struct SleepRow: View {
           .font(.dl(.subheadline, weight: .bold))
           .monospacedDigit()
           .foregroundStyle(DLColor.textPrimary)
-        StarRating(value: Double(sleep.quality))
+        StarRating(value: Double(sleep.computedQuality))
+        Text(sleep.qualityLabel)
+          .font(.dl(.caption2, weight: .medium))
+          .foregroundStyle(DLColor.textTertiary)
       }
     }
     .padding(.vertical, DLSpace.xs)
@@ -363,14 +395,17 @@ private struct SleepDurationChart: View {
 /// picker. Calls `onSave` with the chosen values, then dismisses.
 private struct AddSleepSheet: View {
   let theme: GradientTheme
-  let onSave: (_ date: Date, _ bedTime: Date, _ wakeTime: Date, _ quality: Int) -> Void
+  let onSave: (_ date: Date, _ bedTime: Date, _ wakeTime: Date) -> Void
 
   @Environment(\.dismiss) private var dismiss
 
   @State private var date = Date()
   @State private var bedTime: Date = AddSleepSheet.defaultBedTime
   @State private var wakeTime: Date = AddSleepSheet.defaultWakeTime
-  @State private var quality = 3
+
+  /// Live duration/quality preview from the chosen times (feature 6).
+  private var previewHours: Double { SleepLog.hours(bedTime: bedTime, wakeTime: wakeTime) }
+  private var previewQuality: Int { SleepLog.quality(forHours: previewHours) }
 
   /// Default bedtime: 11pm today.
   private static var defaultBedTime: Date {
@@ -408,15 +443,37 @@ private struct AddSleepSheet: View {
         }
 
         Section {
-          Picker(L("Quality"), selection: $quality) {
-            ForEach(1...5, id: \.self) { rating in
-              Text(qualityLabel(rating)).tag(rating)
-            }
+          HStack {
+            Text(L("Duration"))
+              .font(.dl(.body))
+              .foregroundStyle(DLColor.textPrimary)
+            Spacer()
+            Text(formattedDuration(previewHours))
+              .font(.dl(.subheadline, weight: .bold))
+              .monospacedDigit()
+              .foregroundStyle(DLColor.textSecondary)
           }
-          .pickerStyle(.menu)
-          .tint(theme.accent)
+          HStack {
+            Text(L("Quality"))
+              .font(.dl(.body))
+              .foregroundStyle(DLColor.textPrimary)
+            Spacer()
+            HStack(spacing: 3) {
+              ForEach(1...5, id: \.self) { level in
+                Image(systemName: level <= previewQuality ? "star.fill" : "star")
+                  .font(.system(size: 13))
+                  .foregroundStyle(DLColor.xpGold)
+              }
+            }
+            Text(SleepLog.qualityLabel(for: previewQuality))
+              .font(.dl(.subheadline, weight: .semibold))
+              .foregroundStyle(DLColor.textSecondary)
+          }
         } header: {
-          Text(L("Quality"))
+          Text(L("Computed quality"))
+        } footer: {
+          Text(L("Quality is calculated from how long you slept."))
+            .font(.dl(.caption2))
         }
       }
       .scrollContentBackground(.hidden)
@@ -433,7 +490,7 @@ private struct AddSleepSheet: View {
         }
         ToolbarItem(placement: .topBarTrailing) {
           Button(L("Save")) {
-            onSave(date, bedTime, wakeTime, quality)
+            onSave(date, bedTime, wakeTime)
             dismiss()
           }
           .font(.dl(.body, weight: .semibold))
@@ -444,9 +501,9 @@ private struct AddSleepSheet: View {
     .presentationDetents([.medium, .large])
   }
 
-  private func qualityLabel(_ rating: Int) -> String {
-    let stars = String(repeating: "★", count: rating) + String(repeating: "☆", count: 5 - rating)
-    return "\(stars)"
+  private func formattedDuration(_ hours: Double) -> String {
+    let totalMinutes = Int((hours * 60).rounded())
+    return Lf("%dh %dm", totalMinutes / 60, totalMinutes % 60)
   }
 }
 

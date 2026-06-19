@@ -35,6 +35,7 @@ enum GamificationService {
     habitsCompleted: [Habit],
     progress: UserProgress,
     allEntries: [Entry],
+    allNotes: [DayNote] = [],
     existingBadgeIDs: Set<String>,
     context: ModelContext,
     now: Date = Date(),
@@ -84,7 +85,7 @@ enum GamificationService {
     // Evaluate badges against the updated picture.
     var entries = allEntries
     if !entries.contains(where: { $0.id == entry.id }) { entries.append(entry) }
-    let stats = computeStats(progress: progress, allEntries: entries, level: newLevelInfo.level)
+    let stats = computeStats(progress: progress, allEntries: entries, notes: allNotes, level: newLevelInfo.level)
     let earned = BadgeEngine.earnedBadgeIDs(stats)
     let newIDs = earned.subtracting(existingBadgeIDs)
 
@@ -109,15 +110,28 @@ enum GamificationService {
     )
   }
 
-  static func computeStats(progress: UserProgress, allEntries: [Entry], level: Int) -> GamificationStats {
+  static func computeStats(
+    progress: UserProgress,
+    allEntries: [Entry],
+    notes: [DayNote] = [],
+    level: Int
+  ) -> GamificationStats {
     let completed = allEntries.filter { $0.isComplete }.count
     let lessons = allEntries.filter { !$0.lesson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.count
     let adjustmentsDone = allEntries.filter { $0.adjustmentDone }.count
-    let totalWords = allEntries.reduce(0) { $0 + $1.wordCount }
+
+    // Words and tags now span reviews AND notes (feature 17).
+    let activeNotes = notes.filter { $0.deletedAt == nil }
+    let entryWords = allEntries.reduce(0) { $0 + $1.wordCount }
+    let noteWords = activeNotes.reduce(0) { $0 + $1.wordCount }
+    let totalWords = entryWords + noteWords
 
     var tagCounts: [String: Int] = [:]
     for e in allEntries {
       for t in e.tags { tagCounts[t.lowercased(), default: 0] += 1 }
+    }
+    for n in activeNotes {
+      for t in n.tags { tagCounts[t.lowercased(), default: 0] += 1 }
     }
 
     return GamificationStats(
@@ -128,6 +142,7 @@ enum GamificationService {
       adjustmentsCompleted: adjustmentsDone,
       habitCompletions: progress.totalHabitCompletions,
       totalWords: totalWords,
+      noteCount: activeNotes.count,
       level: level,
       earlyReviews: progress.earlyReviewCount,
       tagCounts: tagCounts

@@ -1,26 +1,25 @@
 import SwiftUI
 import SwiftData
 
-/// Recently-deleted notes. Soft-deleted notes land here so an accidental delete
-/// can be undone — restore them, or remove them permanently (which also deletes
-/// their media from disk). Presented as a sheet from Notes.
-struct TrashView: View {
+/// Trash for soft-deleted habits: restore them (with their full log history) or
+/// delete permanently. Mirrors the notes/goals Trash. Permanent deletion asks for
+/// confirmation first (feature 5).
+struct HabitTrashView: View {
   @Environment(\.modelContext) private var context
   @Environment(\.dismiss) private var dismiss
 
   @Query private var progressList: [UserProgress]
-  @Query(sort: \DayNote.createdAt, order: .reverse) private var allNotes: [DayNote]
+  @Query(sort: \Habit.sortIndex) private var allHabits: [Habit]
 
-  @State private var pendingDelete: DayNote?
+  @State private var pendingDelete: Habit?
   @State private var showEmptyConfirm = false
 
   private var theme: GradientTheme {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
   }
 
-  /// Trashed notes, most-recently-deleted first.
-  private var trashed: [DayNote] {
-    allNotes
+  private var trashed: [Habit] {
+    allHabits
       .filter { $0.deletedAt != nil }
       .sorted { ($0.deletedAt ?? .distantPast) > ($1.deletedAt ?? .distantPast) }
   }
@@ -29,18 +28,16 @@ struct TrashView: View {
     NavigationStack {
       ZStack {
         ThemedBackground(theme: theme)
-
         if trashed.isEmpty {
           ContentUnavailableView {
             VStack(spacing: DLSpace.md) {
-              EmptyGlyph(systemImage: "trash", size: 96, tint: theme.accent)
+              EmptyGlyph(systemImage: "trash", size: 100, tint: theme.accent)
               Text(L("Trash is empty"))
                 .font(.dl(.title3, weight: .semibold))
                 .foregroundStyle(DLColor.textPrimary)
             }
           } description: {
-            Text(L("Deleted notes appear here so you can restore them."))
-              .foregroundStyle(DLColor.textSecondary)
+            Text(L("Deleted habits appear here so you can restore them."))
           }
         } else {
           list
@@ -55,23 +52,23 @@ struct TrashView: View {
         if !trashed.isEmpty {
           ToolbarItem(placement: .topBarTrailing) {
             Button(role: .destructive) { showEmptyConfirm = true } label: {
-              Text(L("Empty")).font(.dl(.subheadline, weight: .semibold))
+              Text(L("Empty"))
             }
           }
         }
       }
       .tint(theme.accent)
-      .alert(L("Delete this note forever?"), isPresented: deleteBinding) {
+      .alert(L("Delete this habit forever?"), isPresented: deleteBinding) {
         Button(L("Cancel"), role: .cancel) { pendingDelete = nil }
         Button(L("Delete"), role: .destructive) { confirmDelete() }
       } message: {
-        Text(L("This permanently removes the note and its media. This can't be undone."))
+        Text(L("This permanently removes the habit and its history. This can't be undone."))
       }
       .alert(L("Empty the trash?"), isPresented: $showEmptyConfirm) {
         Button(L("Cancel"), role: .cancel) {}
         Button(L("Delete All"), role: .destructive) { emptyTrash() }
       } message: {
-        Text(L("This permanently removes all deleted notes and their media. This can't be undone."))
+        Text(L("This permanently removes all deleted habits and their history. This can't be undone."))
       }
     }
   }
@@ -83,25 +80,25 @@ struct TrashView: View {
   private var list: some View {
     List {
       Section {
-        ForEach(trashed) { note in
-          row(note)
+        ForEach(trashed) { habit in
+          row(habit)
             .listRowInsets(EdgeInsets(top: DLSpace.xs, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
-            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-              Button { restore(note) } label: {
+            .swipeActions(edge: .leading) {
+              Button { restore(habit) } label: {
                 Label(L("Restore"), systemImage: "arrow.uturn.backward")
               }
               .tint(DLColor.success)
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-              Button(role: .destructive) { pendingDelete = note } label: {
+              Button(role: .destructive) { pendingDelete = habit } label: {
                 Label(L("Delete"), systemImage: "trash")
               }
             }
         }
       } footer: {
-        Text(L("Swipe a note to restore or delete it permanently."))
+        Text(L("Swipe a habit to restore it, or delete it permanently."))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
           .padding(.horizontal, DLSpace.xs)
@@ -111,68 +108,49 @@ struct TrashView: View {
     .scrollContentBackground(.hidden)
   }
 
-  private func row(_ note: DayNote) -> some View {
+  private func row(_ habit: Habit) -> some View {
     GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.xs) {
-        HStack(spacing: DLSpace.sm) {
-          Text(title(note))
+      HStack(spacing: DLSpace.sm) {
+        Text(habit.emoji.isEmpty ? "✅" : habit.emoji).font(.system(size: 22))
+        VStack(alignment: .leading, spacing: 2) {
+          Text(habit.name)
             .font(.dl(.headline, weight: .semibold))
             .foregroundStyle(DLColor.textPrimary)
             .lineLimit(1)
-          Spacer(minLength: DLSpace.sm)
-          Button { restore(note) } label: {
-            Label(L("Restore"), systemImage: "arrow.uturn.backward")
-              .font(.dl(.caption, weight: .semibold))
-              .foregroundStyle(theme.accent)
+          if let deletedAt = habit.deletedAt {
+            Text(deletedAt, format: .dateTime.month().day().hour().minute())
+              .font(.dl(.caption2))
+              .foregroundStyle(DLColor.textTertiary)
           }
-          .buttonStyle(.plain)
         }
-        if let deletedAt = note.deletedAt {
-          Label(deletedAt.formatted(date: .abbreviated, time: .shortened), systemImage: "trash")
-            .font(.dl(.caption))
-            .foregroundStyle(DLColor.textTertiary)
-            .labelStyle(.titleAndIcon)
+        Spacer(minLength: DLSpace.sm)
+        Button { restore(habit) } label: {
+          Label(L("Restore"), systemImage: "arrow.uturn.backward")
+            .font(.dl(.subheadline, weight: .semibold))
+            .foregroundStyle(DLColor.success)
         }
+        .buttonStyle(.plain)
       }
     }
+    .accessibilityElement(children: .combine)
   }
 
-  private func title(_ note: DayNote) -> String {
-    let trimmed = note.title.trimmingCharacters(in: .whitespacesAndNewlines)
-    if !trimmed.isEmpty { return trimmed }
-    let preview = MarkdownFormatter.plain(note.text)
-    return preview.isEmpty ? L("New note") : preview
-  }
-
-  // MARK: Actions
-
-  private func restore(_ note: DayNote) {
-    withAnimation(DLAnim.standard) {
-      note.deletedAt = nil
-      note.updatedAt = Date()
-    }
+  private func restore(_ habit: Habit) {
+    habit.deletedAt = nil
     try? context.save()
     Haptics.success()
   }
 
   private func confirmDelete() {
-    guard let note = pendingDelete else { return }
-    withAnimation(DLAnim.standard) {
-      for attachment in note.attachments { MediaStore.delete(attachment.fileName) }
-      context.delete(note)
-    }
+    guard let habit = pendingDelete else { return }
+    context.delete(habit)
     try? context.save()
     pendingDelete = nil
     Haptics.warning()
   }
 
   private func emptyTrash() {
-    withAnimation(DLAnim.standard) {
-      for note in trashed {
-        for attachment in note.attachments { MediaStore.delete(attachment.fileName) }
-        context.delete(note)
-      }
-    }
+    for habit in trashed { context.delete(habit) }
     try? context.save()
     Haptics.warning()
   }

@@ -1,12 +1,18 @@
 import SwiftUI
 
-/// What a calendar day contains: a reflection (entry) dot and/or a note dot,
-/// each tinted by its mood color. Either may be nil.
+/// What a calendar day contains, as up to three distinct dots (feature 7):
+/// a note dot (blue), a mood dot (orange), and a "complete the day" dot (green,
+/// for a full WMLA reflection). Each shows only when its condition is met.
 struct CalendarDayMark: Equatable {
-  var entryColor: Color?
-  var noteColor: Color?
+  var hasNote = false       // blue
+  var hasMood = false       // orange
+  var hasComplete = false   // green (full Win/Mistake/Lesson/Adjustment)
 
-  var hasContent: Bool { entryColor != nil || noteColor != nil }
+  var hasContent: Bool { hasNote || hasMood || hasComplete }
+
+  static let noteColor = Color(hex: 0x0A84FF)      // systemBlue
+  static let moodColor = Color(hex: 0xFF9F0A)      // systemOrange
+  static let completeColor = Color(hex: 0x34C759)  // systemGreen
 }
 
 /// A 7-column month grid. Each day cell shows the day number and up to two dots:
@@ -107,13 +113,16 @@ struct CalendarMonthView: View {
               Circle().fill(Color.accentColor)
             }
           }
-        // Up to two dots: reflection (entry) and note.
+        // Up to three dots: note (blue), mood (orange), complete-the-day (green).
         HStack(spacing: 2) {
-          if let entryColor = mark?.entryColor {
-            Circle().fill(entryColor).frame(width: 6, height: 6)
+          if mark?.hasNote == true {
+            Circle().fill(CalendarDayMark.noteColor).frame(width: 6, height: 6)
           }
-          if let noteColor = mark?.noteColor {
-            Circle().fill(noteColor).frame(width: 6, height: 6)
+          if mark?.hasMood == true {
+            Circle().fill(CalendarDayMark.moodColor).frame(width: 6, height: 6)
+          }
+          if mark?.hasComplete == true {
+            Circle().fill(CalendarDayMark.completeColor).frame(width: 6, height: 6)
           }
         }
         .frame(height: 6)
@@ -130,13 +139,11 @@ struct CalendarMonthView: View {
   }
 
   private func accessibilityValue(for mark: CalendarDayMark?) -> String {
-    let hasEntry = mark?.entryColor != nil
-    let hasNote = mark?.noteColor != nil
-    switch (hasEntry, hasNote) {
-    case (true, true): return L("Reflection and notes")
-    case (true, false): return L("Has reflection")
-    case (false, true): return L("Has notes")
-    case (false, false): return L("No reflection")
-    }
+    guard let mark, mark.hasContent else { return L("Nothing logged") }
+    var parts: [String] = []
+    if mark.hasNote { parts.append(L("note")) }
+    if mark.hasMood { parts.append(L("mood")) }
+    if mark.hasComplete { parts.append(L("day completed")) }
+    return parts.joined(separator: ", ")
   }
 }

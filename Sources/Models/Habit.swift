@@ -13,6 +13,10 @@ final class Habit {
   /// XP awarded each time this habit is completed (10–20).
   var xpValue: Int
 
+  /// When set, the habit is in the Trash (soft-deleted) — restorable until purged.
+  /// Additive migration: older habits default to nil (active).
+  var deletedAt: Date? = nil
+
   @Relationship(deleteRule: .cascade, inverse: \HabitLog.habit)
   var logs: [HabitLog]
 

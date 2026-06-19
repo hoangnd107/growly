@@ -726,6 +726,14 @@ struct NotesView: View {
           .foregroundStyle(DLColor.textTertiary)
       }
 
+      if note.charCount > 0 {
+        Label(Lf("%d chars", note.charCount), systemImage: "textformat.size")
+          .font(.dl(.caption, weight: .medium))
+          .foregroundStyle(DLColor.textTertiary)
+          .labelStyle(.titleAndIcon)
+          .monospacedDigit()
+      }
+
       Spacer(minLength: 0)
     }
     .frame(maxWidth: .infinity, alignment: .leading)

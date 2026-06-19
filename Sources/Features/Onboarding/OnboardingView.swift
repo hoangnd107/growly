@@ -29,6 +29,7 @@ struct OnboardingView: View {
       .indexViewStyle(.page(backgroundDisplayMode: .always))
     }
     .tint(Color(hexString: accentHex))
+    .keyboardDismissButton()
   }
 
   private var welcomePage: some View {

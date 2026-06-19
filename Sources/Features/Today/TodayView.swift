@@ -27,7 +27,7 @@ struct TodayView: View {
             entry: entry,
             progress: progress,
             yesterdayEntry: yesterdayEntry,
-            habits: habits.filter { !$0.isArchived },
+            habits: habits.filter { !$0.isArchived && $0.deletedAt == nil },
             allEntries: entries
           )
         } else {
@@ -57,6 +57,8 @@ private struct TodayContent: View {
   let allEntries: [Entry]
 
   @Query private var badgeRecords: [BadgeRecord]
+  @Query private var allNotes: [DayNote]
+  @Query private var identities: [Identity]
   @Query(sort: \SleepLog.date, order: .reverse) private var sleeps: [SleepLog]
   @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
 
@@ -66,13 +68,19 @@ private struct TodayContent: View {
   @State private var showCelebration = false
   @State private var showHabitManager = false
   @State private var showGoals = false
+  @State private var showWeeklyReview = false
   @State private var result: ReviewResult = .none
+
+  private var identity: Identity? { identities.first }
 
   // Sleep quick-entry state (loaded from today's log on appear).
   @State private var bedTime = Date()
   @State private var wakeTime = Date()
-  @State private var sleepQuality = 3
   @State private var sleepLoaded = false
+
+  /// Quality is derived from the chosen times (feature 6), never set manually.
+  private var quickSleepHours: Double { SleepLog.hours(bedTime: bedTime, wakeTime: wakeTime) }
+  private var quickSleepQuality: Int { SleepLog.quality(forHours: quickSleepHours) }
 
   private var today: Date { Calendar.current.startOfDay(for: Date()) }
 
@@ -88,6 +96,15 @@ private struct TodayContent: View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
         header
+
+        if let identity, identity.hasContent {
+          NavigationLink {
+            IdentityView()
+          } label: {
+            IdentityReminderCard(identity: identity, accent: Color.accentColor)
+          }
+          .buttonStyle(.plain)
+        }
 
         modeSelector
 
@@ -106,6 +123,9 @@ private struct TodayContent: View {
     }
     .sheet(isPresented: $showGoals) {
       NavigationStack { GoalsView() }
+    }
+    .sheet(isPresented: $showWeeklyReview) {
+      LifeAreaReviewView()
     }
     .overlay {
       if showCelebration {
@@ -181,6 +201,8 @@ private struct TodayContent: View {
     MoodEnergyCard(moodRaw: $entry.moodRaw, energy: $entry.energy)
 
     goalsReminderCard
+
+    weeklyReviewCard
 
     mediaCard
 
@@ -264,20 +286,18 @@ private struct TodayContent: View {
             .foregroundStyle(DLColor.textPrimary)
           Spacer()
           HStack(spacing: DLSpace.xs) {
-            ForEach(1...5, id: \.self) { rating in
-              Button {
-                sleepQuality = rating
-                Haptics.selection()
-              } label: {
-                Image(systemName: rating <= sleepQuality ? "star.fill" : "star")
-                  .font(.system(size: 18))
-                  .foregroundStyle(DLColor.xpGold)
-              }
-              .buttonStyle(.plain)
-              .accessibilityLabel(Lf("%d stars", rating))
+            ForEach(1...5, id: \.self) { level in
+              Image(systemName: level <= quickSleepQuality ? "star.fill" : "star")
+                .font(.system(size: 18))
+                .foregroundStyle(DLColor.xpGold)
             }
           }
+          Text(SleepLog.qualityLabel(for: quickSleepQuality))
+            .font(.dl(.caption, weight: .semibold))
+            .foregroundStyle(DLColor.textSecondary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Lf("Quality %@", SleepLog.qualityLabel(for: quickSleepQuality)))
 
         PrimaryButton(
           todaySleep == nil ? L("Save sleep") : L("Update sleep"),
@@ -287,6 +307,40 @@ private struct TodayContent: View {
         }
       }
     }
+  }
+
+  // MARK: Weekly review (life areas)
+
+  private var weeklyReviewCard: some View {
+    Button {
+      Haptics.light()
+      showWeeklyReview = true
+    } label: {
+      GlassCard {
+        HStack(spacing: DLSpace.md) {
+          ZStack {
+            Circle().fill(DLColor.success.opacity(0.18)).frame(width: 44, height: 44)
+            Image(systemName: "chart.xyaxis.line")
+              .font(.system(size: 18))
+              .foregroundStyle(DLColor.success)
+          }
+          VStack(alignment: .leading, spacing: 2) {
+            Text(L("Weekly Review"))
+              .font(.dl(.headline, weight: .semibold))
+              .foregroundStyle(DLColor.textPrimary)
+            Text(L("Rate how your life areas are going"))
+              .font(.dl(.caption))
+              .foregroundStyle(DLColor.textSecondary)
+          }
+          Spacer(minLength: 0)
+          Image(systemName: "chevron.right")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(DLColor.textTertiary)
+        }
+      }
+    }
+    .buttonStyle(.plain)
+    .bounceTap()
   }
 
   // MARK: Goals reminder
@@ -501,7 +555,6 @@ private struct TodayContent: View {
     if let sleep = todaySleep {
       bedTime = sleep.bedTime
       wakeTime = sleep.wakeTime
-      sleepQuality = sleep.quality
     } else {
       let cal = Calendar.current
       bedTime = cal.date(bySettingHour: 23, minute: 0, second: 0, of: Date()) ?? Date()
@@ -513,9 +566,9 @@ private struct TodayContent: View {
     if let sleep = todaySleep {
       sleep.bedTime = bedTime
       sleep.wakeTime = wakeTime
-      sleep.quality = sleepQuality
+      sleep.refreshQuality()
     } else {
-      context.insert(SleepLog(date: today, bedTime: bedTime, wakeTime: wakeTime, quality: sleepQuality))
+      context.insert(SleepLog(date: today, bedTime: bedTime, wakeTime: wakeTime))
     }
     try? context.save()
     Haptics.success()
@@ -540,6 +593,7 @@ private struct TodayContent: View {
       habitsCompleted: completedHabits,
       progress: progress,
       allEntries: allEntries,
+      allNotes: allNotes,
       existingBadgeIDs: Set(badgeRecords.map { $0.badgeID }),
       context: context
     )

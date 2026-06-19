@@ -10,6 +10,9 @@ struct GoalsTrashView: View {
   @Query private var progressList: [UserProgress]
   @Query(sort: \SmartGoal.createdAt, order: .reverse) private var allGoals: [SmartGoal]
 
+  @State private var pendingDelete: SmartGoal?
+  @State private var showEmptyConfirm = false
+
   private var theme: GradientTheme {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
   }
@@ -47,14 +50,30 @@ struct GoalsTrashView: View {
         }
         if !trashed.isEmpty {
           ToolbarItem(placement: .topBarTrailing) {
-            Button(role: .destructive) { emptyTrash() } label: {
+            Button(role: .destructive) { showEmptyConfirm = true } label: {
               Text(L("Empty"))
             }
           }
         }
       }
       .tint(theme.accent)
+      .alert(L("Delete this goal forever?"), isPresented: deleteBinding) {
+        Button(L("Cancel"), role: .cancel) { pendingDelete = nil }
+        Button(L("Delete"), role: .destructive) { confirmDelete() }
+      } message: {
+        Text(L("This can't be undone."))
+      }
+      .alert(L("Empty the trash?"), isPresented: $showEmptyConfirm) {
+        Button(L("Cancel"), role: .cancel) {}
+        Button(L("Delete All"), role: .destructive) { emptyTrash() }
+      } message: {
+        Text(L("This permanently removes all deleted goals. This can't be undone."))
+      }
     }
+  }
+
+  private var deleteBinding: Binding<Bool> {
+    Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
   }
 
   private var list: some View {
@@ -71,8 +90,8 @@ struct GoalsTrashView: View {
               }
               .tint(DLColor.success)
             }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-              Button(role: .destructive) { permanentlyDelete(goal) } label: {
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+              Button(role: .destructive) { pendingDelete = goal } label: {
                 Label(L("Delete"), systemImage: "trash")
               }
             }
@@ -121,9 +140,11 @@ struct GoalsTrashView: View {
     Haptics.success()
   }
 
-  private func permanentlyDelete(_ goal: SmartGoal) {
+  private func confirmDelete() {
+    guard let goal = pendingDelete else { return }
     context.delete(goal)
     try? context.save()
+    pendingDelete = nil
     Haptics.warning()
   }
 

@@ -75,6 +75,86 @@ struct StreakCard: View {
   }
 }
 
+// MARK: - Detailed streak view (History → Streak)
+
+/// Three streak cards — Note, Complete-the-Day, and Mood — each showing current
+/// and longest runs with their date ranges (feature 8).
+struct StreakDetailView: View {
+  @Query(sort: \Entry.day, order: .reverse) private var entries: [Entry]
+  @Query private var notes: [DayNote]
+  @Query private var progressList: [UserProgress]
+
+  private var theme: GradientTheme { progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal") }
+
+  private var bundle: StreakBundle {
+    StreakBundle.compute(entries: entries, notes: notes)
+  }
+
+  var body: some View {
+    VStack(spacing: DLSpace.md) {
+      card(title: L("Note Streak"), icon: "note.text", tint: CalendarDayMark.noteColor, streak: bundle.note)
+      card(title: L("Complete the Day Streak"), icon: "checkmark.seal.fill", tint: CalendarDayMark.completeColor, streak: bundle.completeDay)
+      card(title: L("Mood Streak"), icon: "face.smiling", tint: CalendarDayMark.moodColor, streak: bundle.mood)
+    }
+  }
+
+  private func card(title: String, icon: String, tint: Color, streak: DetailedStreak) -> some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        Label(title, systemImage: icon)
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(tint)
+
+        HStack(spacing: 0) {
+          runColumn(value: streak.current.length, label: L("Current"), run: streak.current, tint: tint)
+          Rectangle().fill(DLColor.separator.opacity(0.6)).frame(width: 1, height: 64)
+          runColumn(value: streak.longest.length, label: L("Longest"), run: streak.longest, tint: DLColor.streakEnd)
+        }
+      }
+    }
+  }
+
+  private func runColumn(value: Int, label: String, run: StreakRun, tint: Color) -> some View {
+    VStack(spacing: DLSpace.xs) {
+      Text("\(value)")
+        .font(.system(.title, design: .rounded).weight(.bold))
+        .monospacedDigit()
+        .foregroundStyle(DLColor.textPrimary)
+      Text(value == 1 ? L("day") : L("days"))
+        .font(.dl(.caption2, weight: .medium))
+        .foregroundStyle(DLColor.textTertiary)
+      Text(label)
+        .font(.dl(.caption2, weight: .semibold))
+        .foregroundStyle(DLColor.textSecondary)
+      Text(rangeText(run))
+        .font(.dl(.caption2))
+        .foregroundStyle(DLColor.textTertiary)
+        .multilineTextAlignment(.center)
+        .lineLimit(2)
+        .minimumScaleFactor(0.7)
+    }
+    .frame(maxWidth: .infinity)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("\(label): \(value) \(value == 1 ? L("day") : L("days")). \(rangeText(run))")
+  }
+
+  private func rangeText(_ run: StreakRun) -> String {
+    guard run.length > 0, let start = run.start, let end = run.end else { return L("—") }
+    if Calendar.current.isDate(start, inSameDayAs: end) {
+      return StreakDetailView.dayFormat(start)
+    }
+    return Lf("%@ to %@", StreakDetailView.dayFormat(start), StreakDetailView.dayFormat(end))
+  }
+
+  /// dd/MM/yyyy formatting per the spec.
+  static func dayFormat(_ date: Date) -> String {
+    let f = DateFormatter()
+    f.locale = LocalizationManager.shared.locale ?? .current
+    f.dateFormat = "dd/MM/yyyy"
+    return f.string(from: date)
+  }
+}
+
 // MARK: - Stats card (per-month bar chart + totals)
 
 /// Self-contained Stats summary used by both Insights and History: a monthly
@@ -84,9 +164,16 @@ struct StatsCard: View {
   @Query(sort: \Entry.day, order: .reverse) private var entries: [Entry]
   @Query private var notes: [DayNote]
   @Query private var progressList: [UserProgress]
+  @Query private var sleeps: [SleepLog]
+  @Query private var habitLogs: [HabitLog]
+  @Query(sort: \Habit.sortIndex) private var habits: [Habit]
+  @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   @State private var year: Int = Calendar.current.component(.year, from: Date())
+  /// B2: the tapped month column's label (nil = no detail shown).
+  @State private var selectedMonth: String?
+  private let calendar = Calendar.current
 
   private var theme: GradientTheme { progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal") }
   private var animate: Bool { !reduceMotion }
@@ -103,27 +190,34 @@ struct StatsCard: View {
 
         MonthlyCountChart(
           points: summary.monthly,
-          entriesLabel: L("Entries"),
+          entriesLabel: L("Reviews"),
           notesLabel: L("Notes"),
           entriesColor: theme.accent,
           notesColor: DLColor.xpGold,
-          animate: animate
+          animate: animate,
+          selection: $selectedMonth
         )
 
+        if let selectedMonth, let detail = monthDetail(for: selectedMonth) {
+          monthDetailPanel(detail)
+            .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+
         HStack(spacing: 0) {
-          totalMetric(value: summary.totalEntries, label: L("Total entries"), tint: theme.accent)
+          totalMetric(value: summary.totalEntries, label: L("Total reviews"), tint: theme.accent)
           divider
           totalMetric(value: summary.totalNotes, label: L("Total notes"), tint: DLColor.xpGold)
           divider
           totalMetric(value: summary.totalNoteWords, label: L("Words in notes"), tint: DLColor.success)
         }
 
-        Text(Lf("%d entries · %d notes in %d", summary.yearEntries, summary.yearNotes, year))
+        Text(Lf("%d reviews · %d notes in %d", summary.yearEntries, summary.yearNotes, year))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
           .monospacedDigit()
       }
     }
+    .animation(animate ? DLAnim.standard : nil, value: selectedMonth)
     .onAppear {
       if !years.contains(year), let first = years.first { year = first }
     }
@@ -150,7 +244,10 @@ struct StatsCard: View {
   private func stepYear(_ delta: Int) {
     let next = year + delta
     guard next >= minYear, next <= maxYear else { return }
-    withAnimation(animate ? DLAnim.standard : nil) { year = next }
+    withAnimation(animate ? DLAnim.standard : nil) {
+      year = next
+      selectedMonth = nil
+    }
     Haptics.selection()
   }
 
@@ -190,5 +287,182 @@ struct StatsCard: View {
 
   private var divider: some View {
     Rectangle().fill(DLColor.separator.opacity(0.6)).frame(width: 1, height: 40)
+  }
+
+  // MARK: - Month detail (B2)
+
+  private struct MonthMoodCount: Identifiable {
+    let option: MoodOption
+    let count: Int
+    var id: Int { option.value }
+  }
+
+  private struct MonthHabitCount: Identifiable {
+    let name: String
+    let count: Int
+    var id: String { name }
+  }
+
+  private struct MonthDetailData {
+    let label: String
+    let noteLongest: Int
+    let completeLongest: Int
+    let moodCounts: [MonthMoodCount]
+    let avgSleepHours: Double
+    let avgSleepQuality: Double
+    let sleepNights: Int
+    let habitCompletions: Int
+    let topHabits: [MonthHabitCount]
+    let goalsCompleted: Int
+  }
+
+  private func isIn(_ date: Date, month: Int) -> Bool {
+    let comps = calendar.dateComponents([.year, .month], from: date)
+    return comps.year == year && comps.month == month
+  }
+
+  /// Builds the expandable detail for the tapped month label.
+  private func monthDetail(for label: String) -> MonthDetailData? {
+    guard let mc = summary.monthly.first(where: { $0.label == label }) else { return nil }
+    let month = mc.month
+    let activeNotes = notes.filter { $0.deletedAt == nil }
+
+    // Longest streaks within the month.
+    var noteDays = Set<Date>()
+    var completeDays = Set<Date>()
+    for note in activeNotes where isIn(note.createdAt, month: month) {
+      noteDays.insert(calendar.startOfDay(for: note.createdAt))
+    }
+    for entry in entries where entry.isComplete && isIn(entry.day, month: month) {
+      completeDays.insert(calendar.startOfDay(for: entry.day))
+    }
+    let noteLongest = DetailedStreak.compute(days: noteDays).longest.length
+    let completeLongest = DetailedStreak.compute(days: completeDays).longest.length
+
+    // Mood distribution for the month.
+    var moodByValue: [Int: Int] = [:]
+    for entry in entries where isIn(entry.day, month: month) {
+      moodByValue[entry.moodRaw, default: 0] += 1
+    }
+    for note in activeNotes where isIn(note.createdAt, month: month) {
+      if let m = note.moodRaw { moodByValue[m, default: 0] += 1 }
+    }
+    let moodCounts = MoodCatalog.shared.options
+      .map { MonthMoodCount(option: $0, count: moodByValue[$0.value, default: 0]) }
+      .filter { $0.count > 0 }
+
+    // Sleep stats.
+    let monthSleeps = sleeps.filter { isIn($0.date, month: month) }
+    let avgHours = monthSleeps.isEmpty ? 0 : monthSleeps.map(\.durationHours).reduce(0, +) / Double(monthSleeps.count)
+    let avgQuality = monthSleeps.isEmpty ? 0 : Double(monthSleeps.map(\.computedQuality).reduce(0, +)) / Double(monthSleeps.count)
+
+    // Habit completions + top habits.
+    var habitCountByID: [UUID: Int] = [:]
+    var habitTotal = 0
+    for log in habitLogs where log.completed && isIn(log.date, month: month) {
+      habitTotal += 1
+      if let id = log.habit?.id { habitCountByID[id, default: 0] += 1 }
+    }
+    let topHabits: [MonthHabitCount] = habitCountByID
+      .sorted { $0.value > $1.value }
+      .prefix(3)
+      .compactMap { pair in
+        guard let habit = habits.first(where: { $0.id == pair.key }) else { return nil }
+        return MonthHabitCount(name: "\(habit.emoji) \(habit.name)", count: pair.value)
+      }
+
+    // Goals completed in the month.
+    let goalsCompleted = goals.filter {
+      $0.deletedAt == nil && $0.isCompleted && ($0.completedAt.map { isIn($0, month: month) } ?? false)
+    }.count
+
+    return MonthDetailData(
+      label: label,
+      noteLongest: noteLongest,
+      completeLongest: completeLongest,
+      moodCounts: moodCounts,
+      avgSleepHours: avgHours,
+      avgSleepQuality: avgQuality,
+      sleepNights: monthSleeps.count,
+      habitCompletions: habitTotal,
+      topHabits: topHabits,
+      goalsCompleted: goalsCompleted
+    )
+  }
+
+  private func monthDetailPanel(_ d: MonthDetailData) -> some View {
+    VStack(alignment: .leading, spacing: DLSpace.md) {
+      HStack {
+        Text(Lf("%@ %d", d.label, year))
+          .font(.dl(.subheadline, weight: .bold))
+          .foregroundStyle(DLColor.textPrimary)
+        Spacer()
+        Button {
+          withAnimation(animate ? DLAnim.standard : nil) { selectedMonth = nil }
+          Haptics.light()
+        } label: {
+          Image(systemName: "xmark.circle.fill")
+            .font(.system(size: 18))
+            .foregroundStyle(DLColor.textTertiary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L("Close"))
+      }
+
+      detailRow(icon: "flame.fill", tint: DLColor.streakStart,
+                text: Lf("Longest streaks · %d-day notes, %d-day complete", d.noteLongest, d.completeLongest))
+
+      if !d.moodCounts.isEmpty {
+        HStack(spacing: DLSpace.sm) {
+          Image(systemName: "face.smiling").font(.system(size: 14)).foregroundStyle(theme.accent)
+          ForEach(d.moodCounts) { item in
+            HStack(spacing: 2) {
+              Text(item.option.emoji).font(.system(size: 15))
+              Text("\(item.count)")
+                .font(.dl(.caption2, weight: .semibold))
+                .foregroundStyle(DLColor.textSecondary)
+                .monospacedDigit()
+            }
+          }
+          Spacer(minLength: 0)
+        }
+      }
+
+      if d.sleepNights > 0 {
+        detailRow(icon: "bed.double.fill", tint: theme.accent,
+                  text: Lf("Sleep · %.1f h avg, %.1f quality over %d nights", d.avgSleepHours, d.avgSleepQuality, d.sleepNights))
+      }
+
+      if d.habitCompletions > 0 {
+        VStack(alignment: .leading, spacing: 4) {
+          detailRow(icon: "checklist", tint: DLColor.success,
+                    text: Lf("Habits · %d completions", d.habitCompletions))
+          ForEach(d.topHabits) { habit in
+            Text("\(habit.name) · \(habit.count)")
+              .font(.dl(.caption2))
+              .foregroundStyle(DLColor.textTertiary)
+              .lineLimit(1)
+          }
+        }
+      }
+
+      if d.goalsCompleted > 0 {
+        detailRow(icon: "checkmark.seal.fill", tint: DLColor.success,
+                  text: Lf("Goals · %d completed", d.goalsCompleted))
+      }
+    }
+    .padding(DLSpace.md)
+    .background(DLColor.surfaceElevated.opacity(0.5), in: RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous))
+  }
+
+  private func detailRow(icon: String, tint: Color, text: String) -> some View {
+    HStack(alignment: .firstTextBaseline, spacing: DLSpace.sm) {
+      Image(systemName: icon).font(.system(size: 14)).foregroundStyle(tint)
+      Text(text)
+        .font(.dl(.caption))
+        .foregroundStyle(DLColor.textSecondary)
+        .fixedSize(horizontal: false, vertical: true)
+      Spacer(minLength: 0)
+    }
   }
 }

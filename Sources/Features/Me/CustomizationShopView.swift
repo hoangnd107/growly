@@ -51,6 +51,7 @@ struct CustomizationShopView: View {
     }
     .navigationTitle("Customize")
     .navigationBarTitleDisplayMode(.inline)
+    .keyboardDismissButton()
     .onAppear {
       syncUnlocks()
       if moods.isEmpty { moods = MoodCatalog.shared.options }
