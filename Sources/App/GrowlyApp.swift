@@ -1,8 +1,11 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 @main
 struct GrowlyApp: App {
+  init() { AppAppearance.apply() }
+
   var body: some Scene {
     WindowGroup {
       AppRootView()
@@ -35,5 +38,36 @@ private struct AppRootView: View {
       }
     }
     .task { Seed.ensure(context: context) }
+  }
+}
+
+/// App-wide UIKit chrome for the editorial redesign: serif navigation titles on
+/// a clean bar (transparent at the large-title edge, paper material once scrolled).
+enum AppAppearance {
+  static func apply() {
+    func serifFont(_ style: UIFont.TextStyle) -> UIFont? {
+      guard let descriptor = UIFontDescriptor
+        .preferredFontDescriptor(withTextStyle: style)
+        .withDesign(.serif) else { return nil }
+      return UIFont(descriptor: descriptor, size: 0)
+    }
+
+    let scrollEdge = UINavigationBarAppearance()
+    scrollEdge.configureWithTransparentBackground()
+    let standard = UINavigationBarAppearance()
+    standard.configureWithDefaultBackground()
+
+    for appearance in [scrollEdge, standard] {
+      if let large = serifFont(.largeTitle) {
+        appearance.largeTitleTextAttributes[.font] = large
+      }
+      if let inline = serifFont(.headline) {
+        appearance.titleTextAttributes[.font] = inline
+      }
+    }
+
+    UINavigationBar.appearance().scrollEdgeAppearance = scrollEdge
+    UINavigationBar.appearance().standardAppearance = standard
+    UINavigationBar.appearance().compactAppearance = standard
   }
 }

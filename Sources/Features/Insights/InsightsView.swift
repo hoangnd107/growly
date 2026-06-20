@@ -99,6 +99,7 @@ struct InsightsView: View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
         aiInsightsCard
+        reportsCard
         StreakCard()
         CompleteDayStreakCard()
         goalsSummaryCard
@@ -178,6 +179,55 @@ struct InsightsView: View {
     case .suggestion: return DLColor.warning
     case .neutral: return theme.accent
     }
+  }
+
+  // MARK: 1b — Detailed reports (new editorial analytics views)
+
+  private var reportsCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: 0) {
+        Label(L("Detailed reports"), systemImage: "chart.bar.doc.horizontal")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(theme.accent)
+          .padding(.bottom, DLSpace.xs)
+        reportLink(emoji: "🙂", L("Mood analysis")) { MoodAnalysisView() }
+        Hairline()
+        reportLink(emoji: "🌙", L("Sleep analysis")) { SleepAnalysisView() }
+        Hairline()
+        reportLink(emoji: "✅", L("Habit analytics")) { HabitAnalyticsView() }
+        Hairline()
+        reportLink(emoji: "✍️", L("Writing stats")) { WritingStatsView() }
+        Hairline()
+        reportLink(emoji: "◈", L("Life areas")) { LifeAreaReportView() }
+        Hairline()
+        reportLink(emoji: "▦", L("Consistency")) { ConsistencyView() }
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func reportLink<Destination: View>(
+    emoji: String,
+    _ title: String,
+    @ViewBuilder destination: @escaping () -> Destination
+  ) -> some View {
+    NavigationLink {
+      destination()
+    } label: {
+      HStack(spacing: DLSpace.md) {
+        Text(emoji).font(.system(size: 20)).frame(width: 26)
+        Text(title)
+          .font(.dl(.body, weight: .medium))
+          .foregroundStyle(DLColor.textPrimary)
+        Spacer(minLength: 0)
+        Image(systemName: "chevron.right")
+          .font(.system(size: 13, weight: .semibold))
+          .foregroundStyle(DLColor.textTertiary)
+      }
+      .padding(.vertical, DLSpace.md)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(ScaleButtonStyle(scale: 0.98))
   }
 
   // MARK: 2 — Growth score
