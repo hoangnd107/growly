@@ -174,8 +174,11 @@ struct ReflectionCard: View {
         }
       }
       .padding(.vertical, 2)
+      .padding(.horizontal, 2)
     }
-    .scrollClipDisabled()
+    // No `scrollClipDisabled`: the chip strip must stay inside the card and clip
+    // at its edges so it never spills past the screen, while still scrolling
+    // horizontally on a press-drag (feedback item 1).
   }
 
   // MARK: Text helpers

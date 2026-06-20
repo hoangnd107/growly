@@ -287,3 +287,15 @@
 "Swipe a goal to restore or delete it permanently." = "목표를 스와이프하여 복원하거나 영구 삭제하세요.";
 "Collapsed. Tap to expand." = "접힘. 탭하여 펼치기.";
 "Expanded. Tap to collapse." = "펼침. 탭하여 접기.";
+
+/* v1.12 feedback round */
+"Progress" = "진행";
+"Progress view" = "진행 보기";
+"Reviews" = "리뷰";
+"By year" = "연도별";
+"Tap a year to see its months." = "연도를 탭하면 월별로 볼 수 있습니다.";
+"%d reviews · %d notes all-time" = "전체 %d 리뷰 · %d 노트";
+"Hide keyboard" = "키보드 숨기기";
+"Time of day" = "시간대";
+"Timeline range" = "타임라인 범위";
+"Stats range" = "통계 범위";

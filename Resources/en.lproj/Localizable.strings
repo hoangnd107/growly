@@ -287,3 +287,15 @@
 "Swipe a goal to restore or delete it permanently." = "Swipe a goal to restore or delete it permanently.";
 "Collapsed. Tap to expand." = "Collapsed. Tap to expand.";
 "Expanded. Tap to collapse." = "Expanded. Tap to collapse.";
+
+/* v1.12 feedback round */
+"Progress" = "Progress";
+"Progress view" = "Progress view";
+"Reviews" = "Reviews";
+"By year" = "By year";
+"Tap a year to see its months." = "Tap a year to see its months.";
+"%d reviews · %d notes all-time" = "%d reviews · %d notes all-time";
+"Hide keyboard" = "Hide keyboard";
+"Time of day" = "Time of day";
+"Timeline range" = "Timeline range";
+"Stats range" = "Stats range";

@@ -131,7 +131,7 @@ struct HistoryView: View {
           content
         }
       }
-      .navigationTitle(L("History"))
+      .navigationTitle(L("Progress"))
       .searchable(text: $query, prompt: Text(L("Search reflections")))
       .toolbar {
         if !allTags.isEmpty && historyMode == .calendar {
@@ -227,7 +227,7 @@ struct HistoryView: View {
       selection: $historyMode,
       accent: theme.accent
     )
-    .accessibilityLabel(L("History view"))
+    .accessibilityLabel(L("Progress view"))
   }
 
   @ViewBuilder
@@ -597,7 +597,8 @@ struct HistoryView: View {
       .padding(.horizontal, 2)
       .padding(.vertical, 2)
     }
-    .scrollClipDisabled()
+    // Keep the chip strip inside the card (no scrollClipDisabled) so it never
+    // bleeds past the screen, while staying horizontally scrollable (item 1).
   }
 
   private func chip(label: String, emoji: String?, color: Color, isSelected: Bool, action: @escaping () -> Void) -> some View {

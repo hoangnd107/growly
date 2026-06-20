@@ -287,3 +287,15 @@
 "Swipe a goal to restore or delete it permanently." = "滑动目标可恢复或永久删除。";
 "Collapsed. Tap to expand." = "已折叠。点按展开。";
 "Expanded. Tap to collapse." = "已展开。点按折叠。";
+
+/* v1.12 feedback round */
+"Progress" = "进度";
+"Progress view" = "进度视图";
+"Reviews" = "回顾";
+"By year" = "按年";
+"Tap a year to see its months." = "点按某一年查看其月份。";
+"%d reviews · %d notes all-time" = "%d 条回顾 · %d 条笔记（全部）";
+"Hide keyboard" = "隐藏键盘";
+"Time of day" = "时段";
+"Timeline range" = "时间线范围";
+"Stats range" = "统计范围";

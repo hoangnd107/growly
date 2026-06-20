@@ -170,15 +170,26 @@ struct StatsCard: View {
   @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+  /// Year view drills into months; All-time view shows one bar per year (item 4).
+  private enum StatsScope: String, CaseIterable, Identifiable {
+    case year, allTime
+    var id: String { rawValue }
+    var label: String { self == .year ? L("By year") : L("All time") }
+  }
+
   @State private var year: Int = Calendar.current.component(.year, from: Date())
-  /// B2: the tapped month column's label (nil = no detail shown).
+  @State private var scope: StatsScope = .year
+  /// The tapped month column's label in Year view (nil = no detail shown).
   @State private var selectedMonth: String?
+  /// The tapped year column's label in All-time view (drills into that year).
+  @State private var selectedYearLabel: String?
   private let calendar = Calendar.current
 
   private var theme: GradientTheme { progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal") }
   private var animate: Bool { !reduceMotion }
   private var years: [Int] { StatsSummary.availableYears(entries: entries, notes: notes) }
   private var summary: StatsSummary { StatsSummary.compute(entries: entries, notes: notes, year: year) }
+  private var yearlyPoints: [MonthCount] { StatsSummary.yearlyCounts(entries: entries, notes: notes) }
 
   private var minYear: Int { years.min() ?? year }
   private var maxYear: Int { years.max() ?? year }
@@ -188,19 +199,35 @@ struct StatsCard: View {
       VStack(alignment: .leading, spacing: DLSpace.md) {
         header
 
-        MonthlyCountChart(
-          points: summary.monthly,
-          entriesLabel: L("Reviews"),
-          notesLabel: L("Notes"),
-          entriesColor: theme.accent,
-          notesColor: DLColor.xpGold,
-          animate: animate,
-          selection: $selectedMonth
-        )
+        if scope == .year {
+          MonthlyCountChart(
+            points: summary.monthly,
+            entriesLabel: L("Reviews"),
+            notesLabel: L("Notes"),
+            entriesColor: theme.accent,
+            notesColor: DLColor.xpGold,
+            animate: animate,
+            selection: $selectedMonth
+          )
 
-        if let selectedMonth, let detail = monthDetail(for: selectedMonth) {
-          monthDetailPanel(detail)
-            .transition(.opacity.combined(with: .move(edge: .top)))
+          if let selectedMonth, let detail = monthDetail(for: selectedMonth) {
+            monthDetailPanel(detail)
+              .transition(.opacity.combined(with: .move(edge: .top)))
+          }
+        } else {
+          MonthlyCountChart(
+            points: yearlyPoints,
+            entriesLabel: L("Reviews"),
+            notesLabel: L("Notes"),
+            entriesColor: theme.accent,
+            notesColor: DLColor.xpGold,
+            animate: animate,
+            selection: $selectedYearLabel
+          )
+
+          Text(L("Tap a year to see its months."))
+            .font(.dl(.caption2))
+            .foregroundStyle(DLColor.textTertiary)
         }
 
         HStack(spacing: 0) {
@@ -211,33 +238,63 @@ struct StatsCard: View {
           totalMetric(value: summary.totalNoteWords, label: L("Words in notes"), tint: DLColor.success)
         }
 
-        Text(Lf("%d reviews · %d notes in %d", summary.yearEntries, summary.yearNotes, year))
+        Text(scope == .year
+             ? Lf("%d reviews · %d notes in %d", summary.yearEntries, summary.yearNotes, year)
+             : Lf("%d reviews · %d notes all-time", summary.totalEntries, summary.totalNotes))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
           .monospacedDigit()
       }
     }
     .animation(animate ? DLAnim.standard : nil, value: selectedMonth)
+    .animation(animate ? DLAnim.standard : nil, value: scope)
+    .onChange(of: scope) { _, newScope in
+      selectedYearLabel = nil
+      selectedMonth = newScope == .year ? defaultMonthLabel(for: year) : nil
+    }
+    .onChange(of: selectedYearLabel) { _, newValue in
+      guard let label = newValue, let tapped = Int(label) else { return }
+      withAnimation(animate ? DLAnim.standard : nil) {
+        year = tapped
+        scope = .year
+        selectedYearLabel = nil
+        selectedMonth = defaultMonthLabel(for: tapped)
+      }
+      Haptics.selection()
+    }
     .onAppear {
       if !years.contains(year), let first = years.first { year = first }
+      if selectedMonth == nil { selectedMonth = defaultMonthLabel(for: year) }
     }
   }
 
   private var header: some View {
-    HStack {
-      Label(L("Stats"), systemImage: "chart.bar.fill")
-        .font(.dl(.headline, weight: .semibold))
-        .foregroundStyle(theme.accent)
-      Spacer()
-      HStack(spacing: DLSpace.sm) {
-        yearButton(systemName: "chevron.left", enabled: year > minYear) { stepYear(-1) }
-        Text(verbatim: String(year))
-          .font(.dl(.subheadline, weight: .bold))
-          .foregroundStyle(DLColor.textPrimary)
-          .monospacedDigit()
-          .frame(minWidth: 44)
-        yearButton(systemName: "chevron.right", enabled: year < maxYear) { stepYear(1) }
+    VStack(spacing: DLSpace.sm) {
+      HStack {
+        Label(L("Stats"), systemImage: "chart.bar.fill")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(theme.accent)
+        Spacer()
+        if scope == .year {
+          HStack(spacing: DLSpace.sm) {
+            yearButton(systemName: "chevron.left", enabled: year > minYear) { stepYear(-1) }
+            Text(verbatim: String(year))
+              .font(.dl(.subheadline, weight: .bold))
+              .foregroundStyle(DLColor.textPrimary)
+              .monospacedDigit()
+              .frame(minWidth: 44)
+            yearButton(systemName: "chevron.right", enabled: year < maxYear) { stepYear(1) }
+          }
+          .transition(.opacity)
+        }
       }
+      SlidingSegmentedControl(
+        items: StatsScope.allCases,
+        label: { $0.label },
+        selection: $scope,
+        accent: theme.accent
+      )
+      .accessibilityLabel(L("Stats range"))
     }
   }
 
@@ -246,9 +303,19 @@ struct StatsCard: View {
     guard next >= minYear, next <= maxYear else { return }
     withAnimation(animate ? DLAnim.standard : nil) {
       year = next
-      selectedMonth = nil
+      selectedMonth = defaultMonthLabel(for: next)
     }
     Haptics.selection()
+  }
+
+  /// Default month detail = the current month when viewing the current year, so
+  /// opening Stats already shows this month's summary (feedback item 4).
+  private func defaultMonthLabel(for year: Int) -> String? {
+    let now = Date()
+    guard calendar.component(.year, from: now) == year else { return nil }
+    let m = calendar.component(.month, from: now)
+    let symbols = calendar.shortStandaloneMonthSymbols
+    return symbols.indices.contains(m - 1) ? symbols[m - 1] : nil
   }
 
   private func yearButton(systemName: String, enabled: Bool, action: @escaping () -> Void) -> some View {

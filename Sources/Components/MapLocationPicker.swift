@@ -41,6 +41,7 @@ struct MapLocationPicker: View {
         }
       }
       .onAppear { locationManager.requestWhenInUseAuthorization() }
+      .keyboardDismissButton()
     }
   }
 

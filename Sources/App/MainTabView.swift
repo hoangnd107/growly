@@ -22,7 +22,7 @@ struct MainTabView: View {
           .tabItem { Label(L("Notes"), systemImage: "note.text") }
 
         HistoryView()
-          .tabItem { Label(L("History"), systemImage: "calendar") }
+          .tabItem { Label(L("Progress"), systemImage: "calendar") }
 
         InsightsView()
           .tabItem { Label(L("Insights"), systemImage: "chart.line.uptrend.xyaxis") }

@@ -62,9 +62,8 @@ private struct TodayContent: View {
   @Query(sort: \SleepLog.date, order: .reverse) private var sleeps: [SleepLog]
   @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
 
-  private enum Mode { case evening, morning }
+  private enum Mode: Hashable { case evening, morning }
   @State private var mode: Mode = .evening
-  @Namespace private var modeNS
   @State private var showCelebration = false
   @State private var showHabitManager = false
   @State private var showGoals = false
@@ -146,48 +145,16 @@ private struct TodayContent: View {
 
   // MARK: Mode selector (Evening / Morning)
 
-  /// A capsule toggle that also responds to a horizontal swipe, so the user can
-  /// swipe between Evening and Morning. The drag is scoped to this control so it
-  /// never steals vertical scrolling or the between-tabs page swipe.
+  /// The shared sliding control, so the Evening/Morning toggle animates exactly
+  /// like every other selector and the bottom tab bar (feedback item 6).
   private var modeSelector: some View {
-    HStack(spacing: 4) {
-      ForEach([Mode.evening, Mode.morning], id: \.self) { item in
-        let isSelected = mode == item
-        Button {
-          withAnimation(DLAnim.standard) { mode = item }
-          Haptics.selection()
-        } label: {
-          Text(item == .evening ? L("Evening") : L("Morning"))
-            .font(.dl(.subheadline, weight: .semibold))
-            .foregroundStyle(isSelected ? Color.white : DLColor.textSecondary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background {
-              if isSelected {
-                Capsule().fill(Color.accentColor)
-                  .matchedGeometryEffect(id: "todayModePill", in: modeNS)
-              }
-            }
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-      }
-    }
-    .padding(4)
-    .background(DLColor.surfaceElevated, in: Capsule())
-    .overlay(Capsule().strokeBorder(DLColor.separator.opacity(0.6), lineWidth: 1))
-    .highPriorityGesture(
-      DragGesture(minimumDistance: 24)
-        .onEnded { value in
-          guard abs(value.translation.width) > abs(value.translation.height),
-                abs(value.translation.width) > 40 else { return }
-          withAnimation(DLAnim.standard) {
-            mode = value.translation.width < 0 ? .morning : .evening
-          }
-          Haptics.selection()
-        }
+    SlidingSegmentedControl(
+      items: [Mode.evening, Mode.morning],
+      label: { $0 == .evening ? L("Evening") : L("Morning") },
+      selection: $mode,
+      accent: Color.accentColor
     )
+    .accessibilityLabel(L("Time of day"))
   }
 
   // MARK: Evening

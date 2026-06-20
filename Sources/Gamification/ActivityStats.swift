@@ -286,6 +286,34 @@ struct StatsSummary: Equatable {
     )
   }
 
+  /// One bar per year for the Stats "all-time" view (feedback item 4). Reuses
+  /// `MonthCount` with the `month` slot holding the year and the label showing it,
+  /// so the existing monthly bar chart renders it unchanged.
+  static func yearlyCounts(
+    entries: [Entry],
+    notes: [DayNote],
+    calendar: Calendar = .current
+  ) -> [MonthCount] {
+    let activeNotes = notes.filter { $0.deletedAt == nil }
+    var entryByYear: [Int: Int] = [:]
+    var noteByYear: [Int: Int] = [:]
+    for entry in entries {
+      entryByYear[calendar.component(.year, from: entry.day), default: 0] += 1
+    }
+    for note in activeNotes {
+      noteByYear[calendar.component(.year, from: note.day), default: 0] += 1
+    }
+    let years = Set(entryByYear.keys).union(noteByYear.keys).sorted()
+    return years.map { y in
+      MonthCount(
+        month: y,
+        label: String(y),
+        entries: entryByYear[y, default: 0],
+        notes: noteByYear[y, default: 0]
+      )
+    }
+  }
+
   /// Years that have any entry or active note, descending (for the year picker);
   /// always includes the current year.
   static func availableYears(

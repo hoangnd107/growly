@@ -44,9 +44,6 @@ struct NotesView: View {
   @State private var showBatchDatePicker = false
   @State private var batchDate = Date()
 
-  // Sliding pill namespace for the granularity selector.
-  @Namespace private var granularityNS
-
   private let calendar: Calendar = {
     var cal = Calendar.current
     cal.firstWeekday = 2 // Monday-first weeks
@@ -459,51 +456,13 @@ struct NotesView: View {
   // MARK: - Granularity picker
 
   private var granularityPicker: some View {
-    HStack(spacing: 4) {
-      ForEach(Granularity.allCases) { item in
-        let isSelected = granularity == item
-        Button {
-          withAnimation(DLAnim.standard) { granularity = item }
-          Haptics.selection()
-        } label: {
-          Text(item.label)
-            .font(.dl(.subheadline, weight: .semibold))
-            .foregroundStyle(isSelected ? Color.white : DLColor.textSecondary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background {
-              if isSelected {
-                Capsule().fill(theme.accent)
-                  .matchedGeometryEffect(id: "granularityPill", in: granularityNS)
-              }
-            }
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-      }
-    }
-    .padding(4)
-    .background(DLColor.surfaceElevated, in: Capsule())
-    .overlay(Capsule().strokeBorder(DLColor.separator.opacity(0.6), lineWidth: 1))
-    .highPriorityGesture(
-      DragGesture(minimumDistance: 24)
-        .onEnded { value in
-          guard abs(value.translation.width) > abs(value.translation.height),
-                abs(value.translation.width) > 40 else { return }
-          shiftGranularity(by: value.translation.width < 0 ? 1 : -1)
-        }
+    SlidingSegmentedControl(
+      items: Granularity.allCases,
+      label: { $0.label },
+      selection: $granularity,
+      accent: theme.accent
     )
-  }
-
-  /// Moves the timeline granularity one step (Week ↔ Month ↔ Year), clamped.
-  private func shiftGranularity(by delta: Int) {
-    let all = Granularity.allCases
-    guard let index = all.firstIndex(of: granularity) else { return }
-    let next = min(max(index + delta, 0), all.count - 1)
-    guard next != index else { return }
-    withAnimation(DLAnim.standard) { granularity = all[next] }
-    Haptics.selection()
+    .accessibilityLabel(L("Timeline range"))
   }
 
   // MARK: - Folder chips

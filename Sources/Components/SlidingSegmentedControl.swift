@@ -38,6 +38,7 @@ struct SlidingSegmentedControl<T: Hashable>: View {
           .background {
             if isSelected {
               Capsule().fill(accent)
+                .shadow(color: accent.opacity(0.35), radius: 6, x: 0, y: 3)
                 .matchedGeometryEffect(id: "slidingSegmentPill", in: ns)
             }
           }

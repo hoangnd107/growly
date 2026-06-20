@@ -287,3 +287,15 @@
 "Swipe a goal to restore or delete it permanently." = "Vuốt một mục tiêu để khôi phục hoặc xoá vĩnh viễn.";
 "Collapsed. Tap to expand." = "Đã thu gọn. Chạm để mở rộng.";
 "Expanded. Tap to collapse." = "Đang mở rộng. Chạm để thu gọn.";
+
+/* v1.12 feedback round */
+"Progress" = "Tiến trình";
+"Progress view" = "Chế độ xem tiến trình";
+"Reviews" = "Đánh giá";
+"By year" = "Theo năm";
+"Tap a year to see its months." = "Chạm vào một năm để xem các tháng.";
+"%d reviews · %d notes all-time" = "%d đánh giá · %d ghi chú · toàn thời gian";
+"Hide keyboard" = "Ẩn bàn phím";
+"Time of day" = "Buổi trong ngày";
+"Timeline range" = "Phạm vi dòng thời gian";
+"Stats range" = "Phạm vi thống kê";

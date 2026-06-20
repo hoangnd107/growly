@@ -1,34 +1,93 @@
 import SwiftUI
 import UIKit
 
-extension View {
-  /// Adds a keyboard accessory bar with a "Done" button that dismisses the
-  /// keyboard. Apply to screens with text input (feedback item: hide-keyboard).
-  func keyboardDismissButton() -> some View {
-    toolbar {
-      ToolbarItemGroup(placement: .keyboard) {
-        Spacer()
-        Button {
-          KeyboardHelper.dismiss()
-        } label: {
-          Label(L("Done"), systemImage: "keyboard.chevron.compact.down")
-            .labelStyle(.titleAndIcon)
-            .font(.dl(.subheadline, weight: .semibold))
+// MARK: - Keyboard visibility
+
+/// Observes the system keyboard and publishes a simple visible/hidden flag.
+/// Driven by `UIResponder` notifications, so it is reliable regardless of the
+/// navigation / sheet context the text field lives in — unlike a
+/// `.toolbar(.keyboard)` accessory, which intermittently fails to appear
+/// (feedback item 3: the Done button must ALWAYS show while typing).
+final class KeyboardObserver: ObservableObject {
+  @Published var isVisible = false
+
+  private var tokens: [NSObjectProtocol] = []
+
+  init() {
+    let nc = NotificationCenter.default
+    tokens.append(nc.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { [weak self] _ in
+      self?.isVisible = true
+    })
+    tokens.append(nc.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { [weak self] _ in
+      self?.isVisible = false
+    })
+  }
+
+  deinit { tokens.forEach { NotificationCenter.default.removeObserver($0) } }
+}
+
+// MARK: - Always-visible dismiss accessory
+
+/// A thin bar with a right-aligned "Done" button. Hosted in `.safeAreaInset`, so
+/// it rides just above the keyboard and never gets covered by it.
+private struct KeyboardDoneBar: View {
+  var body: some View {
+    HStack(spacing: 0) {
+      Spacer(minLength: 0)
+      Button {
+        KeyboardHelper.dismiss()
+        Haptics.light()
+      } label: {
+        Label(L("Done"), systemImage: "keyboard.chevron.compact.down")
+          .labelStyle(.titleAndIcon)
+          .font(.dl(.subheadline, weight: .semibold))
+          .foregroundStyle(Color.accentColor)
+          .padding(.horizontal, DLSpace.md)
+          .padding(.vertical, DLSpace.sm)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(L("Hide keyboard"))
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.horizontal, DLSpace.xs)
+    .background(.bar)
+    .overlay(alignment: .top) { Divider() }
+  }
+}
+
+private struct KeyboardAwareModifier: ViewModifier {
+  @StateObject private var keyboard = KeyboardObserver()
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  func body(content: Content) -> some View {
+    content
+      // Tapping anywhere outside a field resigns the responder (item 3). Uses a
+      // simultaneous gesture so taps on buttons / links / fields still fire.
+      .simultaneousGesture(TapGesture().onEnded { KeyboardHelper.dismiss() })
+      .safeAreaInset(edge: .bottom, spacing: 0) {
+        if keyboard.isVisible {
+          KeyboardDoneBar()
+            .transition(.move(edge: .bottom).combined(with: .opacity))
         }
       }
-    }
+      .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: keyboard.isVisible)
   }
 }
 
 extension View {
+  /// Robust keyboard handling for any screen with text input: an always-visible
+  /// "Done" bar above the keyboard PLUS tap-outside-to-dismiss. Replaces the
+  /// flaky `.toolbar(.keyboard)` accessory (feedback item 3).
+  func keyboardDismissButton() -> some View { modifier(KeyboardAwareModifier()) }
+
+  /// Alias with a clearer name for new call sites.
+  func keyboardAware() -> some View { modifier(KeyboardAwareModifier()) }
+
   /// Dismisses the keyboard when the user taps an empty area of this view.
-  /// Uses a *simultaneous* tap gesture so it never steals taps from buttons,
-  /// links, or text fields underneath — those keep working, and tapping blank
-  /// space simply resigns the first responder. Safe to layer on scroll views.
+  /// Kept for call sites that only want tap-to-dismiss without the Done bar.
   func dismissKeyboardOnTap() -> some View {
-    simultaneousGesture(
-      TapGesture().onEnded { KeyboardHelper.dismiss() }
-    )
+    simultaneousGesture(TapGesture().onEnded { KeyboardHelper.dismiss() })
   }
 }
 
