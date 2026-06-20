@@ -31,18 +31,14 @@ private struct GlassModifier: ViewModifier {
   var cornerRadius: CGFloat
   func body(content: Content) -> some View {
     content
-      .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+      // Editorial surface: flat warm paper with a hairline border and a faint
+      // shadow — no blur. Replaces the former glassmorphism.
+      .background(DLColor.surface, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
       .overlay(
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-          .strokeBorder(
-            LinearGradient(
-              colors: [.white.opacity(0.18), .white.opacity(0.04)],
-              startPoint: .topLeading, endPoint: .bottomTrailing
-            ),
-            lineWidth: 1
-          )
+          .strokeBorder(DLColor.separator, lineWidth: 1)
       )
-      .shadow(color: .black.opacity(0.12), radius: 14, x: 0, y: 8)
+      .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 3)
   }
 }
 

@@ -2,11 +2,12 @@ import SwiftUI
 
 /// The app's gradient theme backdrop. Drop into a ZStack behind screen content.
 struct ThemedBackground: View {
-  let theme: GradientTheme
-  @Environment(\.colorScheme) private var scheme
+  /// Kept for source compatibility; the editorial backdrop is a flat warm paper
+  /// rather than a per-theme gradient wash.
+  var theme: GradientTheme? = nil
 
   var body: some View {
-    theme.background(scheme).ignoresSafeArea()
+    DLColor.background.ignoresSafeArea()
   }
 }
 

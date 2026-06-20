@@ -14,10 +14,6 @@ struct GlassCard<Content: View>: View {
     content
       .padding(padding)
       .frame(maxWidth: .infinity, alignment: .leading)
-      .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DLRadius.card, style: .continuous))
-      .overlay(
-        RoundedRectangle(cornerRadius: DLRadius.card, style: .continuous)
-          .strokeBorder(DLColor.separator.opacity(0.6), lineWidth: 1)
-      )
+      .glass(cornerRadius: DLRadius.card)
   }
 }
