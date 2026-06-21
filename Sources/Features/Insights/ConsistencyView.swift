@@ -84,7 +84,7 @@ struct ConsistencyView: View {
     ScrollView {
       VStack(alignment: .leading, spacing: DLSpace.lg) {
         EditorialHeader(L("CONSISTENCY"), L("Consistency")) {
-          YearStepper(year: $selectedYear, minYear: minYear, maxYear: maxYear)
+          YearStepper(year: $selectedYear, minYear: minYear, maxYear: maxYear, years: availableYears)
         }
 
         // 1) Headline ledger.

@@ -46,11 +46,16 @@ private struct AppRootView: View {
 /// matches the rounded body font used everywhere else.
 enum AppAppearance {
   static func apply() {
-    func roundedFont(_ style: UIFont.TextStyle) -> UIFont? {
-      guard let descriptor = UIFontDescriptor
-        .preferredFontDescriptor(withTextStyle: style)
-        .withDesign(.rounded) else { return nil }
-      return UIFont(descriptor: descriptor, size: 0)
+    // Rounded + explicitly weighted nav titles (size 0 keeps Dynamic Type). The
+    // large title is bold so it reads as heavy as the editorial report headers,
+    // not the lighter default weight (round-3 item 4).
+    func roundedFont(_ style: UIFont.TextStyle, weight: UIFont.Weight) -> UIFont? {
+      let base = UIFontDescriptor.preferredFontDescriptor(withTextStyle: style)
+      guard let rounded = base.withDesign(.rounded) else { return nil }
+      let weighted = rounded.addingAttributes([
+        .traits: [UIFontDescriptor.TraitKey.weight: weight.rawValue]
+      ])
+      return UIFont(descriptor: weighted, size: 0)
     }
 
     let scrollEdge = UINavigationBarAppearance()
@@ -59,10 +64,10 @@ enum AppAppearance {
     standard.configureWithDefaultBackground()
 
     for appearance in [scrollEdge, standard] {
-      if let large = roundedFont(.largeTitle) {
+      if let large = roundedFont(.largeTitle, weight: .bold) {
         appearance.largeTitleTextAttributes[.font] = large
       }
-      if let inline = roundedFont(.headline) {
+      if let inline = roundedFont(.headline, weight: .semibold) {
         appearance.titleTextAttributes[.font] = inline
       }
     }

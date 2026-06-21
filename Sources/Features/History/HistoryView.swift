@@ -236,32 +236,23 @@ struct HistoryView: View {
 
     moodDayListCard
 
-    if filtered.isEmpty {
-      if isFiltering {
+    // The reflection list only appears while searching / filtering, so the
+    // default Progress view stays just calendar + daily moods (item 1, round 3).
+    if isFiltering {
+      if filtered.isEmpty {
         noMatchesState
       } else {
-        calendarHint
-      }
-    } else {
-      ForEach(filtered) { entry in
-        Button {
-          open(day: entry.day)
-        } label: {
-          row(entry)
+        ForEach(filtered) { entry in
+          Button {
+            open(day: entry.day)
+          } label: {
+            row(entry)
+          }
+          .buttonStyle(.plain)
+          .bounceTap()
         }
-        .buttonStyle(.plain)
-        .bounceTap()
       }
     }
-  }
-
-  private var calendarHint: some View {
-    Text(L("Tap a highlighted day to see its details."))
-      .font(.dl(.caption))
-      .foregroundStyle(DLColor.textTertiary)
-      .multilineTextAlignment(.center)
-      .frame(maxWidth: .infinity)
-      .padding(.top, DLSpace.lg)
   }
 
   private var noMatchesState: some View {

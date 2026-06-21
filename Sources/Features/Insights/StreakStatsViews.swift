@@ -222,6 +222,22 @@ struct StatsCard: View {
       : Lf("%d reviews · %d notes all-time", summary.totalEntries, summary.totalNotes)
   }
 
+  /// Direct year selection from the Stats year menu (item 2, round 3), keeping the
+  /// month-detail in sync exactly like stepping the chevrons does.
+  private var yearPickerBinding: Binding<Int> {
+    Binding(
+      get: { year },
+      set: { newYear in
+        guard newYear != year, years.contains(newYear) else { return }
+        withAnimation(animate ? DLAnim.standard : nil) {
+          year = newYear
+          selectedMonth = defaultMonthLabel(for: newYear)
+        }
+        Haptics.selection()
+      }
+    )
+  }
+
   var body: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
@@ -304,11 +320,26 @@ struct StatsCard: View {
         if scope == .year {
           HStack(spacing: DLSpace.sm) {
             yearButton(systemName: "chevron.left", enabled: year > minYear) { stepYear(-1) }
-            Text(verbatim: String(year))
-              .font(.dl(.subheadline, weight: .bold))
-              .foregroundStyle(DLColor.textPrimary)
-              .monospacedDigit()
+            Menu {
+              Picker(L("Year"), selection: yearPickerBinding) {
+                ForEach(years, id: \.self) { y in
+                  Text(verbatim: String(y)).tag(y)
+                }
+              }
+            } label: {
+              HStack(spacing: 3) {
+                Text(verbatim: String(year))
+                  .font(.dl(.subheadline, weight: .bold))
+                  .foregroundStyle(DLColor.textPrimary)
+                  .monospacedDigit()
+                  .contentTransition(.numericText())
+                Image(systemName: "chevron.up.chevron.down")
+                  .font(.system(size: 9, weight: .bold))
+                  .foregroundStyle(theme.accent)
+              }
               .frame(minWidth: 44)
+            }
+            .accessibilityLabel(L("Choose year"))
             yearButton(systemName: "chevron.right", enabled: year < maxYear) { stepYear(1) }
           }
           .transition(.opacity)

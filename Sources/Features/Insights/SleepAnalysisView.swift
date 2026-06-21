@@ -162,7 +162,13 @@ struct SleepAnalysisView: View {
           y: .value("Hours", log.durationHours)
         )
         .cornerRadius(3)
-        .foregroundStyle(DLColor.cool)
+        .foregroundStyle(
+          LinearGradient(
+            colors: [DLColor.cool, DLColor.cool.opacity(0.55)],
+            startPoint: .top,
+            endPoint: .bottom
+          )
+        )
       }
 
       RuleMark(y: .value("Target", 8))
@@ -203,6 +209,19 @@ struct SleepAnalysisView: View {
   private var qualityChart: some View {
     Chart {
       ForEach(rangeLogs, id: \.id) { log in
+        AreaMark(
+          x: .value("Night", log.date, unit: .day),
+          y: .value("Quality", log.computedQuality)
+        )
+        .interpolationMethod(.catmullRom)
+        .foregroundStyle(
+          LinearGradient(
+            colors: [DLColor.cool.opacity(0.30), DLColor.cool.opacity(0.02)],
+            startPoint: .top,
+            endPoint: .bottom
+          )
+        )
+
         LineMark(
           x: .value("Night", log.date, unit: .day),
           y: .value("Quality", log.computedQuality)

@@ -338,7 +338,13 @@ struct MoodAnalysisView: View {
             .fill(DLColor.separator.opacity(0.35))
             .frame(height: 10)
           Capsule()
-            .fill(option.color)
+            .fill(
+              LinearGradient(
+                colors: [option.color, option.color.opacity(0.55)],
+                startPoint: .leading,
+                endPoint: .trailing
+              )
+            )
             .frame(width: max(count > 0 ? 10 : 0, geo.size.width * fraction), height: 10)
         }
         .frame(maxHeight: .infinity, alignment: .center)

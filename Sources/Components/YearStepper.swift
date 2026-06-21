@@ -9,19 +9,62 @@ struct YearStepper: View {
   let minYear: Int
   let maxYear: Int
   var accent: Color = DLColor.accent
+  /// When provided (and >1 entries), the year label becomes a tap-to-choose menu
+  /// so a year can be picked directly, not just stepped (item 2, round 3).
+  var years: [Int]? = nil
   var onChange: (() -> Void)? = nil
 
   var body: some View {
     HStack(spacing: DLSpace.sm) {
       button(systemName: "chevron.left", enabled: year > minYear) { step(-1) }
+      yearLabel
+      button(systemName: "chevron.right", enabled: year < maxYear) { step(1) }
+    }
+  }
+
+  @ViewBuilder
+  private var yearLabel: some View {
+    if let years, years.count > 1 {
+      Menu {
+        Picker(L("Year"), selection: pickerBinding) {
+          ForEach(years.sorted(by: >), id: \.self) { y in
+            Text(verbatim: String(y)).tag(y)
+          }
+        }
+      } label: {
+        HStack(spacing: 3) {
+          Text(verbatim: String(year))
+            .font(.dl(.subheadline, weight: .bold))
+            .foregroundStyle(DLColor.textPrimary)
+            .monospacedDigit()
+            .contentTransition(.numericText())
+          Image(systemName: "chevron.up.chevron.down")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(accent)
+        }
+        .frame(minWidth: 52)
+      }
+      .accessibilityLabel(L("Choose year"))
+    } else {
       Text(verbatim: String(year))
         .font(.dl(.subheadline, weight: .bold))
         .foregroundStyle(DLColor.textPrimary)
         .monospacedDigit()
         .frame(minWidth: 52)
         .contentTransition(.numericText())
-      button(systemName: "chevron.right", enabled: year < maxYear) { step(1) }
     }
+  }
+
+  private var pickerBinding: Binding<Int> {
+    Binding(
+      get: { year },
+      set: { newYear in
+        guard newYear != year else { return }
+        year = newYear
+        Haptics.selection()
+        onChange?()
+      }
+    )
   }
 
   private func step(_ delta: Int) {

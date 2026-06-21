@@ -202,7 +202,13 @@ struct HabitStatsCard: View {
         ZStack(alignment: .leading) {
           Capsule().fill(DLColor.separator.opacity(0.3))
           Capsule()
-            .fill(Color(hexString: habit.colorHex))
+            .fill(
+              LinearGradient(
+                colors: [Color(hexString: habit.colorHex), Color(hexString: habit.colorHex).opacity(0.55)],
+                startPoint: .leading,
+                endPoint: .trailing
+              )
+            )
             .frame(width: max(4, geo.size.width * rate))
         }
       }

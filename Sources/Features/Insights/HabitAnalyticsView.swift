@@ -45,7 +45,7 @@ struct HabitAnalyticsView: View {
     ScrollView {
       VStack(alignment: .leading, spacing: DLSpace.lg) {
         EditorialHeader("ANALYTICS", L("Habits")) {
-          YearStepper(year: $selectedYear, minYear: minYear, maxYear: maxYear)
+          YearStepper(year: $selectedYear, minYear: minYear, maxYear: maxYear, years: availableYears)
         }
 
         Hairline()
