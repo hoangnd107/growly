@@ -59,6 +59,7 @@ private struct TodayContent: View {
   @Query private var badgeRecords: [BadgeRecord]
   @Query private var allNotes: [DayNote]
   @Query private var identities: [Identity]
+  @Query private var manifestos: [PersonalManifesto]
   @Query(sort: \SleepLog.date, order: .reverse) private var sleeps: [SleepLog]
   @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
 
@@ -71,6 +72,7 @@ private struct TodayContent: View {
   @State private var result: ReviewResult = .none
 
   private var identity: Identity? { identities.first }
+  private var manifesto: PersonalManifesto? { manifestos.first }
 
   private var today: Date { Calendar.current.startOfDay(for: Date()) }
 
@@ -87,14 +89,7 @@ private struct TodayContent: View {
       VStack(spacing: DLSpace.lg) {
         header
 
-        if let identity, identity.hasContent {
-          NavigationLink {
-            IdentityView()
-          } label: {
-            IdentityReminderCard(identity: identity, accent: Color.accentColor)
-          }
-          .buttonStyle(.plain)
-        }
+        northStarSection
 
         modeSelector
 
@@ -131,6 +126,66 @@ private struct TodayContent: View {
 
   private var header: some View {
     LevelHeader(progress: progress, todayXP: entry.xpAwarded)
+  }
+
+  // MARK: North star (Identity + Manifesto)
+
+  /// Identity and Manifesto surfaced prominently at the top of Today so the
+  /// person you're becoming and what you stand for stay front of mind. Each card
+  /// taps through to its full editor; an invitation shows when both are empty.
+  @ViewBuilder
+  private var northStarSection: some View {
+    let hasIdentity = identity?.hasContent ?? false
+    let hasManifesto = manifesto?.hasContent ?? false
+
+    if hasIdentity || hasManifesto {
+      VStack(spacing: DLSpace.md) {
+        if let identity, hasIdentity {
+          NavigationLink {
+            IdentityView()
+          } label: {
+            IdentityReminderCard(identity: identity, accent: Color.accentColor)
+          }
+          .buttonStyle(.plain)
+        }
+        if let manifesto, hasManifesto {
+          NavigationLink {
+            ManifestoView()
+          } label: {
+            ManifestoReminderCard(manifesto: manifesto, accent: Color(hex: 0x5AC8FA))
+          }
+          .buttonStyle(.plain)
+        }
+      }
+    } else {
+      NavigationLink {
+        IdentityView()
+      } label: {
+        GlassCard {
+          HStack(spacing: DLSpace.md) {
+            ZStack {
+              Circle().fill(Color.accentColor.opacity(0.18)).frame(width: 44, height: 44)
+              Image(systemName: "figure.mind.and.body")
+                .font(.system(size: 18))
+                .foregroundStyle(Color.accentColor)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+              Text(L("Define who you're becoming"))
+                .font(.dl(.subheadline, weight: .semibold))
+                .foregroundStyle(DLColor.textPrimary)
+              Text(L("Set your identity and write your manifesto"))
+                .font(.dl(.caption))
+                .foregroundStyle(DLColor.textSecondary)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+              .font(.system(size: 14, weight: .semibold))
+              .foregroundStyle(DLColor.textTertiary)
+          }
+        }
+      }
+      .buttonStyle(.plain)
+    }
   }
 
   // MARK: Mode selector (Evening / Morning)

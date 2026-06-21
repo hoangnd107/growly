@@ -409,3 +409,11 @@
 "Recent reviews" = "최근 리뷰";
 "Delete review" = "리뷰 삭제";
 "Add review" = "리뷰 추가";
+
+/* Week picker + Identity/Manifesto on Today */
+"Jump to week" = "주간 이동";
+"Choose a week" = "주 선택";
+"My manifesto" = "나의 선언문";
+"Tap to read your manifesto" = "선언문을 읽으려면 탭하세요";
+"Define who you're becoming" = "되고 싶은 모습을 정의하세요";
+"Set your identity and write your manifesto" = "정체성을 설정하고 선언문을 작성하세요";

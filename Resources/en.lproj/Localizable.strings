@@ -409,3 +409,11 @@
 "Recent reviews" = "Recent reviews";
 "Delete review" = "Delete review";
 "Add review" = "Add review";
+
+/* Week picker + Identity/Manifesto on Today */
+"Jump to week" = "Jump to week";
+"Choose a week" = "Choose a week";
+"My manifesto" = "My manifesto";
+"Tap to read your manifesto" = "Tap to read your manifesto";
+"Define who you're becoming" = "Define who you're becoming";
+"Set your identity and write your manifesto" = "Set your identity and write your manifesto";

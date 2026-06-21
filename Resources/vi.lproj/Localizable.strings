@@ -409,3 +409,11 @@
 "Recent reviews" = "Đánh giá gần đây";
 "Delete review" = "Xóa đánh giá";
 "Add review" = "Thêm đánh giá";
+
+/* Week picker + Identity/Manifesto on Today */
+"Jump to week" = "Chuyển đến tuần";
+"Choose a week" = "Chọn một tuần";
+"My manifesto" = "Tuyên ngôn của tôi";
+"Tap to read your manifesto" = "Chạm để đọc tuyên ngôn của bạn";
+"Define who you're becoming" = "Xác định con người bạn muốn trở thành";
+"Set your identity and write your manifesto" = "Thiết lập bản sắc và viết tuyên ngôn của bạn";

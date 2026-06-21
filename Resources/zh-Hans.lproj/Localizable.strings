@@ -409,3 +409,11 @@
 "Recent reviews" = "最近的评估";
 "Delete review" = "删除评估";
 "Add review" = "添加评估";
+
+/* Week picker + Identity/Manifesto on Today */
+"Jump to week" = "跳转到某周";
+"Choose a week" = "选择一周";
+"My manifesto" = "我的宣言";
+"Tap to read your manifesto" = "点按阅读你的宣言";
+"Define who you're becoming" = "定义你想成为的人";
+"Set your identity and write your manifesto" = "设定你的身份并写下你的宣言";

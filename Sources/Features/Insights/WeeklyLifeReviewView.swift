@@ -208,6 +208,10 @@ struct WeeklyLifeReviewView: View {
   /// 0 = current week, -1 = last week, etc. Never positive (no future weeks).
   @State private var weekOffset = 0
 
+  /// Tapping the week label opens a date picker to jump straight to any past week.
+  @State private var showWeekPicker = false
+  @State private var pickerDate = Date()
+
   private let calendar: Calendar = {
     var cal = Calendar.current
     cal.firstWeekday = 2 // Monday-first weeks
@@ -288,24 +292,86 @@ struct WeeklyLifeReviewView: View {
     HStack {
       stepButton(systemImage: "chevron.left", disabled: false) { weekOffset -= 1 }
       Spacer()
-      VStack(spacing: 1) {
-        Text(weekLabel)
-          .font(.dl(.headline, weight: .semibold))
-          .foregroundStyle(DLColor.textPrimary)
-          .contentTransition(.numericText())
-        // Show the concrete dates as a subtitle only when the main label is a word.
-        if weekOffset == 0 || weekOffset == -1 {
-          Text(weekRangeText)
-            .font(.dl(.caption2))
-            .foregroundStyle(DLColor.textTertiary)
+      // Tapping the label is the "filter": it opens a date picker to choose any
+      // past week directly, instead of only stepping one week at a time.
+      Button {
+        pickerDate = weekStart
+        Haptics.selection()
+        showWeekPicker = true
+      } label: {
+        HStack(spacing: DLSpace.xs) {
+          VStack(spacing: 1) {
+            Text(weekLabel)
+              .font(.dl(.headline, weight: .semibold))
+              .foregroundStyle(DLColor.textPrimary)
+              .contentTransition(.numericText())
+            // Show the concrete dates as a subtitle only when the main label is a word.
+            if weekOffset == 0 || weekOffset == -1 {
+              Text(weekRangeText)
+                .font(.dl(.caption2))
+                .foregroundStyle(DLColor.textTertiary)
+            }
+          }
+          Image(systemName: "calendar")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(DLColor.accent)
         }
+        .contentShape(Rectangle())
       }
+      .buttonStyle(.plain)
+      .accessibilityLabel(L("Choose a week"))
       Spacer()
       stepButton(systemImage: "chevron.right", disabled: weekOffset >= 0) { if weekOffset < 0 { weekOffset += 1 } }
     }
     .padding(.horizontal, DLSpace.sm)
     .padding(.vertical, DLSpace.sm)
     .glass(cornerRadius: DLRadius.card, level: .standard)
+    .sheet(isPresented: $showWeekPicker) { weekPickerSheet }
+  }
+
+  /// A date picker (capped at today) that jumps the report to the week containing
+  /// the chosen day. Selecting any date dismisses and updates the report.
+  private var weekPickerSheet: some View {
+    NavigationStack {
+      VStack(spacing: DLSpace.lg) {
+        DatePicker(
+          L("Jump to week"),
+          selection: $pickerDate,
+          in: ...Date(),
+          displayedComponents: .date
+        )
+        .datePickerStyle(.graphical)
+        .tint(DLColor.accent)
+        .onChange(of: pickerDate) { _, newValue in
+          selectWeek(containing: newValue)
+        }
+        Spacer(minLength: 0)
+      }
+      .padding(DLSpace.md)
+      .background(ThemedBackground())
+      .navigationTitle(L("Choose a week"))
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .topBarTrailing) {
+          Button(L("Done")) { showWeekPicker = false }
+            .font(.dl(.body, weight: .semibold))
+        }
+      }
+    }
+    .presentationDetents([.medium, .large])
+  }
+
+  /// Maps a chosen day to a non-positive `weekOffset` (the Monday-first week that
+  /// contains it), clamped so the report never shows a future week.
+  private func selectWeek(containing date: Date) {
+    let target = calendar.dateInterval(of: .weekOfYear, for: date)?.start
+      ?? calendar.startOfDay(for: date)
+    let weeksBack = calendar.dateComponents([.weekOfYear], from: target, to: currentWeekStart).weekOfYear ?? 0
+    let newOffset = min(0, -weeksBack)
+    if newOffset != weekOffset {
+      withAnimation(reduceMotion ? nil : DLAnim.standard) { weekOffset = newOffset }
+      Haptics.selection()
+    }
   }
 
   private func stepButton(systemImage: String, disabled: Bool, action: @escaping () -> Void) -> some View {
