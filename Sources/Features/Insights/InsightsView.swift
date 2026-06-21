@@ -190,6 +190,8 @@ struct InsightsView: View {
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(theme.accent)
           .padding(.bottom, DLSpace.xs)
+        reportLink(emoji: "🧭", L("Life OS Score")) { LifeOSScoreView() }
+        Hairline()
         reportLink(emoji: "🙂", L("Mood analysis")) { MoodAnalysisView() }
         Hairline()
         reportLink(emoji: "🌙", L("Sleep analysis")) { SleepAnalysisView() }
