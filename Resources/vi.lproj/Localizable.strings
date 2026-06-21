@@ -309,3 +309,11 @@
 "Clear cache" = "Xoá bộ nhớ đệm";
 "Cache cleared" = "Đã xoá bộ nhớ đệm";
 "Free up space used by temporary files. Your notes, photos and backups are not affected." = "Giải phóng dung lượng do tệp tạm chiếm. Ghi chú, ảnh và bản sao lưu của bạn không bị ảnh hưởng.";
+
+/* v14 — round 3 feedback */
+"%d reviews · %d notes in %@ %d" = "%d đánh giá · %d ghi chú · %@ %d";
+"%d XP to level %d" = "%d XP để lên cấp %d";
+"+%d this week" = "+%d tuần này";
+"Try a different search or clear filters." = "Thử tìm kiếm khác hoặc xoá bộ lọc.";
+"%d percent complete this year" = "%d phần trăm hoàn thành trong năm nay";
+"Mood by day over the year" = "Tâm trạng theo ngày trong năm";

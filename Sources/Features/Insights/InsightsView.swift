@@ -326,11 +326,11 @@ struct InsightsView: View {
             weekMoodStrip
               .accessibilityLabel(L("Mood this week"))
           case .month:
-            MoodHeatmap(entries: entries)
+            moodMonthGrid
               .accessibilityLabel(L("Mood calendar by day"))
           case .year:
-            yearMoodGrid
-              .accessibilityLabel(L("Average mood by month over the last year"))
+            moodYearHeatmap
+              .accessibilityLabel(L("Mood by day over the year"))
           }
         }
       }
@@ -426,25 +426,99 @@ struct InsightsView: View {
     return formatter.string(from: date)
   }
 
-  /// A 12-month mini grid: each cell is tinted by that month's average mood.
-  private var yearMoodGrid: some View {
-    let columns = Array(repeating: GridItem(.flexible(), spacing: DLSpace.sm), count: 4)
-    return LazyVGrid(columns: columns, spacing: DLSpace.sm) {
-      ForEach(yearMonths) { month in
-        VStack(spacing: 4) {
-          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-            .fill(month.color)
-            .frame(height: 34)
-            .overlay(
-              RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-                .strokeBorder(DLColor.separator.opacity(0.3), lineWidth: 0.5)
-            )
-          Text(month.label)
-            .font(.dl(.caption2, weight: .medium))
-            .foregroundStyle(DLColor.textSecondary)
+  /// Mood for each day this month, keyed by start-of-day (entries always carry a
+  /// mood). Shared by the month grid.
+  private var moodByDay: [Date: Int] {
+    var map: [Date: Int] = [:]
+    for entry in entries { map[calendar.startOfDay(for: entry.day)] = entry.moodRaw }
+    return map
+  }
+
+  /// The current month as a 7-column calendar grid (item 6) — same shape as the
+  /// Progress calendar — with each day cell filled by that day's mood color.
+  private var moodMonthGrid: some View {
+    var cal = calendar
+    cal.firstWeekday = 2 // Monday-first, matching CalendarMonthView.
+    let moods = moodByDay
+    let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: today)) ?? today
+    let range = cal.range(of: .day, in: .month, for: monthStart) ?? 1..<32
+    let firstWeekday = cal.component(.weekday, from: monthStart)
+    let leadingBlanks = (firstWeekday - cal.firstWeekday + 7) % 7
+
+    var slots: [Date?] = Array(repeating: nil, count: leadingBlanks)
+    for offset in 0..<range.count {
+      if let day = cal.date(byAdding: .day, value: offset, to: monthStart) {
+        slots.append(cal.startOfDay(for: day))
+      }
+    }
+
+    let weekdaySymbols = orderedVeryShortWeekdaySymbols(cal)
+    let columns = Array(repeating: GridItem(.flexible(), spacing: DLSpace.xs), count: 7)
+
+    return VStack(spacing: DLSpace.sm) {
+      LazyVGrid(columns: columns, spacing: 0) {
+        ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
+          Text(symbol)
+            .font(.dl(.caption2, weight: .semibold))
+            .foregroundStyle(DLColor.textTertiary)
+            .frame(maxWidth: .infinity)
+        }
+      }
+      LazyVGrid(columns: columns, spacing: DLSpace.xs) {
+        ForEach(Array(slots.enumerated()), id: \.offset) { _, day in
+          if let day {
+            moodMonthCell(day: day, mood: moods[day], isToday: cal.isDate(day, inSameDayAs: today), isFuture: day > today)
+          } else {
+            Color.clear.frame(height: 40)
+          }
         }
       }
     }
+  }
+
+  private func moodMonthCell(day: Date, mood: Int?, isToday: Bool, isFuture: Bool) -> some View {
+    let option = mood.flatMap { MoodCatalog.shared.option(forValue: $0) }
+    return VStack(spacing: 2) {
+      Text(day, format: .dateTime.day())
+        .font(.dl(.caption2, weight: isToday ? .bold : .regular))
+        .foregroundStyle(isToday ? theme.accent : DLColor.textSecondary)
+        .monospacedDigit()
+      RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+        .fill(isFuture ? DLColor.separator.opacity(0.15)
+                       : (option?.color ?? DLColor.separator.opacity(0.35)))
+        .frame(height: 26)
+        .overlay(
+          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+            .strokeBorder(isToday ? theme.accent : DLColor.separator.opacity(0.3),
+                          lineWidth: isToday ? 2 : 0.5)
+        )
+        .overlay {
+          if let option, !isFuture {
+            Text(option.emoji).font(.system(size: 13))
+          }
+        }
+    }
+    .opacity(isFuture ? 0.5 : 1)
+  }
+
+  /// The current year as the shared GitHub-style heatmap (item 6) — same shape as
+  /// the Consistency "this year" view — with each day filled by its mood color.
+  private var moodYearHeatmap: some View {
+    let moods = moodByDay
+    return YearActivityHeatmap(year: calendar.component(.year, from: today), reduceMotion: reduceMotion) { day in
+      if let raw = moods[day], let option = MoodCatalog.shared.option(forValue: raw) {
+        return option.color
+      }
+      return DLColor.separator.opacity(0.35)
+    }
+  }
+
+  /// Very-short weekday symbols rotated to start at the calendar's `firstWeekday`.
+  private func orderedVeryShortWeekdaySymbols(_ cal: Calendar) -> [String] {
+    let symbols = cal.veryShortStandaloneWeekdaySymbols
+    let shift = cal.firstWeekday - 1
+    guard shift > 0, shift < symbols.count else { return symbols }
+    return Array(symbols[shift...] + symbols[..<shift])
   }
 
   // MARK: 4 — Existing charts
@@ -783,44 +857,4 @@ struct InsightsView: View {
     )
   }
 
-  // Year mood grid
-
-  private struct YearMonth: Identifiable {
-    let id: Int
-    let label: String
-    let color: Color
-  }
-
-  /// The last 12 months (oldest → newest), each colored by its average mood.
-  /// Months with no entries render as a faint placeholder.
-  private var yearMonths: [YearMonth] {
-    // Average mood per (year, month).
-    var sums: [DateComponents: (total: Int, count: Int)] = [:]
-    for entry in entries {
-      let comps = calendar.dateComponents([.year, .month], from: entry.day)
-      let cur = sums[comps] ?? (0, 0)
-      sums[comps] = (cur.total + entry.moodRaw, cur.count + 1)
-    }
-
-    let monthSymbols = calendar.shortMonthSymbols
-    var result: [YearMonth] = []
-    result.reserveCapacity(12)
-
-    for offset in (0..<12).reversed() {
-      guard let date = calendar.date(byAdding: .month, value: -offset, to: today) else { continue }
-      let comps = calendar.dateComponents([.year, .month], from: date)
-      let monthIndex = (comps.month ?? 1) - 1
-      let label = monthSymbols.indices.contains(monthIndex) ? monthSymbols[monthIndex] : ""
-
-      let color: Color
-      if let bucket = sums[comps], bucket.count > 0 {
-        let avg = Int((Double(bucket.total) / Double(bucket.count)).rounded())
-        color = MoodCatalog.shared.option(forValue: avg)?.color ?? DLColor.separator.opacity(0.3)
-      } else {
-        color = DLColor.separator.opacity(0.3)
-      }
-      result.append(YearMonth(id: offset, label: label, color: color))
-    }
-    return result
-  }
 }

@@ -220,6 +220,8 @@ struct MonthCount: Identifiable, Equatable {
   let label: String     // localized short month symbol
   let entries: Int
   let notes: Int
+  /// Words written in notes during this bucket (item 3: month-scoped totals).
+  var words: Int = 0
   var id: Int { month }
   var total: Int { entries + notes }
 }
@@ -247,6 +249,7 @@ struct StatsSummary: Equatable {
 
     var entryByMonth: [Int: Int] = [:]
     var noteByMonth: [Int: Int] = [:]
+    var wordByMonth: [Int: Int] = [:]
     var yearEntries = 0
     var yearNotes = 0
     var yearNoteWords = 0
@@ -262,6 +265,7 @@ struct StatsSummary: Equatable {
       let comps = calendar.dateComponents([.year, .month], from: note.day)
       if comps.year == year, let month = comps.month {
         noteByMonth[month, default: 0] += 1
+        wordByMonth[month, default: 0] += note.wordCount
         yearNotes += 1
         yearNoteWords += note.wordCount
       }
@@ -272,7 +276,8 @@ struct StatsSummary: Equatable {
         month: month,
         label: symbols.indices.contains(month - 1) ? symbols[month - 1] : "\(month)",
         entries: entryByMonth[month, default: 0],
-        notes: noteByMonth[month, default: 0]
+        notes: noteByMonth[month, default: 0],
+        words: wordByMonth[month, default: 0]
       )
     }
 
@@ -301,11 +306,14 @@ struct StatsSummary: Equatable {
     let activeNotes = notes.filter { $0.deletedAt == nil }
     var entryByYear: [Int: Int] = [:]
     var noteByYear: [Int: Int] = [:]
+    var wordByYear: [Int: Int] = [:]
     for entry in entries {
       entryByYear[calendar.component(.year, from: entry.day), default: 0] += 1
     }
     for note in activeNotes {
-      noteByYear[calendar.component(.year, from: note.day), default: 0] += 1
+      let y = calendar.component(.year, from: note.day)
+      noteByYear[y, default: 0] += 1
+      wordByYear[y, default: 0] += note.wordCount
     }
     let years = Set(entryByYear.keys).union(noteByYear.keys).sorted()
     return years.map { y in
@@ -313,7 +321,8 @@ struct StatsSummary: Equatable {
         month: y,
         label: String(y),
         entries: entryByYear[y, default: 0],
-        notes: noteByYear[y, default: 0]
+        notes: noteByYear[y, default: 0],
+        words: wordByYear[y, default: 0]
       )
     }
   }

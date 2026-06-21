@@ -9,10 +9,16 @@ struct ReflectionCard: View {
 
   @StateObject private var dictator = SpeechDictator()
   @State private var pulse = false
+  /// Local edit buffer (item 7). The TextField binds here so every keystroke
+  /// updates only this card; the write back to the SwiftData entry — which
+  /// recomputes the whole Today screen — is debounced off the typing path, so
+  /// typing no longer feels like the text appears a beat late.
+  @State private var draft = ""
+  @State private var commitTask: Task<Void, Never>?
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   private var isFilled: Bool {
-    !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
   var body: some View {
@@ -38,6 +44,13 @@ struct ReflectionCard: View {
       if wasRecording && !recording {
         appendTranscript(dictator.transcript)
       }
+    }
+    .onChange(of: draft) { _, _ in scheduleCommit() }
+    .onAppear { draft = text }
+    .onDisappear {
+      // Flush any pending edit so nothing is lost when the card goes away.
+      commitTask?.cancel()
+      if text != draft { text = draft }
     }
   }
 
@@ -137,7 +150,7 @@ struct ReflectionCard: View {
   // MARK: Editor
 
   private var editor: some View {
-    TextField(L(kind.prompt), text: $text, axis: .vertical)
+    TextField(L(kind.prompt), text: $draft, axis: .vertical)
       .lineLimit(3...8)
       .font(.dl(.body))
       .foregroundStyle(DLColor.textPrimary)
@@ -188,23 +201,40 @@ struct ReflectionCard: View {
 
   // MARK: Text helpers
 
-  private func append(_ suggestion: String) {
-    if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-      text = suggestion + " "
-    } else {
-      text += (text.hasSuffix(" ") ? "" : " ") + suggestion + " "
+  /// Debounced write-back to the bound entry text. Coalesces rapid keystrokes so
+  /// the SwiftData mutation (and the Today screen recompute it triggers) happens
+  /// at most a few times per second instead of on every character.
+  private func scheduleCommit() {
+    commitTask?.cancel()
+    let pending = draft
+    commitTask = Task { @MainActor in
+      try? await Task.sleep(nanoseconds: 300_000_000)
+      guard !Task.isCancelled else { return }
+      if text != pending { text = pending }
     }
+  }
+
+  private func append(_ suggestion: String) {
+    commitTask?.cancel()
+    if draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      draft = suggestion + " "
+    } else {
+      draft += (draft.hasSuffix(" ") ? "" : " ") + suggestion + " "
+    }
+    text = draft
     Haptics.light()
   }
 
   private func appendTranscript(_ transcript: String) {
     let captured = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !captured.isEmpty else { return }
-    if text.isEmpty {
-      text = captured
+    commitTask?.cancel()
+    if draft.isEmpty {
+      draft = captured
     } else {
-      text += (text.hasSuffix(" ") ? "" : " ") + captured
+      draft += (draft.hasSuffix(" ") ? "" : " ") + captured
     }
+    text = draft
     Haptics.success()
   }
 }

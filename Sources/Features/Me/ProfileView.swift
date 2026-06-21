@@ -110,12 +110,22 @@ private struct ProfileContent: View {
   /// growth score (owned by Insights) and current/longest streak (owned by
   /// Insights + History + the LevelHeader flame) to avoid cross-tab duplication.
   private var statsStrip: some View {
-    StatTileGrid(tiles: [
-      StatTileData(value: "\(progress.totalXP)", label: L("Total XP"), tint: DLColor.xpGold),
-      StatTileData(value: "\(progress.levelInfo.level)", label: L("Level")),
-      StatTileData(value: "\(entries.count)", label: L("Reviews")),
-      StatTileData(value: "\(notes.filter { $0.deletedAt == nil }.count)", label: L("Notes")),
-    ])
+    let info = progress.levelInfo
+    let toNext = max(0, info.xpForNextLevel - info.xpIntoLevel)
+    return StatTileGrid(
+      tiles: [
+        StatTileData(
+          value: "\(progress.totalXP)",
+          label: L("Total XP"),
+          sublabel: Lf("%d XP to level %d", toNext, info.level + 1),
+          tint: DLColor.xpGold
+        ),
+        StatTileData(value: "\(info.level)", label: L("Level"), tint: DLColor.accent),
+        StatTileData(value: "\(entries.count)", label: L("Reviews")),
+        StatTileData(value: "\(notes.filter { $0.deletedAt == nil }.count)", label: L("Notes")),
+      ],
+      hero: true
+    )
   }
 
   // MARK: 3. Streak freeze (summary → full editor)

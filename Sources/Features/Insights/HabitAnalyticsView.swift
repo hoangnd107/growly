@@ -3,17 +3,20 @@ import SwiftData
 
 // MARK: - Habit Analytics
 //
-// Per-habit analytics report: a range filter at the top, then one editorial
-// GlassCard per active habit. Each card shows a completion-rate pill, an
-// 84-day calendar heatmap tinted with the habit's own color, and a caption
-// summarizing current streak, best streak, and the strongest weekday.
+// Per-habit analytics report shown as a full calendar year (item 4), matching
+// the Consistency heatmap. A shared YearStepper scopes every card to one year;
+// each card shows a completion-rate pill, a 53-week heatmap tinted with the
+// habit's own color, and a caption summarizing that year's completions, best
+// streak, and strongest weekday.
 //
 // Self-contained: fetches its own habits via @Query, so it can be pushed with
 // `HabitAnalyticsView()` from any NavigationLink inside an existing stack.
 
 struct HabitAnalyticsView: View {
   @Query private var habits: [Habit]
-  @State private var range: StatsRange = .month
+  @State private var selectedYear = Calendar.current.component(.year, from: Date())
+
+  private let calendar = Calendar.current
 
   /// Active habits only (not archived, not trashed), in display order.
   private var activeHabits: [Habit] {
@@ -22,17 +25,28 @@ struct HabitAnalyticsView: View {
       .sorted { $0.sortIndex < $1.sortIndex }
   }
 
+  /// Years that have any completion across all active habits, plus the current
+  /// year — for the stepper bounds.
+  private var availableYears: [Int] {
+    var ys = Set<Int>()
+    for habit in activeHabits {
+      for log in habit.logs where log.completed {
+        ys.insert(calendar.component(.year, from: log.date))
+      }
+    }
+    ys.insert(calendar.component(.year, from: Date()))
+    return ys.sorted()
+  }
+
+  private var minYear: Int { availableYears.min() ?? selectedYear }
+  private var maxYear: Int { calendar.component(.year, from: Date()) }
+
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: DLSpace.lg) {
-        EditorialHeader("ANALYTICS", L("Habits"))
-
-        SlidingSegmentedControl(
-          items: StatsRange.allCases,
-          label: { $0.label },
-          selection: $range,
-          accent: DLColor.accent
-        )
+        EditorialHeader("ANALYTICS", L("Habits")) {
+          YearStepper(year: $selectedYear, minYear: minYear, maxYear: maxYear)
+        }
 
         Hairline()
 
@@ -40,7 +54,7 @@ struct HabitAnalyticsView: View {
           emptyState
         } else {
           ForEach(activeHabits) { habit in
-            HabitAnalyticsCard(habit: habit, range: range)
+            HabitAnalyticsCard(habit: habit, year: selectedYear)
           }
         }
       }
@@ -49,6 +63,12 @@ struct HabitAnalyticsView: View {
     }
     .background(ThemedBackground())
     .navigationBarTitleDisplayMode(.inline)
+    .animation(.default, value: selectedYear)
+    .onAppear {
+      if !availableYears.contains(selectedYear), let latest = availableYears.last {
+        selectedYear = latest
+      }
+    }
   }
 
   private var emptyState: some View {
@@ -71,7 +91,7 @@ struct HabitAnalyticsView: View {
 
 private struct HabitAnalyticsCard: View {
   let habit: Habit
-  let range: StatsRange
+  let year: Int
 
   private let calendar = Calendar.current
 
@@ -89,98 +109,44 @@ private struct HabitAnalyticsCard: View {
     )
   }
 
-  /// Days included by the current range: from the range start (or first log)
-  /// through today, inclusive.
-  private var rangeDays: [Date] {
-    let today = calendar.startOfDay(for: Date())
-    let start: Date
-    if let rangeStart = range.startDate(now: today, calendar: calendar) {
-      start = calendar.startOfDay(for: rangeStart)
+  /// Completed days falling inside `year`.
+  private var completedDaysInYear: Set<Date> {
+    completedDays.filter { calendar.component(.year, from: $0) == year }
+  }
+
+  /// Days counted toward the completion rate for `year`: the whole year for past
+  /// years, Jan 1…today for the current year, 1 for a future year.
+  private var yearDayCount: Int {
+    let nowYear = calendar.component(.year, from: Date())
+    guard let jan1 = calendar.date(from: DateComponents(year: year, month: 1, day: 1)) else { return 365 }
+    if year > nowYear { return 1 }
+    let end: Date
+    if year < nowYear {
+      end = calendar.date(from: DateComponents(year: year, month: 12, day: 31)) ?? jan1
     } else {
-      // .all — fall back to the earliest completed day, or today if none.
-      start = completedDays.min() ?? today
+      end = calendar.startOfDay(for: Date())
     }
-    guard start <= today else { return [today] }
-    var days: [Date] = []
-    var cursor = start
-    while cursor <= today {
-      days.append(cursor)
-      guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
-      cursor = next
-    }
-    return days
+    return max(1, (calendar.dateComponents([.day], from: jan1, to: end).day ?? 0) + 1)
   }
 
-  /// Completed days inside the current range.
-  private var completedInRange: Int {
-    let completed = completedDays
-    return rangeDays.reduce(0) { $0 + (completed.contains($1) ? 1 : 0) }
-  }
-
-  /// Completion rate over the range, 0...1.
   private var completionRate: Double {
-    guard !rangeDays.isEmpty else { return 0 }
-    return Double(completedInRange) / Double(rangeDays.count)
+    Double(completedDaysInYear.count) / Double(yearDayCount)
   }
 
-  /// The most-recent 84 days (12 weeks), oldest first, most recent last.
-  private var heatmapDays: [Date] {
-    let today = calendar.startOfDay(for: Date())
-    return (0..<84)
-      .compactMap { calendar.date(byAdding: .day, value: -(83 - $0), to: today) }
+  /// Longest run of consecutive completed days within `year`.
+  private var bestStreakInYear: Int {
+    DetailedStreak.compute(days: completedDaysInYear).longest.length
   }
 
-  /// Current streak: consecutive completed days ending today (or yesterday).
-  private var currentStreak: Int {
-    let completed = completedDays
-    let today = calendar.startOfDay(for: Date())
-    // Allow the streak to still be "alive" if today isn't logged yet.
-    var cursor: Date
-    if completed.contains(today) {
-      cursor = today
-    } else if let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
-              completed.contains(yesterday) {
-      cursor = yesterday
-    } else {
-      return 0
-    }
-    var streak = 0
-    while completed.contains(cursor) {
-      streak += 1
-      guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
-      cursor = prev
-    }
-    return streak
-  }
-
-  /// Longest run of consecutive completed days across all history.
-  private var bestStreak: Int {
-    let sorted = completedDays.sorted()
-    guard !sorted.isEmpty else { return 0 }
-    var best = 1
-    var run = 1
-    for i in 1..<sorted.count {
-      if let prev = calendar.date(byAdding: .day, value: 1, to: sorted[i - 1]),
-         calendar.isDate(prev, inSameDayAs: sorted[i]) {
-        run += 1
-      } else {
-        run = 1
-      }
-      best = max(best, run)
-    }
-    return best
-  }
-
-  /// Localized name of the weekday with the most completions, or nil if none.
+  /// Localized name of the weekday with the most completions in `year`, or nil.
   private var bestWeekday: String? {
-    guard !completedDays.isEmpty else { return nil }
+    let days = completedDaysInYear
+    guard !days.isEmpty else { return nil }
     var counts: [Int: Int] = [:]
-    for day in completedDays {
-      let wd = calendar.component(.weekday, from: day)
-      counts[wd, default: 0] += 1
+    for day in days {
+      counts[calendar.component(.weekday, from: day), default: 0] += 1
     }
     guard let topWeekday = counts.max(by: { $0.value < $1.value })?.key else { return nil }
-    // weekday is 1-based; symbols array is 0-based.
     let symbols = calendar.weekdaySymbols
     let index = topWeekday - 1
     guard symbols.indices.contains(index) else { return nil }
@@ -193,7 +159,9 @@ private struct HabitAnalyticsCard: View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
         headerRow
-        heatmap
+        YearActivityHeatmap(year: year) { day in
+          completedDays.contains(day) ? habitColor : DLColor.separator.opacity(0.35)
+        }
         captionRow
       }
     }
@@ -222,41 +190,13 @@ private struct HabitAnalyticsCard: View {
       .padding(.vertical, DLSpace.xs)
       .background(habitColor.opacity(0.14), in: Capsule())
       .overlay(Capsule().strokeBorder(habitColor.opacity(0.35), lineWidth: 1))
-      .accessibilityLabel(Lf("%d percent complete this period", percent))
-  }
-
-  // 12 columns x 7 rows. Column-major so each column is one week, time flows
-  // left-to-right; most recent day lands in the last filled cell.
-  private var heatmap: some View {
-    let days = heatmapDays
-    let completed = completedDays
-    let columns = 12
-    let rows = 7
-    return Grid(horizontalSpacing: 3, verticalSpacing: 3) {
-      ForEach(0..<rows, id: \.self) { row in
-        GridRow {
-          ForEach(0..<columns, id: \.self) { col in
-            let index = col * rows + row
-            if index < days.count {
-              let day = days[index]
-              RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(completed.contains(day) ? habitColor : DLColor.separator)
-                .frame(height: 14)
-            } else {
-              Color.clear.frame(height: 14)
-            }
-          }
-        }
-      }
-    }
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(Lf("%d of last 84 days completed", days.filter { completed.contains($0) }.count))
+      .accessibilityLabel(Lf("%d percent complete this year", percent))
   }
 
   private var captionRow: some View {
     HStack(spacing: DLSpace.md) {
-      captionStat(value: "\(currentStreak)", label: L("Current streak"))
-      captionStat(value: "\(bestStreak)", label: L("Best streak"))
+      captionStat(value: "\(completedDaysInYear.count)", label: L("Completed"))
+      captionStat(value: "\(bestStreakInYear)", label: L("Best streak"))
       captionStat(value: bestWeekday ?? "—", label: L("Best day"))
     }
   }

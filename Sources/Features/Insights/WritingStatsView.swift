@@ -226,7 +226,14 @@ private struct WritingVolumeChart: View {
         y: .value("Words", point.words)
       )
       .cornerRadius(3)
-      .foregroundStyle(DLColor.accent)
+      // Vertical gradient fill (item 5), matching the Sleep Report bars.
+      .foregroundStyle(
+        LinearGradient(
+          colors: [DLColor.accent, DLColor.accent.opacity(0.55)],
+          startPoint: .top,
+          endPoint: .bottom
+        )
+      )
     }
     .chartYAxis {
       AxisMarks(position: .leading) { value in

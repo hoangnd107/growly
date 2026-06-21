@@ -103,16 +103,59 @@ struct StatTile: View {
   }
 }
 
-/// A two-column ledger of stat tiles, separated by hairlines and bordered.
+/// A full-width "hero" stat that leads a `StatTileGrid`: an oversized serif
+/// number with a faint tint wash and an uppercase, tracked label, so the most
+/// important metric reads first.
+private struct HeroStatTile: View {
+  let data: StatTileData
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text(data.value)
+        .font(.serif(.largeTitle, weight: .semibold))
+        .foregroundStyle(data.tint)
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.5)
+      Text(data.label.uppercased())
+        .font(.dl(.caption2, weight: .bold))
+        .tracking(1.2)
+        .foregroundStyle(DLColor.textSecondary)
+      if let sub = data.sublabel {
+        Text(sub)
+          .font(.dl(.caption, weight: .medium))
+          .foregroundStyle(data.tint.opacity(0.9))
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(DLSpace.lg)
+    .background(data.tint.opacity(0.06))
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("\(data.label): \(data.value)" + (data.sublabel.map { ". \($0)" } ?? ""))
+  }
+}
+
+/// A two-column ledger of stat tiles, separated by hairlines and bordered. When
+/// `hero` is true the first tile is promoted to a full-width hero above the grid.
 struct StatTileGrid: View {
   let tiles: [StatTileData]
+  /// Promote the first tile to a full-width hero (item 8).
+  var hero: Bool = false
+
+  private var heroTile: StatTileData? { hero ? tiles.first : nil }
+  private var gridTiles: [StatTileData] { hero ? Array(tiles.dropFirst()) : tiles }
 
   private var rows: [[StatTileData]] {
-    stride(from: 0, to: tiles.count, by: 2).map { Array(tiles[$0..<min($0 + 2, tiles.count)]) }
+    stride(from: 0, to: gridTiles.count, by: 2).map { Array(gridTiles[$0..<min($0 + 2, gridTiles.count)]) }
   }
 
   var body: some View {
     VStack(spacing: 0) {
+      if let heroTile {
+        HeroStatTile(data: heroTile)
+        if !gridTiles.isEmpty { Hairline() }
+      }
       ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
         if index > 0 { Hairline() }
         HStack(spacing: 0) {

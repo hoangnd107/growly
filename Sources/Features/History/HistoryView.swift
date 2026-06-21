@@ -11,7 +11,6 @@ struct HistoryView: View {
   @Query private var progressList: [UserProgress]
 
   @State private var query = ""
-  @State private var moodFilter: Int?
   @State private var tagFilter: String?
   @State private var visibleMonth = Calendar.current.startOfDay(for: Date())
   @State private var selectedDay: DaySelection?
@@ -72,23 +71,21 @@ struct HistoryView: View {
     return map
   }
 
-  /// Whether a note passes the active mood + tag filters (for calendar dots).
+  /// Whether a note passes the active tag filter (for calendar dots).
   private func notePassesFilters(_ note: DayNote) -> Bool {
-    if let moodFilter, note.moodRaw != moodFilter { return false }
     if let tagFilter, !note.tags.contains(tagFilter) { return false }
     return true
   }
 
-  /// Whether an entry passes the active mood + tag filters (used by both the
-  /// calendar dots and the list).
+  /// Whether an entry passes the active tag filter (used by both the calendar
+  /// dots and the list).
   private func passesFilters(_ entry: Entry) -> Bool {
-    if let moodFilter, entry.moodRaw != moodFilter { return false }
     if let tagFilter, !entry.tags.contains(tagFilter) { return false }
     return true
   }
 
   private var isFiltering: Bool {
-    moodFilter != nil || tagFilter != nil || !query.isEmpty
+    tagFilter != nil || !query.isEmpty
   }
 
   /// Distinct, sorted tags across all entries (for the tag filter menu).
@@ -216,7 +213,6 @@ struct HistoryView: View {
         }
       }
       .padding(DLSpace.md)
-      .animation(reduceMotion ? nil : DLAnim.smooth, value: moodFilter)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: tagFilter)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: query)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: historyMode)
@@ -239,8 +235,6 @@ struct HistoryView: View {
     calendarCard
 
     moodDayListCard
-
-    moodFilterChips
 
     if filtered.isEmpty {
       if isFiltering {
@@ -275,12 +269,11 @@ struct HistoryView: View {
       Label(L("No matches"), systemImage: "magnifyingglass")
         .font(.dl(.headline, weight: .semibold))
     } description: {
-      Text(L("Try a different search or clear the mood filter."))
+      Text(L("Try a different search or clear filters."))
     } actions: {
       if isFiltering {
         Button(L("Clear filters")) {
           withAnimation(reduceMotion ? nil : DLAnim.standard) {
-            moodFilter = nil
             tagFilter = nil
             query = ""
           }
@@ -624,53 +617,6 @@ struct HistoryView: View {
     .padding(.vertical, 4)
     .contentShape(Rectangle())
     .accessibilityElement(children: .combine)
-  }
-
-  // MARK: - Mood filter chips
-
-  private var moodFilterChips: some View {
-    ScrollView(.horizontal, showsIndicators: false) {
-      HStack(spacing: DLSpace.sm) {
-        chip(label: L("All"), emoji: nil, color: theme.accent, isSelected: moodFilter == nil) {
-          moodFilter = nil
-        }
-        ForEach(MoodCatalog.shared.options) { mood in
-          chip(label: mood.displayName, emoji: mood.emoji, color: mood.color, isSelected: moodFilter == mood.value) {
-            moodFilter = (moodFilter == mood.value) ? nil : mood.value
-          }
-        }
-      }
-      .padding(.horizontal, 2)
-      .padding(.vertical, 2)
-    }
-    // Keep the chip strip inside the card (no scrollClipDisabled) so it never
-    // bleeds past the screen, while staying horizontally scrollable (item 1).
-  }
-
-  private func chip(label: String, emoji: String?, color: Color, isSelected: Bool, action: @escaping () -> Void) -> some View {
-    Button {
-      withAnimation(reduceMotion ? nil : DLAnim.pop) { action() }
-      Haptics.selection()
-    } label: {
-      HStack(spacing: 5) {
-        if let emoji { Text(emoji).font(.system(size: 15)) }
-        Text(label)
-          .font(.dl(.subheadline, weight: .semibold))
-      }
-      .padding(.horizontal, DLSpace.md)
-      .padding(.vertical, DLSpace.sm)
-      .foregroundStyle(isSelected ? color : DLColor.textSecondary)
-      .background {
-        Capsule()
-          .fill(isSelected ? color.opacity(0.18) : DLColor.surfaceElevated.opacity(0.5))
-      }
-      .overlay(
-        Capsule().strokeBorder(isSelected ? color : DLColor.separator.opacity(0.5), lineWidth: 1.5)
-      )
-    }
-    .buttonStyle(.plain)
-    .bounceTap()
-    .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
   }
 
   // MARK: - List row

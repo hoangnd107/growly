@@ -309,3 +309,11 @@
 "Clear cache" = "캐시 지우기";
 "Cache cleared" = "캐시 지움";
 "Free up space used by temporary files. Your notes, photos and backups are not affected." = "임시 파일이 사용하는 공간을 확보합니다. 메모, 사진, 백업은 영향을 받지 않습니다.";
+
+/* v14 — round 3 feedback */
+"%d reviews · %d notes in %@ %d" = "%d 리뷰 · %d 노트 · %@ %d";
+"%d XP to level %d" = "%d XP 더 모으면 %d 레벨";
+"+%d this week" = "이번 주 +%d";
+"Try a different search or clear filters." = "다른 검색어를 쓰거나 필터를 지우세요.";
+"%d percent complete this year" = "올해 %d%% 완료";
+"Mood by day over the year" = "연간 일별 기분";

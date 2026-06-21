@@ -194,6 +194,34 @@ struct StatsCard: View {
   private var minYear: Int { years.min() ?? year }
   private var maxYear: Int { years.max() ?? year }
 
+  /// The tapped month's counts in Year view, used to scope the totals (item 3).
+  /// Nil in All-time view or when no month is selected → totals fall back to the
+  /// year / all-time aggregates.
+  private var selectedMonthCount: MonthCount? {
+    guard scope == .year, let selectedMonth else { return nil }
+    return summary.monthly.first { $0.label == selectedMonth }
+  }
+
+  private var totalReviewsValue: Int {
+    selectedMonthCount?.entries ?? (scope == .year ? summary.yearEntries : summary.totalEntries)
+  }
+  private var totalNotesValue: Int {
+    selectedMonthCount?.notes ?? (scope == .year ? summary.yearNotes : summary.totalNotes)
+  }
+  private var totalWordsValue: Int {
+    selectedMonthCount?.words ?? (scope == .year ? summary.yearNoteWords : summary.totalNoteWords)
+  }
+
+  /// Caption under the totals: the tapped month, the whole year, or all-time.
+  private var statsFooter: String {
+    if let mc = selectedMonthCount {
+      return Lf("%d reviews · %d notes in %@ %d", mc.entries, mc.notes, mc.label, year)
+    }
+    return scope == .year
+      ? Lf("%d reviews · %d notes in %d", summary.yearEntries, summary.yearNotes, year)
+      : Lf("%d reviews · %d notes all-time", summary.totalEntries, summary.totalNotes)
+  }
+
   var body: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
@@ -231,19 +259,14 @@ struct StatsCard: View {
         }
 
         HStack(spacing: 0) {
-          totalMetric(value: scope == .year ? summary.yearEntries : summary.totalEntries,
-                      label: L("Total reviews"), tint: theme.accent)
+          totalMetric(value: totalReviewsValue, label: L("Total reviews"), tint: theme.accent)
           divider
-          totalMetric(value: scope == .year ? summary.yearNotes : summary.totalNotes,
-                      label: L("Total notes"), tint: DLColor.xpGold)
+          totalMetric(value: totalNotesValue, label: L("Total notes"), tint: DLColor.xpGold)
           divider
-          totalMetric(value: scope == .year ? summary.yearNoteWords : summary.totalNoteWords,
-                      label: L("Words in notes"), tint: DLColor.success)
+          totalMetric(value: totalWordsValue, label: L("Words in notes"), tint: DLColor.success)
         }
 
-        Text(scope == .year
-             ? Lf("%d reviews · %d notes in %d", summary.yearEntries, summary.yearNotes, year)
-             : Lf("%d reviews · %d notes all-time", summary.totalEntries, summary.totalNotes))
+        Text(statsFooter)
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
           .monospacedDigit()

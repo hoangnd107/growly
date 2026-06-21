@@ -273,7 +273,15 @@ struct MoodDistributionChart: View {
         y: .value("Mood", point.mood.displayName)
       )
       .cornerRadius(6)
-      .foregroundStyle(point.mood.color)
+      // Gradient fill (item 5): solid at the base, fading toward the bar's tip —
+      // horizontal bars fade leading→trailing, mirroring the Sleep Report style.
+      .foregroundStyle(
+        LinearGradient(
+          colors: [point.mood.color, point.mood.color.opacity(0.55)],
+          startPoint: .leading,
+          endPoint: .trailing
+        )
+      )
       // Dim the non-selected bars once a selection exists.
       .opacity(selectedValue == nil || selectedValue == point.mood.value ? 1 : 0.35)
       .annotation(position: .trailing, alignment: .leading) {
@@ -427,7 +435,15 @@ struct MonthlyCountChart: View {
       }
     }
     .chartXSelectionOptional(selection)
-    .chartForegroundStyleScale([entriesLabel: entriesColor, notesLabel: notesColor])
+    // Each series fills with a vertical gradient (item 5): full color at the top
+    // fading toward the base, matching the Sleep Report bars. The style scale also
+    // drives the legend swatches.
+    .chartForegroundStyleScale([
+      entriesLabel: LinearGradient(
+        colors: [entriesColor, entriesColor.opacity(0.55)], startPoint: .top, endPoint: .bottom),
+      notesLabel: LinearGradient(
+        colors: [notesColor, notesColor.opacity(0.55)], startPoint: .top, endPoint: .bottom),
+    ])
     .chartXScale(domain: points.map(\.label))
     .chartLegend(position: .bottom, spacing: DLSpace.sm)
     .chartYAxis {

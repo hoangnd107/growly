@@ -309,3 +309,11 @@
 "Clear cache" = "清除缓存";
 "Cache cleared" = "缓存已清除";
 "Free up space used by temporary files. Your notes, photos and backups are not affected." = "释放临时文件占用的空间。您的笔记、照片和备份不受影响。";
+
+/* v14 — round 3 feedback */
+"%d reviews · %d notes in %@ %d" = "%d 条回顾 · %d 条笔记 · %@ %d";
+"%d XP to level %d" = "还需 %d XP 升到 %d 级";
+"+%d this week" = "本周 +%d";
+"Try a different search or clear filters." = "换个搜索词或清除筛选。";
+"%d percent complete this year" = "今年完成 %d%%";
+"Mood by day over the year" = "全年每日心情";

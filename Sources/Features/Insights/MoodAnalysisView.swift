@@ -366,7 +366,15 @@ struct MoodAnalysisView: View {
           y: .value("Mood", item.average ?? 0)
         )
         .cornerRadius(4)
-        .foregroundStyle(DLColor.accent.opacity(item.average == nil ? 0 : 0.85))
+        // Vertical gradient fill (item 5); empty weekdays collapse to nothing.
+        .foregroundStyle(
+          LinearGradient(
+            colors: [DLColor.accent, DLColor.accent.opacity(0.55)],
+            startPoint: .top,
+            endPoint: .bottom
+          )
+        )
+        .opacity(item.average == nil ? 0 : 1)
       }
       .chartXScale(domain: weekdayAverages.map(\.name))
       .chartYScale(domain: 0...Double(MoodCatalog.shared.maxValue))

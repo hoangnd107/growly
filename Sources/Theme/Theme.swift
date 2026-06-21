@@ -42,12 +42,14 @@ enum DLColor {
   static let accent = Color(hex: 0x7E5BEF)
   static let accentSoft = Color(lightHex: 0xEFEAFF, darkHex: 0x241B3A)
 
-  // Semantic / gamification (muted to sit calmly in the editorial palette)
-  static let xpGold = Color(lightHex: 0xB8893B, darkHex: 0xD6A24E)
-  static let streakStart = Color(hex: 0xE08A4A)
-  static let streakEnd = Color(hex: 0xC4663B)
-  static let success = Color(lightHex: 0x3C7A5A, darkHex: 0x5BB389)
-  static let warning = Color(hex: 0xC08A2E)
+  // Semantic / gamification — the vibrant v1.12.0 item colors restored (item 1).
+  // Only these data/gamification hues return to v1.12.0; the editorial paper
+  // neutrals above and the Violet accent stay.
+  static let xpGold = Color(hex: 0xFFC83D)
+  static let streakStart = Color(hex: 0xFF9A3D)
+  static let streakEnd = Color(hex: 0xFF3D5A)
+  static let success = Color(hex: 0x34C759)
+  static let warning = Color(hex: 0xFF9F0A)
   static let cool = Color(lightHex: 0x3E6587, darkHex: 0x6C9AC4)
 }
 
