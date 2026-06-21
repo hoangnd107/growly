@@ -394,3 +394,18 @@
 "%d active goals" = "%d mục tiêu đang hoạt động";
 "This week you showed up on %d of 7 days and logged %d reflections." = "Tuần này bạn đã có mặt %d trên 7 ngày và ghi lại %d bài review.";
 "Your strongest area this week was %@." = "Lĩnh vực mạnh nhất của bạn tuần này là %@.";
+
+/* Restructure — Insights Manage hub, slim Today, Life areas home */
+"Last night · %@" = "Đêm qua · %@";
+"%d active" = "%d đang hoạt động";
+"Tap to log last night's sleep" = "Chạm để ghi lại giấc ngủ đêm qua";
+"Manage" = "Quản lý";
+"Set a SMART goal to track progress" = "Đặt một mục tiêu SMART để theo dõi tiến độ";
+"%d active, %d completed" = "%d đang hoạt động, %d hoàn thành";
+"Log a night to see your rest patterns" = "Ghi lại một đêm để xem thói quen nghỉ ngơi của bạn";
+"%.1f hrs avg over %d nights" = "TB %.1f giờ qua %d đêm";
+"Add, edit & reorder your habits" = "Thêm, sửa & sắp xếp lại thói quen của bạn";
+"Review & track health, work, and more" = "Đánh giá & theo dõi sức khỏe, công việc và hơn thế nữa";
+"Recent reviews" = "Đánh giá gần đây";
+"Delete review" = "Xóa đánh giá";
+"Add review" = "Thêm đánh giá";

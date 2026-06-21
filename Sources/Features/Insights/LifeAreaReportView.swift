@@ -12,9 +12,11 @@ import Charts
 /// Distinct from `LifeAreaReviewView` (the add/edit form). Do not confuse.
 struct LifeAreaReportView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Environment(\.modelContext) private var context
   @Query(sort: \LifeAreaReview.date) private var reviews: [LifeAreaReview]
 
   @State private var range: StatsRange = .quarter
+  @State private var showAdd = false
 
   /// The rating scale max (model uses a 1...10 slider).
   private let ratingMax = 10
@@ -67,13 +69,86 @@ struct LifeAreaReportView: View {
           Hairline()
           SectionLabel(L("Trend"))
           trendSection
+
+          Hairline()
+          SectionLabel(L("Recent reviews"))
+          recentReviewsSection
         }
       }
       .padding(DLSpace.md)
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .background(ThemedBackground())
+    .navigationTitle(L("Life areas"))
     .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      ToolbarItem(placement: .topBarTrailing) {
+        Button { showAdd = true } label: { Image(systemName: "plus") }
+          .accessibilityLabel(L("Add review"))
+      }
+    }
+    .sheet(isPresented: $showAdd) { LifeAreaReviewView() }
+  }
+
+  // MARK: Recent reviews (add/manage — merged from the former Life Areas insights view)
+
+  private var recentReviewsSection: some View {
+    GlassCard {
+      VStack(spacing: DLSpace.md) {
+        ForEach(Array(filtered.reversed().enumerated()), id: \.element.id) { index, review in
+          if index > 0 { Hairline() }
+          recentReviewRow(review)
+        }
+      }
+    }
+  }
+
+  private func recentReviewRow(_ review: LifeAreaReview) -> some View {
+    HStack(alignment: .top, spacing: DLSpace.md) {
+      ZStack {
+        Circle().fill(review.area.color.opacity(0.16)).frame(width: 36, height: 36)
+        Image(systemName: review.area.systemIcon)
+          .font(.system(size: 15, weight: .semibold))
+          .foregroundStyle(review.area.color)
+      }
+      VStack(alignment: .leading, spacing: 2) {
+        HStack {
+          Text(L(review.area.title))
+            .font(.dl(.subheadline, weight: .semibold))
+            .foregroundStyle(DLColor.textPrimary)
+          Spacer()
+          Text("\(review.rating)/\(ratingMax)")
+            .font(.dl(.subheadline, weight: .bold))
+            .foregroundStyle(review.area.color)
+            .monospacedDigit()
+          Button { delete(review) } label: {
+            Image(systemName: "trash")
+              .font(.system(size: 13))
+              .foregroundStyle(DLColor.textTertiary)
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel(L("Delete review"))
+        }
+        Text(review.date, format: .dateTime.month().day().year())
+          .font(.dl(.caption2))
+          .foregroundStyle(DLColor.textTertiary)
+        if !review.notes.isEmpty {
+          Text(review.notes)
+            .font(.dl(.caption))
+            .foregroundStyle(DLColor.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+    }
+    .padding(.vertical, 2)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("\(L(review.area.title)): \(review.rating)/\(ratingMax)")
+  }
+
+  private func delete(_ review: LifeAreaReview) {
+    context.delete(review)
+    try? context.save()
+    Haptics.warning()
   }
 
   // MARK: Range filter

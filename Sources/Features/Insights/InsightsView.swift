@@ -37,6 +37,9 @@ struct InsightsView: View {
   @State private var moodRange: ChartRange = .twoWeeks
   @State private var xpRange: ChartRange = .twoWeeks
 
+  /// Presents the habit manager sheet from the Manage hub (it owns a NavigationStack).
+  @State private var showHabitManager = false
+
   init() {}
 
   private let calendar = Calendar.current
@@ -99,13 +102,10 @@ struct InsightsView: View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
         aiInsightsCard
+        manageHubCard
         reportsCard
         StreakCard()
         CompleteDayStreakCard()
-        goalsSummaryCard
-        sleepSummaryCard
-        lifeAreasCard
-        HabitStatsCard()
         growthScoreCard
         moodCalendarCard
         if !entries.isEmpty {
@@ -118,6 +118,84 @@ struct InsightsView: View {
       .padding(DLSpace.md)
     }
     .scrollDismissesKeyboard(.immediately)
+    .sheet(isPresented: $showHabitManager) { HabitManagerView() }
+  }
+
+  // MARK: Manage hub (restructure)
+  //
+  // The single command center for every tracked entity. Goals / Sleep / Life
+  // areas push their canonical homes; Habits opens its manager sheet (it owns a
+  // NavigationStack). Replaces the scattered goals/sleep/life-area summary cards
+  // and surfaces Habits management here now that the Me tab no longer hosts it.
+
+  private var manageHubCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: 0) {
+        Label(L("Manage"), systemImage: "square.grid.2x2")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(theme.accent)
+          .padding(.bottom, DLSpace.xs)
+
+        NavigationLink { GoalsView() } label: {
+          manageRowLabel(L("Goals"), subtitle: goalsManageSubtitle, systemImage: "target", tint: theme.accent)
+        }
+        .buttonStyle(ScaleButtonStyle(scale: 0.98))
+        Hairline()
+
+        Button { showHabitManager = true } label: {
+          manageRowLabel(L("Habits"), subtitle: L("Add, edit & reorder your habits"), systemImage: "checklist", tint: DLColor.success)
+        }
+        .buttonStyle(ScaleButtonStyle(scale: 0.98))
+        Hairline()
+
+        NavigationLink { SleepTrackerView() } label: {
+          manageRowLabel(L("Sleep"), subtitle: sleepManageSubtitle, systemImage: "bed.double.fill", tint: Color(hex: 0x5AC8FA))
+        }
+        .buttonStyle(ScaleButtonStyle(scale: 0.98))
+        Hairline()
+
+        NavigationLink { LifeAreaReportView() } label: {
+          manageRowLabel(L("Life areas"), subtitle: L("Review & track health, work, and more"), systemImage: "chart.xyaxis.line", tint: DLColor.warning)
+        }
+        .buttonStyle(ScaleButtonStyle(scale: 0.98))
+      }
+    }
+  }
+
+  private func manageRowLabel(_ title: String, subtitle: String, systemImage: String, tint: Color) -> some View {
+    HStack(spacing: DLSpace.md) {
+      ZStack {
+        Circle().fill(tint.opacity(0.18)).frame(width: 40, height: 40)
+        Image(systemName: systemImage)
+          .font(.system(size: 17, weight: .semibold))
+          .foregroundStyle(tint)
+      }
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+          .font(.dl(.body, weight: .semibold))
+          .foregroundStyle(DLColor.textPrimary)
+        Text(subtitle)
+          .font(.dl(.caption))
+          .foregroundStyle(DLColor.textSecondary)
+          .lineLimit(1)
+      }
+      Spacer(minLength: 0)
+      Image(systemName: "chevron.right")
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(DLColor.textTertiary)
+    }
+    .padding(.vertical, DLSpace.sm)
+    .contentShape(Rectangle())
+  }
+
+  private var goalsManageSubtitle: String {
+    goals.isEmpty ? L("Set a SMART goal to track progress")
+                  : Lf("%d active, %d completed", activeGoalsCount, completedGoalsCount)
+  }
+
+  private var sleepManageSubtitle: String {
+    sleeps.isEmpty ? L("Log a night to see your rest patterns")
+                   : Lf("%.1f hrs avg over %d nights", avgSleepHours, sleeps.count)
   }
 
   // MARK: 1 — AI Insights
@@ -636,28 +714,6 @@ struct InsightsView: View {
     .accessibilityElement(children: .combine)
     .accessibilityLabel(sleepAccessibilityLabel)
     .accessibilityAddTraits(.isButton)
-  }
-
-  // MARK: Life areas (feature 21)
-
-  private var lifeAreasCard: some View {
-    NavigationLink {
-      LifeAreaInsightsView()
-    } label: {
-      GlassCard {
-        HStack {
-          Label(L("Life areas"), systemImage: "chart.xyaxis.line")
-            .font(.dl(.headline, weight: .semibold))
-            .foregroundStyle(theme.accent)
-          Spacer()
-          Image(systemName: "chevron.right")
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(DLColor.textTertiary)
-        }
-      }
-    }
-    .buttonStyle(ScaleButtonStyle(scale: 0.98))
-    .accessibilityLabel(L("Life areas. Opens your life-area reviews."))
   }
 
   // MARK: 6 — Goals summary

@@ -394,3 +394,18 @@
 "%d active goals" = "%d 个进行中的目标";
 "This week you showed up on %d of 7 days and logged %d reflections." = "这一周你在 7 天中出现了 %d 天，记录了 %d 次复盘。";
 "Your strongest area this week was %@." = "本周你最强的领域是 %@。";
+
+/* Restructure — Insights Manage hub, slim Today, Life areas home */
+"Last night · %@" = "昨晚 · %@";
+"%d active" = "%d 个进行中";
+"Tap to log last night's sleep" = "点按记录昨晚的睡眠";
+"Manage" = "管理";
+"Set a SMART goal to track progress" = "设定一个 SMART 目标来跟踪进度";
+"%d active, %d completed" = "%d 个进行中，%d 个已完成";
+"Log a night to see your rest patterns" = "记录一晚来查看你的休息规律";
+"%.1f hrs avg over %d nights" = "平均 %.1f 小时，共 %d 晚";
+"Add, edit & reorder your habits" = "添加、编辑和重新排序你的习惯";
+"Review & track health, work, and more" = "评估并跟踪健康、工作等";
+"Recent reviews" = "最近的评估";
+"Delete review" = "删除评估";
+"Add review" = "添加评估";

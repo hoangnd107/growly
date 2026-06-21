@@ -394,3 +394,18 @@
 "%d active goals" = "%d active goals";
 "This week you showed up on %d of 7 days and logged %d reflections." = "This week you showed up on %d of 7 days and logged %d reflections.";
 "Your strongest area this week was %@." = "Your strongest area this week was %@.";
+
+/* Restructure — Insights Manage hub, slim Today, Life areas home */
+"Last night · %@" = "Last night · %@";
+"%d active" = "%d active";
+"Tap to log last night's sleep" = "Tap to log last night's sleep";
+"Manage" = "Manage";
+"Set a SMART goal to track progress" = "Set a SMART goal to track progress";
+"%d active, %d completed" = "%d active, %d completed";
+"Log a night to see your rest patterns" = "Log a night to see your rest patterns";
+"%.1f hrs avg over %d nights" = "%.1f hrs avg over %d nights";
+"Add, edit & reorder your habits" = "Add, edit & reorder your habits";
+"Review & track health, work, and more" = "Review & track health, work, and more";
+"Recent reviews" = "Recent reviews";
+"Delete review" = "Delete review";
+"Add review" = "Add review";

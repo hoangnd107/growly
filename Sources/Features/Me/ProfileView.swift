@@ -258,17 +258,8 @@ private struct ProfileContent: View {
       }
       .buttonStyle(ScaleButtonStyle())
 
-      NavigationLink {
-        LifeAreaInsightsView()
-      } label: {
-        navRow(
-          title: L("Life areas"),
-          subtitle: L("Review & track health, work, and more"),
-          systemImage: "chart.xyaxis.line",
-          tint: DLColor.success
-        )
-      }
-      .buttonStyle(ScaleButtonStyle())
+      // Life areas and Habits management moved to the Insights "Manage" hub
+      // (restructure): each tracked entity now has one canonical home.
 
       NavigationLink {
         CustomizationShopView(progress: progress)
@@ -278,18 +269,6 @@ private struct ProfileContent: View {
           subtitle: L("Themes & accent colors"),
           systemImage: "paintpalette.fill",
           tint: progress.accentColor
-        )
-      }
-      .buttonStyle(ScaleButtonStyle())
-
-      NavigationLink {
-        HabitManagerView()
-      } label: {
-        navRow(
-          title: L("Habits"),
-          subtitle: L("Add, edit & reorder your habits"),
-          systemImage: "checklist",
-          tint: DLColor.success
         )
       }
       .buttonStyle(ScaleButtonStyle())

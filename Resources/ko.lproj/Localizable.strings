@@ -394,3 +394,18 @@
 "%d active goals" = "진행 중인 목표 %d개";
 "This week you showed up on %d of 7 days and logged %d reflections." = "이번 주 7일 중 %d일 함께했고 회고를 %d회 기록했습니다.";
 "Your strongest area this week was %@." = "이번 주 가장 강한 영역은 %@였습니다.";
+
+/* Restructure — Insights Manage hub, slim Today, Life areas home */
+"Last night · %@" = "어젯밤 · %@";
+"%d active" = "%d개 진행 중";
+"Tap to log last night's sleep" = "어젯밤 수면을 기록하려면 탭하세요";
+"Manage" = "관리";
+"Set a SMART goal to track progress" = "진행 상황을 추적할 SMART 목표를 설정하세요";
+"%d active, %d completed" = "%d개 진행 중, %d개 완료";
+"Log a night to see your rest patterns" = "하룻밤을 기록해 휴식 패턴을 확인하세요";
+"%.1f hrs avg over %d nights" = "평균 %.1f시간 (%d일)";
+"Add, edit & reorder your habits" = "습관을 추가, 편집 및 재정렬하세요";
+"Review & track health, work, and more" = "건강, 일 등을 검토하고 추적하세요";
+"Recent reviews" = "최근 리뷰";
+"Delete review" = "리뷰 삭제";
+"Add review" = "리뷰 추가";
