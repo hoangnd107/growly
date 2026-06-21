@@ -168,10 +168,9 @@ struct StatTileGrid: View {
       }
     }
     .clipShape(RoundedRectangle(cornerRadius: DLRadius.card, style: .continuous))
-    .overlay(
-      RoundedRectangle(cornerRadius: DLRadius.card, style: .continuous)
-        .strokeBorder(DLColor.separator, lineWidth: 1)
-    )
+    // Glass surface (redesign v2): the ledger floats as a frosted card; a hero
+    // grid is promoted to the raised level for more depth.
+    .glass(cornerRadius: DLRadius.card, level: hero ? .raised : .standard)
   }
 }
 
