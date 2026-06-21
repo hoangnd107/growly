@@ -59,6 +59,7 @@ private struct TodayContent: View {
   @Query private var badgeRecords: [BadgeRecord]
   @Query private var allNotes: [DayNote]
   @Query private var identities: [Identity]
+  @Query private var manifestos: [PersonalManifesto]
   @Query(sort: \SleepLog.date, order: .reverse) private var sleeps: [SleepLog]
   @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
 
@@ -71,15 +72,7 @@ private struct TodayContent: View {
   @State private var result: ReviewResult = .none
 
   private var identity: Identity? { identities.first }
-
-  // Sleep quick-entry state (loaded from today's log on appear).
-  @State private var bedTime = Date()
-  @State private var wakeTime = Date()
-  @State private var sleepLoaded = false
-
-  /// Quality is derived from the chosen times (feature 6), never set manually.
-  private var quickSleepHours: Double { SleepLog.hours(bedTime: bedTime, wakeTime: wakeTime) }
-  private var quickSleepQuality: Int { SleepLog.quality(forHours: quickSleepHours) }
+  private var manifesto: PersonalManifesto? { manifestos.first }
 
   private var today: Date { Calendar.current.startOfDay(for: Date()) }
 
@@ -96,14 +89,7 @@ private struct TodayContent: View {
       VStack(spacing: DLSpace.lg) {
         header
 
-        if let identity, identity.hasContent {
-          NavigationLink {
-            IdentityView()
-          } label: {
-            IdentityReminderCard(identity: identity, accent: Color.accentColor)
-          }
-          .buttonStyle(.plain)
-        }
+        northStarSection
 
         modeSelector
 
@@ -133,7 +119,6 @@ private struct TodayContent: View {
     }
     .onAppear {
       mode = Calendar.current.component(.hour, from: Date()) < 12 ? .morning : .evening
-      loadSleep()
     }
   }
 
@@ -141,6 +126,66 @@ private struct TodayContent: View {
 
   private var header: some View {
     LevelHeader(progress: progress, todayXP: entry.xpAwarded)
+  }
+
+  // MARK: North star (Identity + Manifesto)
+
+  /// Identity and Manifesto surfaced prominently at the top of Today so the
+  /// person you're becoming and what you stand for stay front of mind. Each card
+  /// taps through to its full editor; an invitation shows when both are empty.
+  @ViewBuilder
+  private var northStarSection: some View {
+    let hasIdentity = identity?.hasContent ?? false
+    let hasManifesto = manifesto?.hasContent ?? false
+
+    if hasIdentity || hasManifesto {
+      VStack(spacing: DLSpace.md) {
+        if let identity, hasIdentity {
+          NavigationLink {
+            IdentityView()
+          } label: {
+            IdentityReminderCard(identity: identity, accent: Color.accentColor)
+          }
+          .buttonStyle(.plain)
+        }
+        if let manifesto, hasManifesto {
+          NavigationLink {
+            ManifestoView()
+          } label: {
+            ManifestoReminderCard(manifesto: manifesto, accent: Color(hex: 0x5AC8FA))
+          }
+          .buttonStyle(.plain)
+        }
+      }
+    } else {
+      NavigationLink {
+        IdentityView()
+      } label: {
+        GlassCard {
+          HStack(spacing: DLSpace.md) {
+            ZStack {
+              Circle().fill(Color.accentColor.opacity(0.18)).frame(width: 44, height: 44)
+              Image(systemName: "figure.mind.and.body")
+                .font(.system(size: 18))
+                .foregroundStyle(Color.accentColor)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+              Text(L("Define who you're becoming"))
+                .font(.dl(.subheadline, weight: .semibold))
+                .foregroundStyle(DLColor.textPrimary)
+              Text(L("Set your identity and write your manifesto"))
+                .font(.dl(.caption))
+                .foregroundStyle(DLColor.textSecondary)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+              .font(.system(size: 14, weight: .semibold))
+              .foregroundStyle(DLColor.textTertiary)
+          }
+        }
+      }
+      .buttonStyle(.plain)
+    }
   }
 
   // MARK: Mode selector (Evening / Morning)
@@ -167,7 +212,7 @@ private struct TodayContent: View {
 
     MoodEnergyCard(moodRaw: $entry.moodRaw, energy: $entry.energy)
 
-    goalsReminderCard
+    goalsSummaryRow
 
     weeklyReviewCard
 
@@ -221,59 +266,56 @@ private struct TodayContent: View {
     }
   }
 
-  // MARK: Sleep quick entry
+  // MARK: Compact deep-link rows (restructure)
 
-  /// Lets the user log last night's bed/wake time (and quality) right from Today,
-  /// upserting today's `SleepLog` so it also shows up in Insights.
-  private var sleepQuickCard: some View {
+  /// A compact summary row that deep-links to a feature's canonical home, so Today
+  /// stays a capture surface instead of duplicating management UI.
+  private func summaryRowLabel(title: String, value: String, systemImage: String, tint: Color) -> some View {
     GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        HStack {
-          Label(L("Sleep"), systemImage: "bed.double.fill")
-            .font(.dl(.headline, weight: .semibold))
-            .foregroundStyle(Color.accentColor)
-          Spacer()
-          if todaySleep != nil {
-            Label(L("Logged"), systemImage: "checkmark.circle.fill")
-              .font(.dl(.caption, weight: .semibold))
-              .foregroundStyle(DLColor.success)
-          }
+      HStack(spacing: DLSpace.md) {
+        ZStack {
+          Circle().fill(tint.opacity(0.18)).frame(width: 44, height: 44)
+          Image(systemName: systemImage)
+            .font(.system(size: 18))
+            .foregroundStyle(tint)
         }
-
-        DatePicker(L("Bedtime"), selection: $bedTime, displayedComponents: .hourAndMinute)
-          .font(.dl(.body))
-          .foregroundStyle(DLColor.textPrimary)
-        DatePicker(L("Wake time"), selection: $wakeTime, displayedComponents: .hourAndMinute)
-          .font(.dl(.body))
-          .foregroundStyle(DLColor.textPrimary)
-
-        HStack {
-          Text(L("Quality"))
-            .font(.dl(.subheadline, weight: .medium))
+        VStack(alignment: .leading, spacing: 2) {
+          Text(title)
+            .font(.dl(.headline, weight: .semibold))
             .foregroundStyle(DLColor.textPrimary)
-          Spacer()
-          HStack(spacing: DLSpace.xs) {
-            ForEach(1...5, id: \.self) { level in
-              Image(systemName: level <= quickSleepQuality ? "star.fill" : "star")
-                .font(.system(size: 18))
-                .foregroundStyle(DLColor.xpGold)
-            }
-          }
-          Text(SleepLog.qualityLabel(for: quickSleepQuality))
-            .font(.dl(.caption, weight: .semibold))
+          Text(value)
+            .font(.dl(.caption))
             .foregroundStyle(DLColor.textSecondary)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Lf("Quality %@", SleepLog.qualityLabel(for: quickSleepQuality)))
-
-        PrimaryButton(
-          todaySleep == nil ? L("Save sleep") : L("Update sleep"),
-          systemImage: "moon.zzz.fill"
-        ) {
-          saveSleep()
-        }
+        Spacer(minLength: 0)
+        Image(systemName: "chevron.right")
+          .font(.system(size: 14, weight: .semibold))
+          .foregroundStyle(DLColor.textTertiary)
       }
     }
+  }
+
+  /// Sleep is logged & analysed in its canonical home (Insights → Sleep). Today
+  /// just shows last night at a glance and taps through.
+  private var sleepSummaryRow: some View {
+    NavigationLink {
+      SleepTrackerView()
+    } label: {
+      summaryRowLabel(
+        title: L("Sleep"),
+        value: todaySleep.map { Lf("Last night · %@", formattedSleep($0.durationHours)) }
+          ?? L("Tap to log last night's sleep"),
+        systemImage: "bed.double.fill",
+        tint: Color.accentColor
+      )
+    }
+    .buttonStyle(.plain)
+    .bounceTap()
+  }
+
+  private func formattedSleep(_ hours: Double) -> String {
+    let totalMinutes = Int((hours * 60).rounded())
+    return Lf("%dh %dm", totalMinutes / 60, totalMinutes % 60)
   }
 
   // MARK: Weekly review (life areas)
@@ -312,55 +354,24 @@ private struct TodayContent: View {
 
   // MARK: Goals reminder
 
-  /// A compact reminder of active goals with a tap-through to the full Goals view.
-  private var goalsReminderCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        HStack {
-          Label(L("Goals"), systemImage: "target")
-            .font(.dl(.headline, weight: .semibold))
-            .foregroundStyle(Color.accentColor)
-          Spacer()
-          Button(L("View all")) {
-            Haptics.light()
-            showGoals = true
-          }
-          .font(.dl(.caption, weight: .semibold))
-          .buttonStyle(.plain)
-          .foregroundStyle(Color.accentColor)
-        }
-
-        if activeGoals.isEmpty {
-          Button {
-            Haptics.light()
-            showGoals = true
-          } label: {
-            Text(L("No active goals yet. Tap to set one."))
-              .font(.dl(.subheadline))
-              .foregroundStyle(DLColor.textSecondary)
-              .frame(maxWidth: .infinity, alignment: .leading)
-          }
-          .buttonStyle(.plain)
-        } else {
-          ForEach(activeGoals.prefix(3)) { goal in
-            VStack(alignment: .leading, spacing: DLSpace.xs) {
-              HStack {
-                Text(goal.title)
-                  .font(.dl(.subheadline, weight: .semibold))
-                  .foregroundStyle(DLColor.textPrimary)
-                  .lineLimit(1)
-                Spacer(minLength: DLSpace.sm)
-                Text("\(Int((goal.progress * 100).rounded()))%")
-                  .font(.dl(.caption, weight: .semibold))
-                  .foregroundStyle(Color.accentColor)
-                  .monospacedDigit()
-              }
-              XPProgressBar(value: goal.progress, height: 6)
-            }
-          }
-        }
-      }
+  /// A compact summary row that taps through to the full Goals view (its
+  /// canonical home), instead of duplicating goal management on Today.
+  private var goalsSummaryRow: some View {
+    Button {
+      Haptics.light()
+      showGoals = true
+    } label: {
+      summaryRowLabel(
+        title: L("Goals"),
+        value: activeGoals.isEmpty
+          ? L("No active goals yet. Tap to set one.")
+          : Lf("%d active", activeGoals.count),
+        systemImage: "target",
+        tint: Color.accentColor
+      )
     }
+    .buttonStyle(.plain)
+    .bounceTap()
   }
 
   // MARK: Morning
@@ -399,7 +410,7 @@ private struct TodayContent: View {
       }
     }
 
-    goalsReminderCard
+    goalsSummaryRow
 
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
@@ -446,7 +457,7 @@ private struct TodayContent: View {
     }
 
     // Sleep is logged in the morning (last night's rest), so it sits at the end.
-    sleepQuickCard
+    sleepSummaryRow
   }
 
   private func habitRow(_ habit: Habit) -> some View {
@@ -512,33 +523,6 @@ private struct TodayContent: View {
     MediaStore.delete(attachment.fileName)
     context.delete(attachment)
     try? context.save()
-  }
-
-  /// Seeds the sleep pickers from today's log if one exists, else sensible
-  /// defaults (11pm → 7am). Runs once per appearance.
-  private func loadSleep() {
-    guard !sleepLoaded else { return }
-    sleepLoaded = true
-    if let sleep = todaySleep {
-      bedTime = sleep.bedTime
-      wakeTime = sleep.wakeTime
-    } else {
-      let cal = Calendar.current
-      bedTime = cal.date(bySettingHour: 23, minute: 0, second: 0, of: Date()) ?? Date()
-      wakeTime = cal.date(bySettingHour: 7, minute: 0, second: 0, of: Date()) ?? Date()
-    }
-  }
-
-  private func saveSleep() {
-    if let sleep = todaySleep {
-      sleep.bedTime = bedTime
-      sleep.wakeTime = wakeTime
-      sleep.refreshQuality()
-    } else {
-      context.insert(SleepLog(date: today, bedTime: bedTime, wakeTime: wakeTime))
-    }
-    try? context.save()
-    Haptics.success()
   }
 
   private func toggleHabit(_ habit: Habit) {

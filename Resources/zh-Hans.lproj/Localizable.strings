@@ -299,3 +299,121 @@
 "Time of day" = "时段";
 "Timeline range" = "时间线范围";
 "Stats range" = "统计范围";
+
+/* v13 — round 2 feedback */
+"Level" = "等级";
+"Lifetime" = "累计";
+"With media" = "含媒体";
+"Clear" = "清除";
+"Show more days" = "显示更多天";
+"Clear cache" = "清除缓存";
+"Cache cleared" = "缓存已清除";
+"Free up space used by temporary files. Your notes, photos and backups are not affected." = "释放临时文件占用的空间。您的笔记、照片和备份不受影响。";
+
+/* v14 — round 3 feedback */
+"%d reviews · %d notes in %@ %d" = "%d 条回顾 · %d 条笔记 · %@ %d";
+"%d XP to level %d" = "还需 %d XP 升到 %d 级";
+"+%d this week" = "本周 +%d";
+"Try a different search or clear filters." = "换个搜索词或清除筛选。";
+"%d percent complete this year" = "今年完成 %d%%";
+"Mood by day over the year" = "全年每日心情";
+"Choose year" = "选择年份";
+
+/* Redesign v2 — Life OS Score & time filters */
+"XP earned" = "获得的经验值";
+"%d XP" = "%d XP";
+"Complete a daily review to start earning XP. It will chart here." = "完成每日复盘即可开始获得经验值，并在此处生成图表。";
+"XP earned. Total %d points, best %d." = "已获得经验值。共 %d 点，最高 %d。";
+"No sleep logged in this range." = "此时间范围内没有睡眠记录。";
+"Sleep duration over time" = "睡眠时长随时间变化";
+"Body" = "身体";
+"Mind" = "心智";
+"Focus" = "专注";
+"Money" = "财务";
+"Purpose" = "目标意义";
+"Consistency" = "持续性";
+"Sleep & habits" = "睡眠与习惯";
+"Mood & reflection" = "心情与复盘";
+"Intent & follow-through" = "意图与执行";
+"Financial goals & review" = "财务目标与评估";
+"Goals, identity & life areas" = "目标、身份与生活领域";
+"Streaks & active days" = "连续天数与活跃天数";
+"Log sleep or track a habit to grow this pillar." = "记录睡眠或追踪一个习惯来提升这一支柱。";
+"Log your mood and write reviews to grow this pillar." = "记录心情并撰写复盘来提升这一支柱。";
+"Set morning intentions and complete reviews to grow this pillar." = "设定早晨意图并完成复盘来提升这一支柱。";
+"Add a finance goal or rate your finances to grow this pillar." = "添加财务目标或为财务评分来提升这一支柱。";
+"Set goals, an identity, or review your life areas to grow this pillar." = "设定目标、身份或评估生活领域来提升这一支柱。";
+"Keep a daily streak going to grow this pillar." = "保持每日连续记录来提升这一支柱。";
+"Your life" = "你的人生";
+"Life OS Score" = "Life OS 分数";
+"Getting started" = "起步阶段";
+"Building" = "构建中";
+"Thriving" = "蓬勃发展";
+"Flourishing" = "繁荣";
+"Mastery" = "精通";
+"of 1000" = "/ 1000";
+"Life OS Score %d out of 1000, %@" = "Life OS 分数 %d，满分 1000，%@";
+"A snapshot of how well your life’s core systems are running. It rewards consistency, not perfection — small actions repeated beat rare bursts." = "你生活核心系统运行状况的快照。它奖励持续，而非完美——重复的小行动胜过偶尔的爆发。";
+"Pillars" = "支柱";
+"%@: %d of %d points" = "%@：%d / %d 点";
+
+/* Redesign v2 — Weekly Life Review (§8.2) */
+"Last week" = "上周";
+"Weekly Life Review" = "每周生活回顾";
+"Your week" = "你的一周";
+"This week at a glance" = "本周概览";
+"Active days" = "活跃天数";
+"Habit check-ins" = "习惯打卡";
+"Biggest win" = "最大亮点";
+"Needs attention" = "需要关注";
+"Pillars this week" = "本周支柱";
+"Life areas reviewed" = "已评估的生活领域";
+"No life areas reviewed this week." = "本周没有评估任何生活领域。";
+"Nothing logged for this week yet." = "本周还没有任何记录。";
+"Log a review, mood, sleep, or habit to see your week come together." = "记录一次复盘、心情、睡眠或习惯，看看你这一周的全貌。";
+"A note to your future self" = "给未来自己的一封信";
+"Dear future self," = "亲爱的未来的我，";
+"Small actions repeated beat rare bursts. Keep building — your future self is being shaped one week at a time." = "重复的小行动胜过偶尔的爆发。继续坚持——你未来的自己正一周一周地塑造成形。";
+"Previous week" = "上一周";
+"Next week" = "下一周";
+"Health" = "健康";
+"Work" = "工作";
+"Finance" = "财务";
+"Psychology" = "心理";
+"Relationships" = "人际关系";
+"%@ avg sleep · %d habit check-ins" = "平均睡眠 %@ · %d 次习惯打卡";
+"%@ avg sleep" = "平均睡眠 %@";
+"%d habit check-ins" = "%d 次习惯打卡";
+"Mood %@/5 · %d reflections" = "心情 %@/5 · %d 次复盘";
+"Mood %@/5" = "心情 %@/5";
+"%d reflections" = "%d 次复盘";
+"%d of %d reviews completed" = "完成了 %d/%d 次复盘";
+"Finances rated %d/10 this week" = "本周财务评分 %d/10";
+"%d finance goals in progress" = "%d 个财务目标进行中";
+"%d life areas reviewed" = "评估了 %d 个生活领域";
+"%d active goals" = "%d 个进行中的目标";
+"This week you showed up on %d of 7 days and logged %d reflections." = "这一周你在 7 天中出现了 %d 天，记录了 %d 次复盘。";
+"Your strongest area this week was %@." = "本周你最强的领域是 %@。";
+
+/* Restructure — Insights Manage hub, slim Today, Life areas home */
+"Last night · %@" = "昨晚 · %@";
+"%d active" = "%d 个进行中";
+"Tap to log last night's sleep" = "点按记录昨晚的睡眠";
+"Manage" = "管理";
+"Set a SMART goal to track progress" = "设定一个 SMART 目标来跟踪进度";
+"%d active, %d completed" = "%d 个进行中，%d 个已完成";
+"Log a night to see your rest patterns" = "记录一晚来查看你的休息规律";
+"%.1f hrs avg over %d nights" = "平均 %.1f 小时，共 %d 晚";
+"Add, edit & reorder your habits" = "添加、编辑和重新排序你的习惯";
+"Review & track health, work, and more" = "评估并跟踪健康、工作等";
+"Recent reviews" = "最近的评估";
+"Delete review" = "删除评估";
+"Add review" = "添加评估";
+
+/* Week picker + Identity/Manifesto on Today */
+"Jump to week" = "跳转到某周";
+"Choose a week" = "选择一周";
+"My manifesto" = "我的宣言";
+"Tap to read your manifesto" = "点按阅读你的宣言";
+"Define who you're becoming" = "定义你想成为的人";
+"Set your identity and write your manifesto" = "设定你的身份并写下你的宣言";

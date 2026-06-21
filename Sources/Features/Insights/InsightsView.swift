@@ -37,6 +37,9 @@ struct InsightsView: View {
   @State private var moodRange: ChartRange = .twoWeeks
   @State private var xpRange: ChartRange = .twoWeeks
 
+  /// Presents the habit manager sheet from the Manage hub (it owns a NavigationStack).
+  @State private var showHabitManager = false
+
   init() {}
 
   private let calendar = Calendar.current
@@ -99,12 +102,10 @@ struct InsightsView: View {
     ScrollView {
       VStack(spacing: DLSpace.lg) {
         aiInsightsCard
+        manageHubCard
+        reportsCard
         StreakCard()
         CompleteDayStreakCard()
-        goalsSummaryCard
-        sleepSummaryCard
-        lifeAreasCard
-        HabitStatsCard()
         growthScoreCard
         moodCalendarCard
         if !entries.isEmpty {
@@ -117,6 +118,84 @@ struct InsightsView: View {
       .padding(DLSpace.md)
     }
     .scrollDismissesKeyboard(.immediately)
+    .sheet(isPresented: $showHabitManager) { HabitManagerView() }
+  }
+
+  // MARK: Manage hub (restructure)
+  //
+  // The single command center for every tracked entity. Goals / Sleep / Life
+  // areas push their canonical homes; Habits opens its manager sheet (it owns a
+  // NavigationStack). Replaces the scattered goals/sleep/life-area summary cards
+  // and surfaces Habits management here now that the Me tab no longer hosts it.
+
+  private var manageHubCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: 0) {
+        Label(L("Manage"), systemImage: "square.grid.2x2")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(theme.accent)
+          .padding(.bottom, DLSpace.xs)
+
+        NavigationLink { GoalsView() } label: {
+          manageRowLabel(L("Goals"), subtitle: goalsManageSubtitle, systemImage: "target", tint: theme.accent)
+        }
+        .buttonStyle(ScaleButtonStyle(scale: 0.98))
+        Hairline()
+
+        Button { showHabitManager = true } label: {
+          manageRowLabel(L("Habits"), subtitle: L("Add, edit & reorder your habits"), systemImage: "checklist", tint: DLColor.success)
+        }
+        .buttonStyle(ScaleButtonStyle(scale: 0.98))
+        Hairline()
+
+        NavigationLink { SleepTrackerView() } label: {
+          manageRowLabel(L("Sleep"), subtitle: sleepManageSubtitle, systemImage: "bed.double.fill", tint: Color(hex: 0x5AC8FA))
+        }
+        .buttonStyle(ScaleButtonStyle(scale: 0.98))
+        Hairline()
+
+        NavigationLink { LifeAreaReportView() } label: {
+          manageRowLabel(L("Life areas"), subtitle: L("Review & track health, work, and more"), systemImage: "chart.xyaxis.line", tint: DLColor.warning)
+        }
+        .buttonStyle(ScaleButtonStyle(scale: 0.98))
+      }
+    }
+  }
+
+  private func manageRowLabel(_ title: String, subtitle: String, systemImage: String, tint: Color) -> some View {
+    HStack(spacing: DLSpace.md) {
+      ZStack {
+        Circle().fill(tint.opacity(0.18)).frame(width: 40, height: 40)
+        Image(systemName: systemImage)
+          .font(.system(size: 17, weight: .semibold))
+          .foregroundStyle(tint)
+      }
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+          .font(.dl(.body, weight: .semibold))
+          .foregroundStyle(DLColor.textPrimary)
+        Text(subtitle)
+          .font(.dl(.caption))
+          .foregroundStyle(DLColor.textSecondary)
+          .lineLimit(1)
+      }
+      Spacer(minLength: 0)
+      Image(systemName: "chevron.right")
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(DLColor.textTertiary)
+    }
+    .padding(.vertical, DLSpace.sm)
+    .contentShape(Rectangle())
+  }
+
+  private var goalsManageSubtitle: String {
+    goals.isEmpty ? L("Set a SMART goal to track progress")
+                  : Lf("%d active, %d completed", activeGoalsCount, completedGoalsCount)
+  }
+
+  private var sleepManageSubtitle: String {
+    sleeps.isEmpty ? L("Log a night to see your rest patterns")
+                   : Lf("%.1f hrs avg over %d nights", avgSleepHours, sleeps.count)
   }
 
   // MARK: 1 — AI Insights
@@ -178,6 +257,59 @@ struct InsightsView: View {
     case .suggestion: return DLColor.warning
     case .neutral: return theme.accent
     }
+  }
+
+  // MARK: 1b — Detailed reports (new editorial analytics views)
+
+  private var reportsCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: 0) {
+        Label(L("Detailed reports"), systemImage: "chart.bar.doc.horizontal")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(theme.accent)
+          .padding(.bottom, DLSpace.xs)
+        reportLink(emoji: "📋", L("Weekly Life Review")) { WeeklyLifeReviewView() }
+        Hairline()
+        reportLink(emoji: "🧭", L("Life OS Score")) { LifeOSScoreView() }
+        Hairline()
+        reportLink(emoji: "🙂", L("Mood analysis")) { MoodAnalysisView() }
+        Hairline()
+        reportLink(emoji: "🌙", L("Sleep analysis")) { SleepAnalysisView() }
+        Hairline()
+        reportLink(emoji: "✅", L("Habit analytics")) { HabitAnalyticsView() }
+        Hairline()
+        reportLink(emoji: "✍️", L("Writing stats")) { WritingStatsView() }
+        Hairline()
+        reportLink(emoji: "◈", L("Life areas")) { LifeAreaReportView() }
+        Hairline()
+        reportLink(emoji: "▦", L("Consistency")) { ConsistencyView() }
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func reportLink<Destination: View>(
+    emoji: String,
+    _ title: String,
+    @ViewBuilder destination: @escaping () -> Destination
+  ) -> some View {
+    NavigationLink {
+      destination()
+    } label: {
+      HStack(spacing: DLSpace.md) {
+        Text(emoji).font(.system(size: 20)).frame(width: 26)
+        Text(title)
+          .font(.dl(.body, weight: .medium))
+          .foregroundStyle(DLColor.textPrimary)
+        Spacer(minLength: 0)
+        Image(systemName: "chevron.right")
+          .font(.system(size: 13, weight: .semibold))
+          .foregroundStyle(DLColor.textTertiary)
+      }
+      .padding(.vertical, DLSpace.md)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(ScaleButtonStyle(scale: 0.98))
   }
 
   // MARK: 2 — Growth score
@@ -276,11 +408,11 @@ struct InsightsView: View {
             weekMoodStrip
               .accessibilityLabel(L("Mood this week"))
           case .month:
-            MoodHeatmap(entries: entries)
+            moodMonthGrid
               .accessibilityLabel(L("Mood calendar by day"))
           case .year:
-            yearMoodGrid
-              .accessibilityLabel(L("Average mood by month over the last year"))
+            moodYearHeatmap
+              .accessibilityLabel(L("Mood by day over the year"))
           }
         }
       }
@@ -376,25 +508,99 @@ struct InsightsView: View {
     return formatter.string(from: date)
   }
 
-  /// A 12-month mini grid: each cell is tinted by that month's average mood.
-  private var yearMoodGrid: some View {
-    let columns = Array(repeating: GridItem(.flexible(), spacing: DLSpace.sm), count: 4)
-    return LazyVGrid(columns: columns, spacing: DLSpace.sm) {
-      ForEach(yearMonths) { month in
-        VStack(spacing: 4) {
-          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-            .fill(month.color)
-            .frame(height: 34)
-            .overlay(
-              RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-                .strokeBorder(DLColor.separator.opacity(0.3), lineWidth: 0.5)
-            )
-          Text(month.label)
-            .font(.dl(.caption2, weight: .medium))
-            .foregroundStyle(DLColor.textSecondary)
+  /// Mood for each day this month, keyed by start-of-day (entries always carry a
+  /// mood). Shared by the month grid.
+  private var moodByDay: [Date: Int] {
+    var map: [Date: Int] = [:]
+    for entry in entries { map[calendar.startOfDay(for: entry.day)] = entry.moodRaw }
+    return map
+  }
+
+  /// The current month as a 7-column calendar grid (item 6) — same shape as the
+  /// Progress calendar — with each day cell filled by that day's mood color.
+  private var moodMonthGrid: some View {
+    var cal = calendar
+    cal.firstWeekday = 2 // Monday-first, matching CalendarMonthView.
+    let moods = moodByDay
+    let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: today)) ?? today
+    let range = cal.range(of: .day, in: .month, for: monthStart) ?? 1..<32
+    let firstWeekday = cal.component(.weekday, from: monthStart)
+    let leadingBlanks = (firstWeekday - cal.firstWeekday + 7) % 7
+
+    var slots: [Date?] = Array(repeating: nil, count: leadingBlanks)
+    for offset in 0..<range.count {
+      if let day = cal.date(byAdding: .day, value: offset, to: monthStart) {
+        slots.append(cal.startOfDay(for: day))
+      }
+    }
+
+    let weekdaySymbols = orderedVeryShortWeekdaySymbols(cal)
+    let columns = Array(repeating: GridItem(.flexible(), spacing: DLSpace.xs), count: 7)
+
+    return VStack(spacing: DLSpace.sm) {
+      LazyVGrid(columns: columns, spacing: 0) {
+        ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
+          Text(symbol)
+            .font(.dl(.caption2, weight: .semibold))
+            .foregroundStyle(DLColor.textTertiary)
+            .frame(maxWidth: .infinity)
+        }
+      }
+      LazyVGrid(columns: columns, spacing: DLSpace.xs) {
+        ForEach(Array(slots.enumerated()), id: \.offset) { _, day in
+          if let day {
+            moodMonthCell(day: day, mood: moods[day], isToday: cal.isDate(day, inSameDayAs: today), isFuture: day > today)
+          } else {
+            Color.clear.frame(height: 40)
+          }
         }
       }
     }
+  }
+
+  private func moodMonthCell(day: Date, mood: Int?, isToday: Bool, isFuture: Bool) -> some View {
+    let option = mood.flatMap { MoodCatalog.shared.option(forValue: $0) }
+    return VStack(spacing: 2) {
+      Text(day, format: .dateTime.day())
+        .font(.dl(.caption2, weight: isToday ? .bold : .regular))
+        .foregroundStyle(isToday ? theme.accent : DLColor.textSecondary)
+        .monospacedDigit()
+      RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+        .fill(isFuture ? DLColor.separator.opacity(0.15)
+                       : (option?.color ?? DLColor.separator.opacity(0.35)))
+        .frame(height: 26)
+        .overlay(
+          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
+            .strokeBorder(isToday ? theme.accent : DLColor.separator.opacity(0.3),
+                          lineWidth: isToday ? 2 : 0.5)
+        )
+        .overlay {
+          if let option, !isFuture {
+            Text(option.emoji).font(.system(size: 13))
+          }
+        }
+    }
+    .opacity(isFuture ? 0.5 : 1)
+  }
+
+  /// The current year as the shared GitHub-style heatmap (item 6) — same shape as
+  /// the Consistency "this year" view — with each day filled by its mood color.
+  private var moodYearHeatmap: some View {
+    let moods = moodByDay
+    return YearActivityHeatmap(year: calendar.component(.year, from: today), reduceMotion: reduceMotion) { day in
+      if let raw = moods[day], let option = MoodCatalog.shared.option(forValue: raw) {
+        return option.color
+      }
+      return DLColor.separator.opacity(0.35)
+    }
+  }
+
+  /// Very-short weekday symbols rotated to start at the calendar's `firstWeekday`.
+  private func orderedVeryShortWeekdaySymbols(_ cal: Calendar) -> [String] {
+    let symbols = cal.veryShortStandaloneWeekdaySymbols
+    let shift = cal.firstWeekday - 1
+    guard shift > 0, shift < symbols.count else { return symbols }
+    return Array(symbols[shift...] + symbols[..<shift])
   }
 
   // MARK: 4 — Existing charts
@@ -508,28 +714,6 @@ struct InsightsView: View {
     .accessibilityElement(children: .combine)
     .accessibilityLabel(sleepAccessibilityLabel)
     .accessibilityAddTraits(.isButton)
-  }
-
-  // MARK: Life areas (feature 21)
-
-  private var lifeAreasCard: some View {
-    NavigationLink {
-      LifeAreaInsightsView()
-    } label: {
-      GlassCard {
-        HStack {
-          Label(L("Life areas"), systemImage: "chart.xyaxis.line")
-            .font(.dl(.headline, weight: .semibold))
-            .foregroundStyle(theme.accent)
-          Spacer()
-          Image(systemName: "chevron.right")
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(DLColor.textTertiary)
-        }
-      }
-    }
-    .buttonStyle(ScaleButtonStyle(scale: 0.98))
-    .accessibilityLabel(L("Life areas. Opens your life-area reviews."))
   }
 
   // MARK: 6 — Goals summary
@@ -733,44 +917,4 @@ struct InsightsView: View {
     )
   }
 
-  // Year mood grid
-
-  private struct YearMonth: Identifiable {
-    let id: Int
-    let label: String
-    let color: Color
-  }
-
-  /// The last 12 months (oldest → newest), each colored by its average mood.
-  /// Months with no entries render as a faint placeholder.
-  private var yearMonths: [YearMonth] {
-    // Average mood per (year, month).
-    var sums: [DateComponents: (total: Int, count: Int)] = [:]
-    for entry in entries {
-      let comps = calendar.dateComponents([.year, .month], from: entry.day)
-      let cur = sums[comps] ?? (0, 0)
-      sums[comps] = (cur.total + entry.moodRaw, cur.count + 1)
-    }
-
-    let monthSymbols = calendar.shortMonthSymbols
-    var result: [YearMonth] = []
-    result.reserveCapacity(12)
-
-    for offset in (0..<12).reversed() {
-      guard let date = calendar.date(byAdding: .month, value: -offset, to: today) else { continue }
-      let comps = calendar.dateComponents([.year, .month], from: date)
-      let monthIndex = (comps.month ?? 1) - 1
-      let label = monthSymbols.indices.contains(monthIndex) ? monthSymbols[monthIndex] : ""
-
-      let color: Color
-      if let bucket = sums[comps], bucket.count > 0 {
-        let avg = Int((Double(bucket.total) / Double(bucket.count)).rounded())
-        color = MoodCatalog.shared.option(forValue: avg)?.color ?? DLColor.separator.opacity(0.3)
-      } else {
-        color = DLColor.separator.opacity(0.3)
-      }
-      result.append(YearMonth(id: offset, label: label, color: color))
-    }
-    return result
-  }
 }

@@ -73,9 +73,12 @@ private struct ProfileContent: View {
 
   var body: some View {
     ScrollView {
-      VStack(spacing: DLSpace.lg) {
+      VStack(alignment: .leading, spacing: DLSpace.lg) {
         levelHeaderSection
-        statsStrip
+        VStack(alignment: .leading, spacing: DLSpace.sm) {
+          SectionLabel(L("Lifetime"))
+          statsStrip
+        }
         badgeGallery
         navigationCards
         streakFreezeSummaryCard
@@ -103,47 +106,19 @@ private struct ProfileContent: View {
 
   // MARK: 2. Stats strip
 
+  /// Lifetime identity stats as an editorial ledger. Deliberately excludes
+  /// growth score (owned by Insights) and current/longest streak (owned by
+  /// Insights + History + the LevelHeader flame) to avoid cross-tab duplication.
   private var statsStrip: some View {
-    GlassCard {
-      HStack(spacing: 0) {
-        statCell(value: "\(progress.totalXP)", label: L("Total XP"), tint: DLColor.xpGold, icon: "bolt.fill")
-        statDivider
-        statCell(value: "\(progress.currentStreak)", label: L("Completion streak"), tint: DLColor.streakStart, icon: "flame.fill")
-        statDivider
-        statCell(value: "\(progress.longestStreak)", label: L("Longest"), tint: DLColor.streakEnd, icon: "trophy.fill")
-        statDivider
-        statCell(value: "\(Int(progress.growthScore))", label: L("Growth"), tint: DLColor.success, icon: "leaf.fill")
-      }
-    }
-  }
-
-  private func statCell(value: String, label: String, tint: Color, icon: String) -> some View {
-    VStack(spacing: DLSpace.xs) {
-      Image(systemName: icon)
-        .font(.system(size: 14, weight: .semibold))
-        .foregroundStyle(tint)
-      Text(value)
-        .font(.dl(.title2, weight: .bold))
-        .foregroundStyle(DLColor.textPrimary)
-        .monospacedDigit()
-        .contentTransition(.numericText())
-        .lineLimit(1)
-        .minimumScaleFactor(0.5)
-      Text(label)
-        .font(.dl(.caption2, weight: .medium))
-        .foregroundStyle(DLColor.textSecondary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
-    }
-    .frame(maxWidth: .infinity)
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel("\(label): \(value)")
-  }
-
-  private var statDivider: some View {
-    Rectangle()
-      .fill(DLColor.separator.opacity(0.6))
-      .frame(width: 1, height: 40)
+    let info = progress.levelInfo
+    return CompactStatRow(
+      tiles: [
+        StatTileData(value: "\(progress.totalXP)", label: L("Total XP"), tint: DLColor.xpGold),
+        StatTileData(value: "\(info.level)", label: L("Level"), tint: DLColor.accent),
+        StatTileData(value: "\(entries.count)", label: L("Reviews")),
+        StatTileData(value: "\(notes.filter { $0.deletedAt == nil }.count)", label: L("Notes")),
+      ]
+    )
   }
 
   // MARK: 3. Streak freeze (summary → full editor)
@@ -283,17 +258,8 @@ private struct ProfileContent: View {
       }
       .buttonStyle(ScaleButtonStyle())
 
-      NavigationLink {
-        LifeAreaInsightsView()
-      } label: {
-        navRow(
-          title: L("Life areas"),
-          subtitle: L("Review & track health, work, and more"),
-          systemImage: "chart.xyaxis.line",
-          tint: DLColor.success
-        )
-      }
-      .buttonStyle(ScaleButtonStyle())
+      // Life areas and Habits management moved to the Insights "Manage" hub
+      // (restructure): each tracked entity now has one canonical home.
 
       NavigationLink {
         CustomizationShopView(progress: progress)
@@ -303,18 +269,6 @@ private struct ProfileContent: View {
           subtitle: L("Themes & accent colors"),
           systemImage: "paintpalette.fill",
           tint: progress.accentColor
-        )
-      }
-      .buttonStyle(ScaleButtonStyle())
-
-      NavigationLink {
-        HabitManagerView()
-      } label: {
-        navRow(
-          title: L("Habits"),
-          subtitle: L("Add, edit & reorder your habits"),
-          systemImage: "checklist",
-          tint: DLColor.success
         )
       }
       .buttonStyle(ScaleButtonStyle())

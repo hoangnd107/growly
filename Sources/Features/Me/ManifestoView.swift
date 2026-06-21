@@ -145,3 +145,46 @@ struct ManifestoView: View {
     Haptics.light()
   }
 }
+
+/// A compact manifesto reminder card used at the top of Today, mirroring
+/// `IdentityReminderCard`. Tapping pushes the editor when wrapped in a
+/// `NavigationLink`.
+struct ManifestoReminderCard: View {
+  let manifesto: PersonalManifesto
+  let accent: Color
+
+  var body: some View {
+    GlassCard {
+      HStack(spacing: DLSpace.md) {
+        ZStack {
+          Circle().fill(accent.opacity(0.18)).frame(width: 44, height: 44)
+          Image(systemName: "doc.text.fill")
+            .font(.system(size: 18))
+            .foregroundStyle(accent)
+        }
+        VStack(alignment: .leading, spacing: 2) {
+          Text(L("My manifesto"))
+            .font(.dl(.caption, weight: .medium))
+            .foregroundStyle(DLColor.textSecondary)
+            .textCase(.uppercase)
+          Text(headline)
+            .font(.dl(.subheadline, weight: .semibold))
+            .foregroundStyle(DLColor.textPrimary)
+            .lineLimit(2)
+        }
+        Spacer(minLength: 0)
+      }
+    }
+  }
+
+  /// The manifesto title if set, otherwise its first non-empty line.
+  private var headline: String {
+    let title = manifesto.title.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !title.isEmpty { return title }
+    let firstLine = manifesto.body
+      .split(whereSeparator: \.isNewline)
+      .first
+      .map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+    return firstLine.isEmpty ? L("Tap to read your manifesto") : firstLine
+  }
+}

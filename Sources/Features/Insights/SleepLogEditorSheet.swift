@@ -16,7 +16,7 @@ struct SleepLogEditorSheet: View {
 
   /// Live duration/quality from the in-progress edits.
   private var previewHours: Double { SleepLog.hours(bedTime: sleep.bedTime, wakeTime: sleep.wakeTime) }
-  private var previewQuality: Int { SleepLog.quality(forHours: previewHours) }
+  private var previewQuality: Int { SleepLog.quality(forHours: previewHours, bedTime: sleep.bedTime) }
 
   var body: some View {
     NavigationStack {

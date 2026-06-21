@@ -121,6 +121,25 @@ struct NotesView: View {
     notes.filter { $0.deletedAt == nil }
   }
 
+  /// Tiles for the stats-forward header (item 8). The note count leads as a
+  /// full-width hero with a "+N this week" momentum cue; pinned / bookmarked /
+  /// with-media follow as a 2×2 ledger.
+  private var notesStatTiles: [StatTileData] {
+    let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+    let recent = activeNotes.filter { $0.createdAt >= weekAgo }.count
+    return [
+      StatTileData(
+        value: "\(activeNotes.count)",
+        label: L("Total notes"),
+        sublabel: recent > 0 ? Lf("+%d this week", recent) : nil,
+        tint: DLColor.accent
+      ),
+      StatTileData(value: "\(activeNotes.filter { $0.pinned }.count)", label: L("Pinned"), tint: DLColor.xpGold),
+      StatTileData(value: "\(activeNotes.filter { $0.bookmarked }.count)", label: L("Bookmarked")),
+      StatTileData(value: "\(activeNotes.filter { !$0.attachments.isEmpty }.count)", label: L("With media")),
+    ]
+  }
+
   /// Notes currently in the Trash.
   private var trashedNotes: [DayNote] {
     notes.filter { $0.deletedAt != nil }
@@ -404,6 +423,19 @@ struct NotesView: View {
 
   private var timeline: some View {
     List(selection: $selection) {
+      // Stats-forward header: at-a-glance counts for the note collection. Hidden
+      // during multi-select to keep the batch UI uncluttered. Word/writing stats
+      // deliberately live in Insights' WritingStatsView, not here, to avoid dupes.
+      if !selecting {
+        Section {
+          CompactStatRow(tiles: notesStatTiles)
+          .listRowInsets(EdgeInsets(top: DLSpace.md, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
+          .listRowBackground(Color.clear)
+          .listRowSeparator(.hidden)
+          .selectionDisabled()
+        }
+      }
+
       // Controls — never participate in selection.
       Section {
         VStack(spacing: DLSpace.sm) {

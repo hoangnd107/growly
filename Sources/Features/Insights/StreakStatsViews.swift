@@ -194,6 +194,50 @@ struct StatsCard: View {
   private var minYear: Int { years.min() ?? year }
   private var maxYear: Int { years.max() ?? year }
 
+  /// The tapped month's counts in Year view, used to scope the totals (item 3).
+  /// Nil in All-time view or when no month is selected → totals fall back to the
+  /// year / all-time aggregates.
+  private var selectedMonthCount: MonthCount? {
+    guard scope == .year, let selectedMonth else { return nil }
+    return summary.monthly.first { $0.label == selectedMonth }
+  }
+
+  private var totalReviewsValue: Int {
+    selectedMonthCount?.entries ?? (scope == .year ? summary.yearEntries : summary.totalEntries)
+  }
+  private var totalNotesValue: Int {
+    selectedMonthCount?.notes ?? (scope == .year ? summary.yearNotes : summary.totalNotes)
+  }
+  private var totalWordsValue: Int {
+    selectedMonthCount?.words ?? (scope == .year ? summary.yearNoteWords : summary.totalNoteWords)
+  }
+
+  /// Caption under the totals: the tapped month, the whole year, or all-time.
+  private var statsFooter: String {
+    if let mc = selectedMonthCount {
+      return Lf("%d reviews · %d notes in %@ %d", mc.entries, mc.notes, mc.label, year)
+    }
+    return scope == .year
+      ? Lf("%d reviews · %d notes in %d", summary.yearEntries, summary.yearNotes, year)
+      : Lf("%d reviews · %d notes all-time", summary.totalEntries, summary.totalNotes)
+  }
+
+  /// Direct year selection from the Stats year menu (item 2, round 3), keeping the
+  /// month-detail in sync exactly like stepping the chevrons does.
+  private var yearPickerBinding: Binding<Int> {
+    Binding(
+      get: { year },
+      set: { newYear in
+        guard newYear != year, years.contains(newYear) else { return }
+        withAnimation(animate ? DLAnim.standard : nil) {
+          year = newYear
+          selectedMonth = defaultMonthLabel(for: newYear)
+        }
+        Haptics.selection()
+      }
+    )
+  }
+
   var body: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
@@ -231,16 +275,14 @@ struct StatsCard: View {
         }
 
         HStack(spacing: 0) {
-          totalMetric(value: summary.totalEntries, label: L("Total reviews"), tint: theme.accent)
+          totalMetric(value: totalReviewsValue, label: L("Total reviews"), tint: theme.accent)
           divider
-          totalMetric(value: summary.totalNotes, label: L("Total notes"), tint: DLColor.xpGold)
+          totalMetric(value: totalNotesValue, label: L("Total notes"), tint: DLColor.xpGold)
           divider
-          totalMetric(value: summary.totalNoteWords, label: L("Words in notes"), tint: DLColor.success)
+          totalMetric(value: totalWordsValue, label: L("Words in notes"), tint: DLColor.success)
         }
 
-        Text(scope == .year
-             ? Lf("%d reviews · %d notes in %d", summary.yearEntries, summary.yearNotes, year)
-             : Lf("%d reviews · %d notes all-time", summary.totalEntries, summary.totalNotes))
+        Text(statsFooter)
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
           .monospacedDigit()
@@ -278,11 +320,26 @@ struct StatsCard: View {
         if scope == .year {
           HStack(spacing: DLSpace.sm) {
             yearButton(systemName: "chevron.left", enabled: year > minYear) { stepYear(-1) }
-            Text(verbatim: String(year))
-              .font(.dl(.subheadline, weight: .bold))
-              .foregroundStyle(DLColor.textPrimary)
-              .monospacedDigit()
+            Menu {
+              Picker(L("Year"), selection: yearPickerBinding) {
+                ForEach(years, id: \.self) { y in
+                  Text(verbatim: String(y)).tag(y)
+                }
+              }
+            } label: {
+              HStack(spacing: 3) {
+                Text(verbatim: String(year))
+                  .font(.dl(.subheadline, weight: .bold))
+                  .foregroundStyle(DLColor.textPrimary)
+                  .monospacedDigit()
+                  .contentTransition(.numericText())
+                Image(systemName: "chevron.up.chevron.down")
+                  .font(.system(size: 9, weight: .bold))
+                  .foregroundStyle(theme.accent)
+              }
               .frame(minWidth: 44)
+            }
+            .accessibilityLabel(L("Choose year"))
             yearButton(systemName: "chevron.right", enabled: year < maxYear) { stepYear(1) }
           }
           .transition(.opacity)
@@ -459,22 +516,10 @@ struct StatsCard: View {
 
   private func monthDetailPanel(_ d: MonthDetailData) -> some View {
     VStack(alignment: .leading, spacing: DLSpace.md) {
-      HStack {
-        Text(Lf("%@ %d", d.label, year))
-          .font(.dl(.subheadline, weight: .bold))
-          .foregroundStyle(DLColor.textPrimary)
-        Spacer()
-        Button {
-          withAnimation(animate ? DLAnim.standard : nil) { selectedMonth = nil }
-          Haptics.light()
-        } label: {
-          Image(systemName: "xmark.circle.fill")
-            .font(.system(size: 18))
-            .foregroundStyle(DLColor.textTertiary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(L("Close"))
-      }
+      Text(Lf("%@ %d", d.label, year))
+        .font(.dl(.subheadline, weight: .bold))
+        .foregroundStyle(DLColor.textPrimary)
+        .frame(maxWidth: .infinity, alignment: .leading)
 
       detailRow(icon: "flame.fill", tint: DLColor.streakStart,
                 text: Lf("Longest streaks · %d-day notes, %d-day complete", d.noteLongest, d.completeLongest))

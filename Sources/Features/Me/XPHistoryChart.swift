@@ -2,48 +2,65 @@ import SwiftUI
 import SwiftData
 import Charts
 
-/// A 30-day bar chart of XP earned per day, sourced from `XPTransaction`.
+/// A bar chart of XP earned over a selectable time range, sourced from
+/// `XPTransaction`. Buckets by day for short ranges and by week/month for longer
+/// ones so the chart stays readable (redesign v2: every stats view filters by
+/// time, using the shared `StatsRange` + `SlidingSegmentedControl`).
 struct XPHistoryChart: View {
-  /// All XP transactions, newest first. The view buckets them by day itself.
+  /// All XP transactions, newest first. The view buckets them itself.
   let transactions: [XPTransaction]
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-  /// Tap-selected day on the x-axis (bound to `.chartXSelection`).
+  @State private var range: StatsRange = .month
+  /// Tap-selected bucket on the x-axis (bound to `.chartXSelection`).
   @State private var selectedDate: Date?
 
-  private let dayCount = 30
+  private let calendar = Calendar.current
 
-  /// One bucket per day for the last `dayCount` days (oldest -> newest),
-  /// each holding the summed XP for that day (0 when nothing was earned).
-  private var dailyXP: [DayXP] {
-    let calendar = Calendar.current
-    let today = calendar.startOfDay(for: Date())
+  private func dayStart(_ date: Date) -> Date { calendar.startOfDay(for: date) }
 
-    // Pre-sum transactions by day to avoid an O(days * transactions) scan.
+  /// Contiguous daily buckets (oldest → newest) with summed XP, zero-filled.
+  /// Daily granularity keeps the Charts `unit:` a literal `.day`; longer ranges
+  /// simply render as a denser run of thin bars.
+  private var bars: [DayXP] {
+    let now = Date()
+    let today = dayStart(now)
+
+    // Window start: the range start, or the earliest transaction for "all".
+    let start: Date
+    if let rangeStart = range.startDate(now: now, calendar: calendar) {
+      start = dayStart(rangeStart)
+    } else if let earliest = transactions.map(\.date).min() {
+      start = dayStart(earliest)
+    } else {
+      start = today
+    }
+
     var totals: [Date: Int] = [:]
-    for tx in transactions {
-      let day = calendar.startOfDay(for: tx.date)
-      totals[day, default: 0] += tx.amount
+    for tx in transactions where tx.date >= start {
+      totals[dayStart(tx.date), default: 0] += tx.amount
     }
 
-    return (0..<dayCount).reversed().compactMap { offset in
-      guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
-      return DayXP(day: day, xp: totals[day] ?? 0)
+    var out: [DayXP] = []
+    var cursor = start
+    var safety = 0
+    while cursor <= today && safety < 1500 {
+      out.append(DayXP(day: cursor, xp: totals[cursor] ?? 0))
+      guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+      cursor = next
+      safety += 1
     }
+    return out
   }
 
-  private var totalXP: Int { dailyXP.reduce(0) { $0 + $1.xp } }
-  private var bestDay: Int { dailyXP.map(\.xp).max() ?? 0 }
+  private var totalXP: Int { bars.reduce(0) { $0 + $1.xp } }
+  private var bestDay: Int { bars.map(\.xp).max() ?? 0 }
 
-  /// The day bucket closest to the current selection, if any.
-  private var selectedDay: DayXP? {
+  /// The bucket closest to the current selection, if any.
+  private var selectedBar: DayXP? {
     guard let selectedDate else { return nil }
-    let calendar = Calendar.current
-    if let exact = dailyXP.first(where: { calendar.isDate($0.day, inSameDayAs: selectedDate) }) {
-      return exact
-    }
-    return dailyXP.min {
+    return bars.min {
       abs($0.day.timeIntervalSince(selectedDate)) < abs($1.day.timeIntervalSince(selectedDate))
     }
   }
@@ -52,18 +69,26 @@ struct XPHistoryChart: View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
         HStack {
-          Label("XP · last 30 days", systemImage: "chart.bar.fill")
+          Label(L("XP earned"), systemImage: "chart.bar.fill")
             .font(.dl(.headline, weight: .semibold))
             .foregroundStyle(DLColor.xpGold)
           Spacer()
-          Text("\(totalXP) XP")
+          Text(Lf("%d XP", totalXP))
             .font(.dl(.subheadline, weight: .bold))
             .foregroundStyle(DLColor.textSecondary)
             .monospacedDigit()
+            .contentTransition(.numericText())
         }
 
+        SlidingSegmentedControl(
+          items: StatsRange.allCases,
+          label: { $0.label },
+          selection: $range,
+          accent: DLColor.xpGold
+        )
+
         if totalXP == 0 {
-          Text("Complete a daily review to start earning XP. Your last 30 days will chart here.")
+          Text(L("Complete a daily review to start earning XP. It will chart here."))
             .font(.dl(.subheadline))
             .foregroundStyle(DLColor.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -74,15 +99,16 @@ struct XPHistoryChart: View {
         }
       }
     }
+    .animation(reduceMotion ? nil : DLAnim.standard, value: range)
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("XP earned over the last 30 days. Total \(totalXP) experience points, best day \(bestDay).")
+    .accessibilityLabel(Lf("XP earned. Total %d points, best %d.", totalXP, bestDay))
   }
 
   private var chart: some View {
     Chart {
-      ForEach(dailyXP) { item in
+      ForEach(bars) { item in
         BarMark(
-          x: .value("Day", item.day, unit: .day),
+          x: .value("Date", item.day, unit: .day),
           y: .value("XP", item.xp)
         )
         .foregroundStyle(
@@ -96,8 +122,8 @@ struct XPHistoryChart: View {
       }
 
       // Tapped marker: a vertical rule plus an annotation bubble with the XP.
-      if let selected = selectedDay {
-        RuleMark(x: .value("Day", selected.day, unit: .day))
+      if let selected = selectedBar {
+        RuleMark(x: .value("Date", selected.day, unit: .day))
           .foregroundStyle(DLColor.textTertiary.opacity(0.5))
           .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
           .annotation(
@@ -109,7 +135,7 @@ struct XPHistoryChart: View {
               Text(selected.day, format: .dateTime.month(.abbreviated).day())
                 .font(.dl(.caption2))
                 .foregroundStyle(DLColor.textSecondary)
-              Text("\(selected.xp) XP")
+              Text(Lf("%d XP", selected.xp))
                 .font(.dl(.caption, weight: .semibold))
                 .foregroundStyle(DLColor.xpGold)
                 .monospacedDigit()
@@ -143,19 +169,19 @@ struct XPHistoryChart: View {
       }
     }
     .chartXAxis {
-      AxisMarks(values: .stride(by: .day, count: 7)) { value in
+      AxisMarks(values: .automatic(desiredCount: 5)) { _ in
         AxisGridLine().foregroundStyle(DLColor.separator.opacity(0.3))
         AxisValueLabel(format: .dateTime.day().month(.abbreviated))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
       }
     }
-    .animation(reduceMotion ? nil : DLAnim.standard, value: dailyXP)
+    .animation(reduceMotion ? nil : DLAnim.standard, value: bars)
     .animation(reduceMotion ? nil : DLAnim.quick, value: selectedDate)
   }
 }
 
-/// A single day's XP total, plotted as one bar.
+/// A single bucket's XP total, plotted as one bar.
 private struct DayXP: Identifiable, Equatable {
   let day: Date
   let xp: Int

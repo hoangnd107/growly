@@ -25,24 +25,81 @@ private struct PressableModifier: ViewModifier {
   }
 }
 
-// MARK: - Glassmorphism surface
+// MARK: - Glass surface system
 
+/// Depth levels for the app's unified glass surface system (redesign v2).
+/// Every card-like surface in the app routes through `.glass(level:)` so depth,
+/// material, edge highlight, and shadow stay consistent everywhere.
+enum GlassLevel {
+  /// Default card — `ultraThinMaterial`, soft layered shadow.
+  case standard
+  /// Hero / CTA / celebration — heavier material, deeper shadow, brighter edge.
+  case raised
+  /// A row or panel nested inside another card — faint material, no shadow.
+  case inset
+}
+
+/// A premium frosted-glass surface: a translucent material fill, a top-lit edge
+/// that fades into a hairline border, and a soft two-layer shadow for real
+/// depth. Falls back to an opaque paper surface when Reduce Transparency is on.
 private struct GlassModifier: ViewModifier {
   var cornerRadius: CGFloat
+  var level: GlassLevel
+  @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+  @Environment(\.colorScheme) private var scheme
+
   func body(content: Content) -> some View {
-    content
-      .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-      .overlay(
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-          .strokeBorder(
-            LinearGradient(
-              colors: [.white.opacity(0.18), .white.opacity(0.04)],
-              startPoint: .topLeading, endPoint: .bottomTrailing
-            ),
-            lineWidth: 1
-          )
-      )
-      .shadow(color: .black.opacity(0.12), radius: 14, x: 0, y: 8)
+    let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    return content
+      .background(fill, in: shape)
+      .overlay {
+        // Single edge stroke: a light sheen at the top fading to the hairline
+        // separator at the bottom — reads as glass and defines the card on the
+        // near-flat paper backdrop.
+        shape.strokeBorder(
+          LinearGradient(
+            colors: [
+              Color.white.opacity(scheme == .dark ? 0.22 : 0.55),
+              DLColor.separator.opacity(scheme == .dark ? 0.45 : 0.9),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+          ),
+          lineWidth: 1
+        )
+      }
+      .compositingGroup()
+      .shadow(color: .black.opacity(ambient.opacity), radius: ambient.radius, x: 0, y: ambient.y)
+      .shadow(color: .black.opacity(key.opacity), radius: key.radius, x: 0, y: key.y)
+  }
+
+  private var fill: AnyShapeStyle {
+    if reduceTransparency {
+      return AnyShapeStyle(level == .inset ? DLColor.surfaceElevated : DLColor.surface)
+    }
+    switch level {
+    case .standard: return AnyShapeStyle(.ultraThinMaterial)
+    case .raised: return AnyShapeStyle(.regularMaterial)
+    case .inset: return AnyShapeStyle(.thinMaterial)
+    }
+  }
+
+  /// Wide, soft ambient shadow.
+  private var ambient: (opacity: Double, radius: CGFloat, y: CGFloat) {
+    switch level {
+    case .standard: return (scheme == .dark ? 0.30 : 0.07, 16, 8)
+    case .raised: return (scheme == .dark ? 0.42 : 0.11, 26, 12)
+    case .inset: return (0, 0, 0)
+    }
+  }
+
+  /// Tight contact shadow that grounds the card.
+  private var key: (opacity: Double, radius: CGFloat, y: CGFloat) {
+    switch level {
+    case .standard: return (scheme == .dark ? 0.22 : 0.05, 4, 2)
+    case .raised: return (scheme == .dark ? 0.30 : 0.07, 6, 3)
+    case .inset: return (0, 0, 0)
+    }
   }
 }
 
@@ -52,9 +109,11 @@ extension View {
     modifier(PressableModifier(scale: scale, haptic: haptic))
   }
 
-  /// Wraps the view in a glassmorphism surface (blur + soft border + shadow).
-  func glass(cornerRadius: CGFloat = DLRadius.card) -> some View {
-    modifier(GlassModifier(cornerRadius: cornerRadius))
+  /// Wraps the view in the app's frosted-glass surface (material + edge highlight
+  /// + layered shadow). Pass `level: .raised` for hero/CTA surfaces and
+  /// `level: .inset` for panels nested inside another glass card.
+  func glass(cornerRadius: CGFloat = DLRadius.card, level: GlassLevel = .standard) -> some View {
+    modifier(GlassModifier(cornerRadius: cornerRadius, level: level))
   }
 }
 

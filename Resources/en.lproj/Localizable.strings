@@ -299,3 +299,121 @@
 "Time of day" = "Time of day";
 "Timeline range" = "Timeline range";
 "Stats range" = "Stats range";
+
+/* v13 — round 2 feedback */
+"Level" = "Level";
+"Lifetime" = "Lifetime";
+"With media" = "With media";
+"Clear" = "Clear";
+"Show more days" = "Show more days";
+"Clear cache" = "Clear cache";
+"Cache cleared" = "Cache cleared";
+"Free up space used by temporary files. Your notes, photos and backups are not affected." = "Free up space used by temporary files. Your notes, photos and backups are not affected.";
+
+/* v14 — round 3 feedback */
+"%d reviews · %d notes in %@ %d" = "%d reviews · %d notes in %@ %d";
+"%d XP to level %d" = "%d XP to level %d";
+"+%d this week" = "+%d this week";
+"Try a different search or clear filters." = "Try a different search or clear filters.";
+"%d percent complete this year" = "%d percent complete this year";
+"Mood by day over the year" = "Mood by day over the year";
+"Choose year" = "Choose year";
+
+/* Redesign v2 — Life OS Score & time filters */
+"XP earned" = "XP earned";
+"%d XP" = "%d XP";
+"Complete a daily review to start earning XP. It will chart here." = "Complete a daily review to start earning XP. It will chart here.";
+"XP earned. Total %d points, best %d." = "XP earned. Total %d points, best %d.";
+"No sleep logged in this range." = "No sleep logged in this range.";
+"Sleep duration over time" = "Sleep duration over time";
+"Body" = "Body";
+"Mind" = "Mind";
+"Focus" = "Focus";
+"Money" = "Money";
+"Purpose" = "Purpose";
+"Consistency" = "Consistency";
+"Sleep & habits" = "Sleep & habits";
+"Mood & reflection" = "Mood & reflection";
+"Intent & follow-through" = "Intent & follow-through";
+"Financial goals & review" = "Financial goals & review";
+"Goals, identity & life areas" = "Goals, identity & life areas";
+"Streaks & active days" = "Streaks & active days";
+"Log sleep or track a habit to grow this pillar." = "Log sleep or track a habit to grow this pillar.";
+"Log your mood and write reviews to grow this pillar." = "Log your mood and write reviews to grow this pillar.";
+"Set morning intentions and complete reviews to grow this pillar." = "Set morning intentions and complete reviews to grow this pillar.";
+"Add a finance goal or rate your finances to grow this pillar." = "Add a finance goal or rate your finances to grow this pillar.";
+"Set goals, an identity, or review your life areas to grow this pillar." = "Set goals, an identity, or review your life areas to grow this pillar.";
+"Keep a daily streak going to grow this pillar." = "Keep a daily streak going to grow this pillar.";
+"Your life" = "Your life";
+"Life OS Score" = "Life OS Score";
+"Getting started" = "Getting started";
+"Building" = "Building";
+"Thriving" = "Thriving";
+"Flourishing" = "Flourishing";
+"Mastery" = "Mastery";
+"of 1000" = "of 1000";
+"Life OS Score %d out of 1000, %@" = "Life OS Score %d out of 1000, %@";
+"A snapshot of how well your life’s core systems are running. It rewards consistency, not perfection — small actions repeated beat rare bursts." = "A snapshot of how well your life’s core systems are running. It rewards consistency, not perfection — small actions repeated beat rare bursts.";
+"Pillars" = "Pillars";
+"%@: %d of %d points" = "%@: %d of %d points";
+
+/* Redesign v2 — Weekly Life Review (§8.2) */
+"Last week" = "Last week";
+"Weekly Life Review" = "Weekly Life Review";
+"Your week" = "Your week";
+"This week at a glance" = "This week at a glance";
+"Active days" = "Active days";
+"Habit check-ins" = "Habit check-ins";
+"Biggest win" = "Biggest win";
+"Needs attention" = "Needs attention";
+"Pillars this week" = "Pillars this week";
+"Life areas reviewed" = "Life areas reviewed";
+"No life areas reviewed this week." = "No life areas reviewed this week.";
+"Nothing logged for this week yet." = "Nothing logged for this week yet.";
+"Log a review, mood, sleep, or habit to see your week come together." = "Log a review, mood, sleep, or habit to see your week come together.";
+"A note to your future self" = "A note to your future self";
+"Dear future self," = "Dear future self,";
+"Small actions repeated beat rare bursts. Keep building — your future self is being shaped one week at a time." = "Small actions repeated beat rare bursts. Keep building — your future self is being shaped one week at a time.";
+"Previous week" = "Previous week";
+"Next week" = "Next week";
+"Health" = "Health";
+"Work" = "Work";
+"Finance" = "Finance";
+"Psychology" = "Psychology";
+"Relationships" = "Relationships";
+"%@ avg sleep · %d habit check-ins" = "%@ avg sleep · %d habit check-ins";
+"%@ avg sleep" = "%@ avg sleep";
+"%d habit check-ins" = "%d habit check-ins";
+"Mood %@/5 · %d reflections" = "Mood %@/5 · %d reflections";
+"Mood %@/5" = "Mood %@/5";
+"%d reflections" = "%d reflections";
+"%d of %d reviews completed" = "%d of %d reviews completed";
+"Finances rated %d/10 this week" = "Finances rated %d/10 this week";
+"%d finance goals in progress" = "%d finance goals in progress";
+"%d life areas reviewed" = "%d life areas reviewed";
+"%d active goals" = "%d active goals";
+"This week you showed up on %d of 7 days and logged %d reflections." = "This week you showed up on %d of 7 days and logged %d reflections.";
+"Your strongest area this week was %@." = "Your strongest area this week was %@.";
+
+/* Restructure — Insights Manage hub, slim Today, Life areas home */
+"Last night · %@" = "Last night · %@";
+"%d active" = "%d active";
+"Tap to log last night's sleep" = "Tap to log last night's sleep";
+"Manage" = "Manage";
+"Set a SMART goal to track progress" = "Set a SMART goal to track progress";
+"%d active, %d completed" = "%d active, %d completed";
+"Log a night to see your rest patterns" = "Log a night to see your rest patterns";
+"%.1f hrs avg over %d nights" = "%.1f hrs avg over %d nights";
+"Add, edit & reorder your habits" = "Add, edit & reorder your habits";
+"Review & track health, work, and more" = "Review & track health, work, and more";
+"Recent reviews" = "Recent reviews";
+"Delete review" = "Delete review";
+"Add review" = "Add review";
+
+/* Week picker + Identity/Manifesto on Today */
+"Jump to week" = "Jump to week";
+"Choose a week" = "Choose a week";
+"My manifesto" = "My manifesto";
+"Tap to read your manifesto" = "Tap to read your manifesto";
+"Define who you're becoming" = "Define who you're becoming";
+"Set your identity and write your manifesto" = "Set your identity and write your manifesto";

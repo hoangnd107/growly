@@ -11,7 +11,6 @@ struct HistoryView: View {
   @Query private var progressList: [UserProgress]
 
   @State private var query = ""
-  @State private var moodFilter: Int?
   @State private var tagFilter: String?
   @State private var visibleMonth = Calendar.current.startOfDay(for: Date())
   @State private var selectedDay: DaySelection?
@@ -19,6 +18,10 @@ struct HistoryView: View {
   @State private var historyMode: HistoryMode = .calendar
   /// A4: the per-day mood list under the calendar — month-scoped vs. all history.
   @State private var moodListAllMonths = false
+  /// A4: collapse the daily-mood list; in all-time mode page it 30 days at a time.
+  @State private var moodListExpanded = true
+  @State private var moodListVisibleCount = 30
+  private let moodListPageSize = 30
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -68,23 +71,21 @@ struct HistoryView: View {
     return map
   }
 
-  /// Whether a note passes the active mood + tag filters (for calendar dots).
+  /// Whether a note passes the active tag filter (for calendar dots).
   private func notePassesFilters(_ note: DayNote) -> Bool {
-    if let moodFilter, note.moodRaw != moodFilter { return false }
     if let tagFilter, !note.tags.contains(tagFilter) { return false }
     return true
   }
 
-  /// Whether an entry passes the active mood + tag filters (used by both the
-  /// calendar dots and the list).
+  /// Whether an entry passes the active tag filter (used by both the calendar
+  /// dots and the list).
   private func passesFilters(_ entry: Entry) -> Bool {
-    if let moodFilter, entry.moodRaw != moodFilter { return false }
     if let tagFilter, !entry.tags.contains(tagFilter) { return false }
     return true
   }
 
   private var isFiltering: Bool {
-    moodFilter != nil || tagFilter != nil || !query.isEmpty
+    tagFilter != nil || !query.isEmpty
   }
 
   /// Distinct, sorted tags across all entries (for the tag filter menu).
@@ -212,7 +213,6 @@ struct HistoryView: View {
         }
       }
       .padding(DLSpace.md)
-      .animation(reduceMotion ? nil : DLAnim.smooth, value: moodFilter)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: tagFilter)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: query)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: historyMode)
@@ -236,34 +236,23 @@ struct HistoryView: View {
 
     moodDayListCard
 
-    moodFilterChips
-
-    if filtered.isEmpty {
-      if isFiltering {
+    // The reflection list only appears while searching / filtering, so the
+    // default Progress view stays just calendar + daily moods (item 1, round 3).
+    if isFiltering {
+      if filtered.isEmpty {
         noMatchesState
       } else {
-        calendarHint
-      }
-    } else {
-      ForEach(filtered) { entry in
-        Button {
-          open(day: entry.day)
-        } label: {
-          row(entry)
+        ForEach(filtered) { entry in
+          Button {
+            open(day: entry.day)
+          } label: {
+            row(entry)
+          }
+          .buttonStyle(.plain)
+          .bounceTap()
         }
-        .buttonStyle(.plain)
-        .bounceTap()
       }
     }
-  }
-
-  private var calendarHint: some View {
-    Text(L("Tap a highlighted day to see its details."))
-      .font(.dl(.caption))
-      .foregroundStyle(DLColor.textTertiary)
-      .multilineTextAlignment(.center)
-      .frame(maxWidth: .infinity)
-      .padding(.top, DLSpace.lg)
   }
 
   private var noMatchesState: some View {
@@ -271,12 +260,11 @@ struct HistoryView: View {
       Label(L("No matches"), systemImage: "magnifyingglass")
         .font(.dl(.headline, weight: .semibold))
     } description: {
-      Text(L("Try a different search or clear the mood filter."))
+      Text(L("Try a different search or clear filters."))
     } actions: {
       if isFiltering {
         Button(L("Clear filters")) {
           withAnimation(reduceMotion ? nil : DLAnim.standard) {
-            moodFilter = nil
             tagFilter = nil
             query = ""
           }
@@ -506,16 +494,39 @@ struct HistoryView: View {
     }
   }
 
+  /// Rows actually rendered: in all-time mode, capped to `moodListVisibleCount`
+  /// (a load-more window — the 30 most recent first); a month always shows whole.
+  private var visibleMoodDayRows: [MoodDayRow] {
+    moodListAllMonths ? Array(moodDayRows.prefix(moodListVisibleCount)) : moodDayRows
+  }
+
   private var moodDayListCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        HStack {
-          Label(L("Daily moods"), systemImage: "face.smiling")
-            .font(.dl(.headline, weight: .semibold))
-            .foregroundStyle(theme.accent)
+        HStack(spacing: DLSpace.sm) {
+          Button {
+            withAnimation(reduceMotion ? nil : DLAnim.standard) { moodListExpanded.toggle() }
+            Haptics.selection()
+          } label: {
+            HStack(spacing: DLSpace.sm) {
+              Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(DLColor.textTertiary)
+                .rotationEffect(.degrees(moodListExpanded ? 90 : 0))
+              Label(L("Daily moods"), systemImage: "face.smiling")
+                .font(.dl(.headline, weight: .semibold))
+                .foregroundStyle(theme.accent)
+            }
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+          .accessibilityHint(moodListExpanded ? L("Expanded. Tap to collapse.") : L("Collapsed. Tap to expand."))
           Spacer()
           Button {
-            withAnimation(reduceMotion ? nil : DLAnim.standard) { moodListAllMonths.toggle() }
+            withAnimation(reduceMotion ? nil : DLAnim.standard) {
+              moodListAllMonths.toggle()
+              moodListVisibleCount = moodListPageSize
+            }
             Haptics.selection()
           } label: {
             Text(moodListAllMonths ? L("All time") : L("This month"))
@@ -529,21 +540,40 @@ struct HistoryView: View {
           .accessibilityLabel(moodListAllMonths ? L("Showing all history. Tap to show this month.") : L("Showing this month. Tap to show all history."))
         }
 
-        if moodDayRows.isEmpty {
-          Text(L("No moods logged for this period yet."))
-            .font(.dl(.caption))
-            .foregroundStyle(DLColor.textTertiary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, DLSpace.xs)
-        } else {
-          ForEach(moodDayRows) { row in
-            Button { open(day: row.day) } label: { moodDayRowView(row) }
+        if moodListExpanded {
+          if moodDayRows.isEmpty {
+            Text(L("No moods logged for this period yet."))
+              .font(.dl(.caption))
+              .foregroundStyle(DLColor.textTertiary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.vertical, DLSpace.xs)
+          } else {
+            ForEach(visibleMoodDayRows) { row in
+              Button { open(day: row.day) } label: { moodDayRowView(row) }
+                .buttonStyle(.plain)
+            }
+            if moodListAllMonths, moodDayRows.count > visibleMoodDayRows.count {
+              Button {
+                withAnimation(reduceMotion ? nil : DLAnim.standard) {
+                  moodListVisibleCount += moodListPageSize
+                }
+                Haptics.selection()
+              } label: {
+                Text(L("Show more days"))
+                  .font(.dl(.caption, weight: .semibold))
+                  .foregroundStyle(theme.accent)
+                  .frame(maxWidth: .infinity)
+                  .padding(.vertical, DLSpace.sm)
+                  .contentShape(Rectangle())
+              }
               .buttonStyle(.plain)
+            }
           }
         }
       }
     }
     .animation(reduceMotion ? nil : DLAnim.standard, value: moodListAllMonths)
+    .animation(reduceMotion ? nil : DLAnim.standard, value: moodListExpanded)
   }
 
   private func moodDayRowView(_ row: MoodDayRow) -> some View {
@@ -578,53 +608,6 @@ struct HistoryView: View {
     .padding(.vertical, 4)
     .contentShape(Rectangle())
     .accessibilityElement(children: .combine)
-  }
-
-  // MARK: - Mood filter chips
-
-  private var moodFilterChips: some View {
-    ScrollView(.horizontal, showsIndicators: false) {
-      HStack(spacing: DLSpace.sm) {
-        chip(label: L("All"), emoji: nil, color: theme.accent, isSelected: moodFilter == nil) {
-          moodFilter = nil
-        }
-        ForEach(MoodCatalog.shared.options) { mood in
-          chip(label: mood.displayName, emoji: mood.emoji, color: mood.color, isSelected: moodFilter == mood.value) {
-            moodFilter = (moodFilter == mood.value) ? nil : mood.value
-          }
-        }
-      }
-      .padding(.horizontal, 2)
-      .padding(.vertical, 2)
-    }
-    // Keep the chip strip inside the card (no scrollClipDisabled) so it never
-    // bleeds past the screen, while staying horizontally scrollable (item 1).
-  }
-
-  private func chip(label: String, emoji: String?, color: Color, isSelected: Bool, action: @escaping () -> Void) -> some View {
-    Button {
-      withAnimation(reduceMotion ? nil : DLAnim.pop) { action() }
-      Haptics.selection()
-    } label: {
-      HStack(spacing: 5) {
-        if let emoji { Text(emoji).font(.system(size: 15)) }
-        Text(label)
-          .font(.dl(.subheadline, weight: .semibold))
-      }
-      .padding(.horizontal, DLSpace.md)
-      .padding(.vertical, DLSpace.sm)
-      .foregroundStyle(isSelected ? color : DLColor.textSecondary)
-      .background {
-        Capsule()
-          .fill(isSelected ? color.opacity(0.18) : DLColor.surfaceElevated.opacity(0.5))
-      }
-      .overlay(
-        Capsule().strokeBorder(isSelected ? color : DLColor.separator.opacity(0.5), lineWidth: 1.5)
-      )
-    }
-    .buttonStyle(.plain)
-    .bounceTap()
-    .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
   }
 
   // MARK: - List row

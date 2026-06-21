@@ -63,7 +63,7 @@ final class UserProgress {
     self.totalHabitCompletions = 0
     self.growthScore = 0
     self.accentColorHex = "7E5BEF"
-    self.themeRaw = "dark"
+    self.themeRaw = "system"
     self.faceIDEnabled = false
     self.onboarded = false
     self.primaryGoal = ""

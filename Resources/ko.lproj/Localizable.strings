@@ -299,3 +299,121 @@
 "Time of day" = "시간대";
 "Timeline range" = "타임라인 범위";
 "Stats range" = "통계 범위";
+
+/* v13 — round 2 feedback */
+"Level" = "레벨";
+"Lifetime" = "전체";
+"With media" = "미디어 포함";
+"Clear" = "지우기";
+"Show more days" = "더 보기";
+"Clear cache" = "캐시 지우기";
+"Cache cleared" = "캐시 지움";
+"Free up space used by temporary files. Your notes, photos and backups are not affected." = "임시 파일이 사용하는 공간을 확보합니다. 메모, 사진, 백업은 영향을 받지 않습니다.";
+
+/* v14 — round 3 feedback */
+"%d reviews · %d notes in %@ %d" = "%d 리뷰 · %d 노트 · %@ %d";
+"%d XP to level %d" = "%d XP 더 모으면 %d 레벨";
+"+%d this week" = "이번 주 +%d";
+"Try a different search or clear filters." = "다른 검색어를 쓰거나 필터를 지우세요.";
+"%d percent complete this year" = "올해 %d%% 완료";
+"Mood by day over the year" = "연간 일별 기분";
+"Choose year" = "연도 선택";
+
+/* Redesign v2 — Life OS Score & time filters */
+"XP earned" = "획득한 XP";
+"%d XP" = "%d XP";
+"Complete a daily review to start earning XP. It will chart here." = "매일 회고를 완료하면 XP를 얻기 시작하고 여기에 차트로 표시됩니다.";
+"XP earned. Total %d points, best %d." = "획득한 XP. 총 %d점, 최고 %d.";
+"No sleep logged in this range." = "이 기간에 기록된 수면이 없습니다.";
+"Sleep duration over time" = "시간에 따른 수면 시간";
+"Body" = "신체";
+"Mind" = "마음";
+"Focus" = "집중";
+"Money" = "재정";
+"Purpose" = "목적";
+"Consistency" = "일관성";
+"Sleep & habits" = "수면과 습관";
+"Mood & reflection" = "기분과 성찰";
+"Intent & follow-through" = "의도와 실행";
+"Financial goals & review" = "재정 목표와 검토";
+"Goals, identity & life areas" = "목표, 정체성과 삶의 영역";
+"Streaks & active days" = "연속 기록과 활동한 날";
+"Log sleep or track a habit to grow this pillar." = "수면을 기록하거나 습관을 추적해 이 기둥을 키워보세요.";
+"Log your mood and write reviews to grow this pillar." = "기분을 기록하고 회고를 작성해 이 기둥을 키워보세요.";
+"Set morning intentions and complete reviews to grow this pillar." = "아침 의도를 정하고 회고를 완료해 이 기둥을 키워보세요.";
+"Add a finance goal or rate your finances to grow this pillar." = "재정 목표를 추가하거나 재정을 평가해 이 기둥을 키워보세요.";
+"Set goals, an identity, or review your life areas to grow this pillar." = "목표나 정체성을 정하거나 삶의 영역을 검토해 이 기둥을 키워보세요.";
+"Keep a daily streak going to grow this pillar." = "매일 연속 기록을 이어가 이 기둥을 키워보세요.";
+"Your life" = "당신의 삶";
+"Life OS Score" = "Life OS 점수";
+"Getting started" = "시작 단계";
+"Building" = "성장 중";
+"Thriving" = "번창 중";
+"Flourishing" = "만개";
+"Mastery" = "통달";
+"of 1000" = "/ 1000 중";
+"Life OS Score %d out of 1000, %@" = "Life OS 점수 1000점 중 %d점, %@";
+"A snapshot of how well your life’s core systems are running. It rewards consistency, not perfection — small actions repeated beat rare bursts." = "삶의 핵심 시스템이 얼마나 잘 작동하는지 보여주는 스냅숏입니다. 완벽이 아니라 일관성에 보상합니다 — 반복되는 작은 행동이 드문 폭발보다 낫습니다.";
+"Pillars" = "기둥";
+"%@: %d of %d points" = "%@: %d / %d점";
+
+/* Redesign v2 — Weekly Life Review (§8.2) */
+"Last week" = "지난주";
+"Weekly Life Review" = "주간 삶 리뷰";
+"Your week" = "당신의 한 주";
+"This week at a glance" = "이번 주 한눈에 보기";
+"Active days" = "활동한 날";
+"Habit check-ins" = "습관 체크인";
+"Biggest win" = "가장 큰 성과";
+"Needs attention" = "관심이 필요해요";
+"Pillars this week" = "이번 주 기둥";
+"Life areas reviewed" = "검토한 삶의 영역";
+"No life areas reviewed this week." = "이번 주에 검토한 삶의 영역이 없습니다.";
+"Nothing logged for this week yet." = "이번 주에 기록된 내용이 아직 없습니다.";
+"Log a review, mood, sleep, or habit to see your week come together." = "회고, 기분, 수면 또는 습관을 기록하면 이번 주가 한눈에 보입니다.";
+"A note to your future self" = "미래의 나에게 보내는 편지";
+"Dear future self," = "미래의 나에게,";
+"Small actions repeated beat rare bursts. Keep building — your future self is being shaped one week at a time." = "반복되는 작은 행동이 드문 폭발보다 낫습니다. 계속 쌓아가세요 — 미래의 당신은 한 주 한 주 만들어지고 있습니다.";
+"Previous week" = "이전 주";
+"Next week" = "다음 주";
+"Health" = "건강";
+"Work" = "일";
+"Finance" = "재정";
+"Psychology" = "심리";
+"Relationships" = "관계";
+"%@ avg sleep · %d habit check-ins" = "평균 수면 %@ · 습관 체크인 %d회";
+"%@ avg sleep" = "평균 수면 %@";
+"%d habit check-ins" = "습관 체크인 %d회";
+"Mood %@/5 · %d reflections" = "기분 %@/5 · 회고 %d회";
+"Mood %@/5" = "기분 %@/5";
+"%d reflections" = "회고 %d회";
+"%d of %d reviews completed" = "회고 %d/%d 완료";
+"Finances rated %d/10 this week" = "이번 주 재정 평가 %d/10";
+"%d finance goals in progress" = "진행 중인 재정 목표 %d개";
+"%d life areas reviewed" = "검토한 삶의 영역 %d개";
+"%d active goals" = "진행 중인 목표 %d개";
+"This week you showed up on %d of 7 days and logged %d reflections." = "이번 주 7일 중 %d일 함께했고 회고를 %d회 기록했습니다.";
+"Your strongest area this week was %@." = "이번 주 가장 강한 영역은 %@였습니다.";
+
+/* Restructure — Insights Manage hub, slim Today, Life areas home */
+"Last night · %@" = "어젯밤 · %@";
+"%d active" = "%d개 진행 중";
+"Tap to log last night's sleep" = "어젯밤 수면을 기록하려면 탭하세요";
+"Manage" = "관리";
+"Set a SMART goal to track progress" = "진행 상황을 추적할 SMART 목표를 설정하세요";
+"%d active, %d completed" = "%d개 진행 중, %d개 완료";
+"Log a night to see your rest patterns" = "하룻밤을 기록해 휴식 패턴을 확인하세요";
+"%.1f hrs avg over %d nights" = "평균 %.1f시간 (%d일)";
+"Add, edit & reorder your habits" = "습관을 추가, 편집 및 재정렬하세요";
+"Review & track health, work, and more" = "건강, 일 등을 검토하고 추적하세요";
+"Recent reviews" = "최근 리뷰";
+"Delete review" = "리뷰 삭제";
+"Add review" = "리뷰 추가";
+
+/* Week picker + Identity/Manifesto on Today */
+"Jump to week" = "주간 이동";
+"Choose a week" = "주 선택";
+"My manifesto" = "나의 선언문";
+"Tap to read your manifesto" = "선언문을 읽으려면 탭하세요";
+"Define who you're becoming" = "되고 싶은 모습을 정의하세요";
+"Set your identity and write your manifesto" = "정체성을 설정하고 선언문을 작성하세요";

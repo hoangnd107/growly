@@ -189,6 +189,12 @@ struct IdentityReminderCard: View {
             .font(.dl(.subheadline, weight: .semibold))
             .foregroundStyle(DLColor.textPrimary)
             .lineLimit(2)
+          if !identity.coreValues.isEmpty {
+            Text(identity.coreValues.prefix(4).joined(separator: " · "))
+              .font(.dl(.caption2))
+              .foregroundStyle(DLColor.textTertiary)
+              .lineLimit(1)
+          }
         }
         Spacer(minLength: 0)
       }

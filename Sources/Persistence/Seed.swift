@@ -10,6 +10,8 @@ enum Seed {
       context.insert(UserProgress())
     }
 
+    migrateDeprecatedAccent(context: context)
+
     let habitCount = (try? context.fetchCount(FetchDescriptor<Habit>())) ?? 0
     if habitCount == 0 {
       for (index, def) in defaultHabits.enumerated() {
@@ -18,6 +20,25 @@ enum Seed {
     }
 
     try? context.save()
+  }
+
+  /// Reverts the short-lived editorial-preview default accent (terracotta "clay"
+  /// / B85C38) back to the app's standard Violet so devices that ran the preview
+  /// build don't stay stuck on the retired terracotta tint. Only touches rows
+  /// still holding those exact preview-default values — an explicit user choice
+  /// of a different colour is never overwritten.
+  private static func migrateDeprecatedAccent(context: ModelContext) {
+    guard let progress = try? context.fetch(FetchDescriptor<UserProgress>()).first else { return }
+    var changed = false
+    if progress.gradientThemeID == "clay" {
+      progress.gradientThemeID = "teal"
+      changed = true
+    }
+    if progress.accentColorHex.uppercased() == "B85C38" {
+      progress.accentColorHex = "7E5BEF"
+      changed = true
+    }
+    if changed { try? context.save() }
   }
 
   private struct HabitDef {

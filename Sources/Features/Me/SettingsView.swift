@@ -27,6 +27,7 @@ struct SettingsView: View {
   @State private var backupConfirmed = false
   @State private var showRestoreDialog = false
   @State private var lastBackupDisplay: Date?
+  @State private var cacheCleared = false
 
   /// Wraps a temporary file URL so it can drive `.sheet(item:)`.
   private struct ShareItem: Identifiable {
@@ -409,6 +410,20 @@ struct SettingsView: View {
         .buttonStyle(.plain)
         .disabled(!BackupService.backupExists)
         .accessibilityLabel(L("Restore from backup"))
+
+        Divider().overlay(DLColor.separator)
+
+        // Clear cache — removes temporary files only; user data is never touched.
+        Button { clearCache() } label: {
+          dataRow(
+            systemImage: cacheCleared ? "checkmark.circle.fill" : "trash.slash",
+            tint: cacheCleared ? DLColor.success : progress.accentColor,
+            title: cacheCleared ? L("Cache cleared") : L("Clear cache"),
+            subtitle: L("Free up space used by temporary files. Your notes, photos and backups are not affected.")
+          )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L("Clear cache"))
       }
     }
   }
@@ -463,6 +478,15 @@ struct SettingsView: View {
     withAnimation(DLAnim.quick) { backupConfirmed = true }
     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
       withAnimation(DLAnim.quick) { backupConfirmed = false }
+    }
+  }
+
+  private func clearCache() {
+    CacheService.clear()
+    Haptics.success()
+    withAnimation(DLAnim.quick) { cacheCleared = true }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+      withAnimation(DLAnim.quick) { cacheCleared = false }
     }
   }
 
