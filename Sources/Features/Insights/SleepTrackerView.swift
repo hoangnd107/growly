@@ -405,7 +405,7 @@ private struct AddSleepSheet: View {
 
   /// Live duration/quality preview from the chosen times (feature 6).
   private var previewHours: Double { SleepLog.hours(bedTime: bedTime, wakeTime: wakeTime) }
-  private var previewQuality: Int { SleepLog.quality(forHours: previewHours) }
+  private var previewQuality: Int { SleepLog.quality(forHours: previewHours, bedTime: bedTime) }
 
   /// Default bedtime: 11pm today.
   private static var defaultBedTime: Date {

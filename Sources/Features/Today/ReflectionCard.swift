@@ -169,16 +169,21 @@ struct ReflectionCard: View {
               .overlay(Capsule().strokeBorder(kind.accent.opacity(0.28), lineWidth: 1))
               .foregroundStyle(kind.accent)
           }
-          .buttonStyle(.plain)
-          .bounceTap()
+          // ScaleButtonStyle scales from the button's own press state instead of a
+          // DragGesture, so the horizontal swipe reaches the ScrollView and the
+          // chip strip actually slides (the old `.bounceTap()` swallowed the pan).
+          .buttonStyle(ScaleButtonStyle(scale: 0.93, haptic: false))
         }
       }
       .padding(.vertical, 2)
       .padding(.horizontal, 2)
+      .scrollTargetLayout()
     }
+    .scrollTargetBehavior(.viewAligned)
+    .scrollBounceBehavior(.basedOnSize)
     // No `scrollClipDisabled`: the chip strip must stay inside the card and clip
     // at its edges so it never spills past the screen, while still scrolling
-    // horizontally on a press-drag (feedback item 1).
+    // horizontally with a smooth slide.
   }
 
   // MARK: Text helpers

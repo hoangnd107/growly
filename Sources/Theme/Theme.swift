@@ -38,9 +38,9 @@ enum DLColor {
   static let textTertiary = Color(lightHex: 0xA39C90, darkHex: 0x6E685D)
   static let separator = Color(lightHex: 0xE7E3DB, darkHex: 0x2A2823)
 
-  // Signature editorial accent (terracotta) — also the default theme + tint.
-  static let accent = Color(lightHex: 0xB85C38, darkHex: 0xD9824F)
-  static let accentSoft = Color(lightHex: 0xF3E4DB, darkHex: 0x2A201A)
+  // App accent — the pre-redesign default Violet, matching `progress.accentColor`.
+  static let accent = Color(hex: 0x7E5BEF)
+  static let accentSoft = Color(lightHex: 0xEFEAFF, darkHex: 0x241B3A)
 
   // Semantic / gamification (muted to sit calmly in the editorial palette)
   static let xpGold = Color(lightHex: 0xB8893B, darkHex: 0xD6A24E)
@@ -77,13 +77,14 @@ enum DLAnim {
 // MARK: - Typography (rounded, premium feel)
 
 extension Font {
-  /// Body / UI face — clean system sans for the editorial language.
+  /// Body / UI face — rounded system font, unified across the whole app.
   static func dl(_ style: Font.TextStyle, weight: Font.Weight = .regular) -> Font {
-    .system(style, design: .default).weight(weight)
+    .system(style, design: .rounded).weight(weight)
   }
 
-  /// Serif display face for editorial titles, dates, and big numbers.
+  /// Display face for editorial headers, dates, and big numbers. Unified to the
+  /// same rounded system font as `dl` so typography is consistent app-wide.
   static func serif(_ style: Font.TextStyle, weight: Font.Weight = .regular) -> Font {
-    .system(style, design: .serif).weight(weight)
+    .system(style, design: .rounded).weight(weight)
   }
 }

@@ -38,7 +38,7 @@ final class UserProgress {
   var lastBackupAt: Date? = nil
 
   // Personalization (v3)
-  var gradientThemeID: String = "clay"
+  var gradientThemeID: String = "teal"
   var weekStartsMonday: Bool = true
   var miraEnabled: Bool = true
 
@@ -62,7 +62,7 @@ final class UserProgress {
     self.earlyReviewCount = 0
     self.totalHabitCompletions = 0
     self.growthScore = 0
-    self.accentColorHex = "B85C38"
+    self.accentColorHex = "7E5BEF"
     self.themeRaw = "system"
     self.faceIDEnabled = false
     self.onboarded = false

@@ -299,3 +299,13 @@
 "Time of day" = "Time of day";
 "Timeline range" = "Timeline range";
 "Stats range" = "Stats range";
+
+/* v13 — round 2 feedback */
+"Level" = "Level";
+"Lifetime" = "Lifetime";
+"With media" = "With media";
+"Clear" = "Clear";
+"Show more days" = "Show more days";
+"Clear cache" = "Clear cache";
+"Cache cleared" = "Cache cleared";
+"Free up space used by temporary files. Your notes, photos and backups are not affected." = "Free up space used by temporary files. Your notes, photos and backups are not affected.";

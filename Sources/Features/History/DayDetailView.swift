@@ -58,39 +58,103 @@ struct DayDetailView: View {
 
   var body: some View {
     NavigationStack {
-      ScrollView {
-        VStack(spacing: DLSpace.lg) {
-          if let entry {
-            moodEnergyCard(entry)
-            ForEach(ReflectionKind.allCases) { kind in
-              let text = entry.text(for: kind).trimmingCharacters(in: .whitespacesAndNewlines)
-              if !text.isEmpty {
-                Button { editingEntry = entry } label: { reflectionCard(kind, text: text) }
-                  .buttonStyle(.plain)
-              }
+      // A List (not a ScrollView) so each row gets native swipe-to-edit/delete;
+      // the themed background shows through via `.scrollContentBackground(.hidden)`.
+      List {
+        if let entry {
+          moodEnergyCard(entry)
+            .contentShape(Rectangle())
+            .onTapGesture { showMoodPicker = true }
+            .dayDetailRow()
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+              Button { showMoodPicker = true } label: { Label(L("Edit"), systemImage: "pencil") }
+                .tint(theme.accent)
             }
-            if !entry.morningIntention.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-              Button { editingEntry = entry } label: { intentionCard(entry) }
-                .buttonStyle(.plain)
+
+          ForEach(ReflectionKind.allCases) { kind in
+            let text = entry.text(for: kind).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty {
+              reflectionCard(kind, text: text)
+                .contentShape(Rectangle())
+                .onTapGesture { editingEntry = entry }
+                .dayDetailRow()
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                  Button { editingEntry = entry } label: { Label(L("Edit"), systemImage: "pencil") }
+                    .tint(theme.accent)
+                }
             }
-            if !entry.sortedAttachments.isEmpty {
-              mediaCard(L("Reflection media"), attachments: entry.sortedAttachments)
-            }
-          } else if !notes.isEmpty {
-            // Note-only day: still allow setting/editing a mood for the day (A2).
-            noteMoodCard
           }
 
-          if !notes.isEmpty { notesCard }
-          if !completedGoals.isEmpty { goalsCard }
-          if !completedHabits.isEmpty { habitsCard }
-          if let sleep { sleepCard(sleep) }
-          if let entry, entry.xpAwarded > 0 { xpCard(entry) }
+          if !entry.morningIntention.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            intentionCard(entry)
+              .contentShape(Rectangle())
+              .onTapGesture { editingEntry = entry }
+              .dayDetailRow()
+              .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                Button { editingEntry = entry } label: { Label(L("Edit"), systemImage: "pencil") }
+                  .tint(theme.accent)
+              }
+          }
 
-          if isEmpty { emptyState }
+          if !entry.sortedAttachments.isEmpty {
+            mediaCard(L("Reflection media"), attachments: entry.sortedAttachments)
+              .dayDetailRow()
+          }
+        } else if !notes.isEmpty {
+          // Note-only day: still allow setting/editing a mood for the day (A2).
+          noteMoodCard
+            .contentShape(Rectangle())
+            .onTapGesture { showMoodPicker = true }
+            .dayDetailRow()
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+              Button { showMoodPicker = true } label: { Label(L("Edit"), systemImage: "pencil") }
+                .tint(theme.accent)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+              if currentMoodValue != nil {
+                Button(role: .destructive) { applyMood(nil) } label: { Label(L("Clear"), systemImage: "xmark") }
+              }
+            }
         }
-        .padding(DLSpace.md)
+
+        if !notes.isEmpty {
+          notesHeader.dayDetailRow()
+          ForEach(notes) { note in
+            noteRow(note)
+              .contentShape(Rectangle())
+              .onTapGesture { editorNote = note }
+              .dayDetailRow()
+              .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                Button { editorNote = note } label: { Label(L("Edit"), systemImage: "pencil") }
+                  .tint(theme.accent)
+              }
+              .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button(role: .destructive) { deleteNote(note) } label: { Label(L("Delete"), systemImage: "trash") }
+              }
+          }
+        }
+
+        if !completedGoals.isEmpty { goalsCard.dayDetailRow() }
+        if !completedHabits.isEmpty { habitsCard.dayDetailRow() }
+        if let sleep {
+          sleepCard(sleep)
+            .contentShape(Rectangle())
+            .onTapGesture { editingSleep = sleep }
+            .dayDetailRow()
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+              Button { editingSleep = sleep } label: { Label(L("Edit"), systemImage: "pencil") }
+                .tint(theme.accent)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+              Button(role: .destructive) { pendingSleepDelete = sleep } label: { Label(L("Delete"), systemImage: "trash") }
+            }
+        }
+        if let entry, entry.xpAwarded > 0 { xpCard(entry).dayDetailRow() }
+
+        if isEmpty { emptyState.dayDetailRow() }
       }
+      .listStyle(.plain)
+      .scrollContentBackground(.hidden)
       .themedBackground(theme)
       .navigationTitle(dayStart.formatted(.dateTime.weekday(.wide).month().day()))
       .navigationBarTitleDisplayMode(.inline)
@@ -160,36 +224,30 @@ struct DayDetailView: View {
     Haptics.warning()
   }
 
-  /// A compact mood card for note-only days, with a tap-to-set mood picker.
+  /// A compact mood card for note-only days; tap the row (or swipe) to set/edit.
   private var noteMoodCard: some View {
-    Button { showMoodPicker = true } label: {
-      GlassCard {
-        HStack(spacing: DLSpace.md) {
-          VStack(alignment: .leading, spacing: 2) {
-            Text(L("Mood"))
-              .font(.dl(.caption, weight: .medium))
-              .foregroundStyle(DLColor.textTertiary)
-            if let value = currentMoodValue, let option = MoodCatalog.shared.option(forValue: value) {
-              HStack(spacing: DLSpace.sm) {
-                Text(option.emoji).font(.system(size: 28))
-                Text(option.displayName)
-                  .font(.dl(.subheadline, weight: .semibold))
-                  .foregroundStyle(option.color)
-              }
-            } else {
-              Text(L("Tap to set a mood"))
-                .font(.dl(.subheadline))
-                .foregroundStyle(DLColor.textSecondary)
+    GlassCard {
+      HStack(spacing: DLSpace.md) {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(L("Mood"))
+            .font(.dl(.caption, weight: .medium))
+            .foregroundStyle(DLColor.textTertiary)
+          if let value = currentMoodValue, let option = MoodCatalog.shared.option(forValue: value) {
+            HStack(spacing: DLSpace.sm) {
+              Text(option.emoji).font(.system(size: 28))
+              Text(option.displayName)
+                .font(.dl(.subheadline, weight: .semibold))
+                .foregroundStyle(option.color)
             }
+          } else {
+            Text(L("Tap to set a mood"))
+              .font(.dl(.subheadline))
+              .foregroundStyle(DLColor.textSecondary)
           }
-          Spacer(minLength: 0)
-          Image(systemName: "pencil.circle.fill")
-            .font(.system(size: 22))
-            .foregroundStyle(theme.accent)
         }
+        Spacer(minLength: 0)
       }
     }
-    .buttonStyle(.plain)
   }
 
   // MARK: - Reflection
@@ -223,14 +281,6 @@ struct DayDetailView: View {
           .accessibilityLabel(Lf("Energy %d of 5", entry.energy))
         }
         Spacer(minLength: 0)
-        // A2: edit just the mood via the picker.
-        Button { showMoodPicker = true } label: {
-          Image(systemName: "pencil.circle.fill")
-            .font(.system(size: 24))
-            .foregroundStyle(theme.accent)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(L("Edit mood"))
       }
     }
   }
@@ -273,54 +323,53 @@ struct DayDetailView: View {
 
   // MARK: - Notes
 
-  private var notesCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        Label(Lf("Notes (%d)", notes.count), systemImage: "note.text")
-          .font(.dl(.headline, weight: .semibold))
-          .foregroundStyle(theme.accent)
+  private var notesHeader: some View {
+    Label(Lf("Notes (%d)", notes.count), systemImage: "note.text")
+      .font(.dl(.headline, weight: .semibold))
+      .foregroundStyle(theme.accent)
+      .frame(maxWidth: .infinity, alignment: .leading)
+  }
 
-        ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
-          Button { editorNote = note } label: {
-            VStack(alignment: .leading, spacing: DLSpace.xs) {
-              HStack(spacing: DLSpace.sm) {
-                if let option = note.moodOption { Text(option.emoji) }
-                Text(noteTitle(note))
-                  .font(.dl(.subheadline, weight: .semibold))
-                  .foregroundStyle(DLColor.textPrimary)
-                  .lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: "pencil")
-                  .font(.system(size: 12, weight: .semibold))
-                  .foregroundStyle(DLColor.textTertiary)
-              }
-              let preview = note.preview
-              if !preview.isEmpty {
-                Text(preview)
-                  .font(.dl(.caption))
-                  .foregroundStyle(DLColor.textSecondary)
-                  .lineLimit(3)
-                  .frame(maxWidth: .infinity, alignment: .leading)
-              }
-              if !note.sortedAttachments.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                  HStack(spacing: DLSpace.sm) {
-                    ForEach(note.sortedAttachments) { attachment in
-                      MediaViewer(attachment: attachment)
-                    }
-                  }
-                }
+  /// One note rendered as its own card so each gets native swipe-to-edit/delete.
+  private func noteRow(_ note: DayNote) -> some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.xs) {
+        HStack(spacing: DLSpace.sm) {
+          if let option = note.moodOption { Text(option.emoji) }
+          Text(noteTitle(note))
+            .font(.dl(.subheadline, weight: .semibold))
+            .foregroundStyle(DLColor.textPrimary)
+            .lineLimit(1)
+          Spacer(minLength: 0)
+        }
+        let preview = note.preview
+        if !preview.isEmpty {
+          Text(preview)
+            .font(.dl(.caption))
+            .foregroundStyle(DLColor.textSecondary)
+            .lineLimit(3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        if !note.sortedAttachments.isEmpty {
+          ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DLSpace.sm) {
+              ForEach(note.sortedAttachments) { attachment in
+                MediaViewer(attachment: attachment)
               }
             }
-            .contentShape(Rectangle())
-          }
-          .buttonStyle(.plain)
-          if note.id != notes.last?.id {
-            Divider().overlay(DLColor.separator.opacity(0.5))
           }
         }
       }
     }
+  }
+
+  /// Soft-delete (moves to Trash), mirroring NotesView — never a hard delete.
+  private func deleteNote(_ note: DayNote) {
+    let now = Date()
+    note.deletedAt = now
+    note.updatedAt = now
+    try? context.save()
+    Haptics.warning()
   }
 
   private func noteTitle(_ note: DayNote) -> String {
@@ -383,26 +432,10 @@ struct DayDetailView: View {
   private func sleepCard(_ sleep: SleepLog) -> some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        HStack {
-          Label(L("Sleep"), systemImage: "bed.double.fill")
-            .font(.dl(.headline, weight: .semibold))
-            .foregroundStyle(theme.accent)
-          Spacer()
-          Button { editingSleep = sleep } label: {
-            Image(systemName: "pencil.circle.fill")
-              .font(.system(size: 22))
-              .foregroundStyle(theme.accent)
-          }
-          .buttonStyle(.plain)
-          .accessibilityLabel(L("Edit sleep"))
-          Button { pendingSleepDelete = sleep } label: {
-            Image(systemName: "trash.circle.fill")
-              .font(.system(size: 22))
-              .foregroundStyle(DLColor.streakEnd)
-          }
-          .buttonStyle(.plain)
-          .accessibilityLabel(L("Delete sleep"))
-        }
+        Label(L("Sleep"), systemImage: "bed.double.fill")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(theme.accent)
+          .frame(maxWidth: .infinity, alignment: .leading)
         HStack(spacing: DLSpace.xl) {
           sleepMetric(L("Bedtime"), value: sleep.bedTime.formatted(date: .omitted, time: .shortened), icon: "moon.fill")
           sleepMetric(L("Wake"), value: sleep.wakeTime.formatted(date: .omitted, time: .shortened), icon: "sun.max.fill")
@@ -470,5 +503,16 @@ struct DayDetailView: View {
       Text(L("No reflection, notes, goals, habits, or sleep for this day."))
     }
     .padding(.top, DLSpace.xl)
+  }
+}
+
+private extension View {
+  /// List-row chrome for DayDetailView: a clear, separator-less row with
+  /// card-style insets so each GlassCard floats over the themed background.
+  func dayDetailRow() -> some View {
+    self
+      .listRowInsets(EdgeInsets(top: DLSpace.sm, leading: DLSpace.md, bottom: DLSpace.sm, trailing: DLSpace.md))
+      .listRowBackground(Color.clear)
+      .listRowSeparator(.hidden)
   }
 }

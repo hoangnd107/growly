@@ -197,13 +197,21 @@ private struct YearHeatmap: View {
         labels.append("")
       }
     }
+    // Each slot reserves exactly one column's width (so labels stay registered
+    // over the grid below), but the month name is drawn un-clamped on top and
+    // overflows rightward over the following blank slots — otherwise an 11pt-wide
+    // frame forces "Jan" to wrap one letter per line (vertical text).
     return HStack(spacing: gap) {
       ForEach(Array(labels.enumerated()), id: \.offset) { _, text in
-        Text(text)
-          .font(.dl(.caption2))
-          .foregroundStyle(DLColor.textTertiary)
-          .frame(width: cell, alignment: .leading)
-          .fixedSize()
+        Color.clear
+          .frame(width: cell, height: 12)
+          .overlay(alignment: .topLeading) {
+            Text(text)
+              .font(.dl(.caption2))
+              .foregroundStyle(DLColor.textTertiary)
+              .lineLimit(1)
+              .fixedSize()
+          }
       }
     }
   }

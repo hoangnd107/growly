@@ -41,14 +41,15 @@ private struct AppRootView: View {
   }
 }
 
-/// App-wide UIKit chrome for the editorial redesign: serif navigation titles on
-/// a clean bar (transparent at the large-title edge, paper material once scrolled).
+/// App-wide UIKit chrome: rounded navigation titles on a clean bar (transparent
+/// at the large-title edge, paper material once scrolled) so the nav typography
+/// matches the rounded body font used everywhere else.
 enum AppAppearance {
   static func apply() {
-    func serifFont(_ style: UIFont.TextStyle) -> UIFont? {
+    func roundedFont(_ style: UIFont.TextStyle) -> UIFont? {
       guard let descriptor = UIFontDescriptor
         .preferredFontDescriptor(withTextStyle: style)
-        .withDesign(.serif) else { return nil }
+        .withDesign(.rounded) else { return nil }
       return UIFont(descriptor: descriptor, size: 0)
     }
 
@@ -58,10 +59,10 @@ enum AppAppearance {
     standard.configureWithDefaultBackground()
 
     for appearance in [scrollEdge, standard] {
-      if let large = serifFont(.largeTitle) {
+      if let large = roundedFont(.largeTitle) {
         appearance.largeTitleTextAttributes[.font] = large
       }
-      if let inline = serifFont(.headline) {
+      if let inline = roundedFont(.headline) {
         appearance.titleTextAttributes[.font] = inline
       }
     }

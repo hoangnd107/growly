@@ -19,6 +19,10 @@ struct HistoryView: View {
   @State private var historyMode: HistoryMode = .calendar
   /// A4: the per-day mood list under the calendar — month-scoped vs. all history.
   @State private var moodListAllMonths = false
+  /// A4: collapse the daily-mood list; in all-time mode page it 30 days at a time.
+  @State private var moodListExpanded = true
+  @State private var moodListVisibleCount = 30
+  private let moodListPageSize = 30
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -506,16 +510,39 @@ struct HistoryView: View {
     }
   }
 
+  /// Rows actually rendered: in all-time mode, capped to `moodListVisibleCount`
+  /// (a load-more window — the 30 most recent first); a month always shows whole.
+  private var visibleMoodDayRows: [MoodDayRow] {
+    moodListAllMonths ? Array(moodDayRows.prefix(moodListVisibleCount)) : moodDayRows
+  }
+
   private var moodDayListCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        HStack {
-          Label(L("Daily moods"), systemImage: "face.smiling")
-            .font(.dl(.headline, weight: .semibold))
-            .foregroundStyle(theme.accent)
+        HStack(spacing: DLSpace.sm) {
+          Button {
+            withAnimation(reduceMotion ? nil : DLAnim.standard) { moodListExpanded.toggle() }
+            Haptics.selection()
+          } label: {
+            HStack(spacing: DLSpace.sm) {
+              Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(DLColor.textTertiary)
+                .rotationEffect(.degrees(moodListExpanded ? 90 : 0))
+              Label(L("Daily moods"), systemImage: "face.smiling")
+                .font(.dl(.headline, weight: .semibold))
+                .foregroundStyle(theme.accent)
+            }
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+          .accessibilityHint(moodListExpanded ? L("Expanded. Tap to collapse.") : L("Collapsed. Tap to expand."))
           Spacer()
           Button {
-            withAnimation(reduceMotion ? nil : DLAnim.standard) { moodListAllMonths.toggle() }
+            withAnimation(reduceMotion ? nil : DLAnim.standard) {
+              moodListAllMonths.toggle()
+              moodListVisibleCount = moodListPageSize
+            }
             Haptics.selection()
           } label: {
             Text(moodListAllMonths ? L("All time") : L("This month"))
@@ -529,21 +556,40 @@ struct HistoryView: View {
           .accessibilityLabel(moodListAllMonths ? L("Showing all history. Tap to show this month.") : L("Showing this month. Tap to show all history."))
         }
 
-        if moodDayRows.isEmpty {
-          Text(L("No moods logged for this period yet."))
-            .font(.dl(.caption))
-            .foregroundStyle(DLColor.textTertiary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, DLSpace.xs)
-        } else {
-          ForEach(moodDayRows) { row in
-            Button { open(day: row.day) } label: { moodDayRowView(row) }
+        if moodListExpanded {
+          if moodDayRows.isEmpty {
+            Text(L("No moods logged for this period yet."))
+              .font(.dl(.caption))
+              .foregroundStyle(DLColor.textTertiary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.vertical, DLSpace.xs)
+          } else {
+            ForEach(visibleMoodDayRows) { row in
+              Button { open(day: row.day) } label: { moodDayRowView(row) }
+                .buttonStyle(.plain)
+            }
+            if moodListAllMonths, moodDayRows.count > visibleMoodDayRows.count {
+              Button {
+                withAnimation(reduceMotion ? nil : DLAnim.standard) {
+                  moodListVisibleCount += moodListPageSize
+                }
+                Haptics.selection()
+              } label: {
+                Text(L("Show more days"))
+                  .font(.dl(.caption, weight: .semibold))
+                  .foregroundStyle(theme.accent)
+                  .frame(maxWidth: .infinity)
+                  .padding(.vertical, DLSpace.sm)
+                  .contentShape(Rectangle())
+              }
               .buttonStyle(.plain)
+            }
           }
         }
       }
     }
     .animation(reduceMotion ? nil : DLAnim.standard, value: moodListAllMonths)
+    .animation(reduceMotion ? nil : DLAnim.standard, value: moodListExpanded)
   }
 
   private func moodDayRowView(_ row: MoodDayRow) -> some View {

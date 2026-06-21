@@ -299,3 +299,13 @@
 "Time of day" = "시간대";
 "Timeline range" = "타임라인 범위";
 "Stats range" = "통계 범위";
+
+/* v13 — round 2 feedback */
+"Level" = "레벨";
+"Lifetime" = "전체";
+"With media" = "미디어 포함";
+"Clear" = "지우기";
+"Show more days" = "더 보기";
+"Clear cache" = "캐시 지우기";
+"Cache cleared" = "캐시 지움";
+"Free up space used by temporary files. Your notes, photos and backups are not affected." = "임시 파일이 사용하는 공간을 확보합니다. 메모, 사진, 백업은 영향을 받지 않습니다.";

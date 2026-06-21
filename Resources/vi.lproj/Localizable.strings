@@ -299,3 +299,13 @@
 "Time of day" = "Buổi trong ngày";
 "Timeline range" = "Phạm vi dòng thời gian";
 "Stats range" = "Phạm vi thống kê";
+
+/* v13 — round 2 feedback */
+"Level" = "Cấp độ";
+"Lifetime" = "Trọn đời";
+"With media" = "Có đính kèm";
+"Clear" = "Bỏ";
+"Show more days" = "Xem thêm ngày";
+"Clear cache" = "Xoá bộ nhớ đệm";
+"Cache cleared" = "Đã xoá bộ nhớ đệm";
+"Free up space used by temporary files. Your notes, photos and backups are not affected." = "Giải phóng dung lượng do tệp tạm chiếm. Ghi chú, ảnh và bản sao lưu của bạn không bị ảnh hưởng.";

@@ -24,11 +24,15 @@ struct LifeAreaReviewView: View {
     NavigationStack {
       Form {
         Section {
+          // Menu style: a default-style Picker is a navigation-push row whose
+          // single tap collides with the form-wide tap-to-dismiss-keyboard
+          // gesture and never fires. A pop-up menu opens on the control itself.
           Picker(L("Life area"), selection: $area) {
             ForEach(LifeArea.allCases) { a in
               Label(L(a.title), systemImage: a.systemIcon).tag(a)
             }
           }
+          .pickerStyle(.menu)
           .tint(theme.accent)
           DatePicker(L("Date"), selection: $date, displayedComponents: .date)
             .tint(theme.accent)

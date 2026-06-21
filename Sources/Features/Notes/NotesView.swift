@@ -404,6 +404,24 @@ struct NotesView: View {
 
   private var timeline: some View {
     List(selection: $selection) {
+      // Stats-forward header: at-a-glance counts for the note collection. Hidden
+      // during multi-select to keep the batch UI uncluttered. Word/writing stats
+      // deliberately live in Insights' WritingStatsView, not here, to avoid dupes.
+      if !selecting {
+        Section {
+          StatTileGrid(tiles: [
+            StatTileData(value: "\(activeNotes.count)", label: L("Total notes"), tint: DLColor.accent),
+            StatTileData(value: "\(activeNotes.filter { $0.pinned }.count)", label: L("Pinned")),
+            StatTileData(value: "\(activeNotes.filter { $0.bookmarked }.count)", label: L("Bookmarked")),
+            StatTileData(value: "\(activeNotes.filter { !$0.attachments.isEmpty }.count)", label: L("With media")),
+          ])
+          .listRowInsets(EdgeInsets(top: DLSpace.md, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
+          .listRowBackground(Color.clear)
+          .listRowSeparator(.hidden)
+          .selectionDisabled()
+        }
+      }
+
       // Controls — never participate in selection.
       Section {
         VStack(spacing: DLSpace.sm) {

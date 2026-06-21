@@ -299,3 +299,13 @@
 "Time of day" = "时段";
 "Timeline range" = "时间线范围";
 "Stats range" = "统计范围";
+
+/* v13 — round 2 feedback */
+"Level" = "等级";
+"Lifetime" = "累计";
+"With media" = "含媒体";
+"Clear" = "清除";
+"Show more days" = "显示更多天";
+"Clear cache" = "清除缓存";
+"Cache cleared" = "缓存已清除";
+"Free up space used by temporary files. Your notes, photos and backups are not affected." = "释放临时文件占用的空间。您的笔记、照片和备份不受影响。";

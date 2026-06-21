@@ -231,11 +231,14 @@ struct StatsCard: View {
         }
 
         HStack(spacing: 0) {
-          totalMetric(value: summary.totalEntries, label: L("Total reviews"), tint: theme.accent)
+          totalMetric(value: scope == .year ? summary.yearEntries : summary.totalEntries,
+                      label: L("Total reviews"), tint: theme.accent)
           divider
-          totalMetric(value: summary.totalNotes, label: L("Total notes"), tint: DLColor.xpGold)
+          totalMetric(value: scope == .year ? summary.yearNotes : summary.totalNotes,
+                      label: L("Total notes"), tint: DLColor.xpGold)
           divider
-          totalMetric(value: summary.totalNoteWords, label: L("Words in notes"), tint: DLColor.success)
+          totalMetric(value: scope == .year ? summary.yearNoteWords : summary.totalNoteWords,
+                      label: L("Words in notes"), tint: DLColor.success)
         }
 
         Text(scope == .year
@@ -459,22 +462,10 @@ struct StatsCard: View {
 
   private func monthDetailPanel(_ d: MonthDetailData) -> some View {
     VStack(alignment: .leading, spacing: DLSpace.md) {
-      HStack {
-        Text(Lf("%@ %d", d.label, year))
-          .font(.dl(.subheadline, weight: .bold))
-          .foregroundStyle(DLColor.textPrimary)
-        Spacer()
-        Button {
-          withAnimation(animate ? DLAnim.standard : nil) { selectedMonth = nil }
-          Haptics.light()
-        } label: {
-          Image(systemName: "xmark.circle.fill")
-            .font(.system(size: 18))
-            .foregroundStyle(DLColor.textTertiary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(L("Close"))
-      }
+      Text(Lf("%@ %d", d.label, year))
+        .font(.dl(.subheadline, weight: .bold))
+        .foregroundStyle(DLColor.textPrimary)
+        .frame(maxWidth: .infinity, alignment: .leading)
 
       detailRow(icon: "flame.fill", tint: DLColor.streakStart,
                 text: Lf("Longest streaks · %d-day notes, %d-day complete", d.noteLongest, d.completeLongest))

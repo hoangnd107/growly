@@ -11,6 +11,7 @@ struct WritingStatsView: View {
   @Query(sort: \DayNote.createdAt, order: .reverse) private var notes: [DayNote]
 
   @State private var range: StatsRange = .month
+  @State private var editorNote: DayNote?
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   // MARK: - Derived data
@@ -109,7 +110,7 @@ struct WritingStatsView: View {
           Hairline()
 
           VStack(alignment: .leading, spacing: DLSpace.sm) {
-            SectionLabel(L("Longest entries"))
+            SectionLabel(L("Longest notes"))
             longestList
           }
         }
@@ -119,6 +120,9 @@ struct WritingStatsView: View {
     }
     .background(ThemedBackground())
     .navigationBarTitleDisplayMode(.inline)
+    .sheet(item: $editorNote) { note in
+      NavigationStack { NoteEditorView(note: note) }
+    }
   }
 
   // MARK: - Sections
@@ -162,6 +166,8 @@ struct WritingStatsView: View {
             .monospacedDigit()
         }
         .padding(.vertical, DLSpace.md)
+        .contentShape(Rectangle())
+        .onTapGesture { editorNote = note }
       }
     }
   }

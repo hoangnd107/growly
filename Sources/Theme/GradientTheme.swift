@@ -32,12 +32,6 @@ struct GradientTheme: Identifiable, Hashable {
 enum GradientThemeCatalog {
   static let all: [GradientTheme] = [
     GradientTheme(
-      id: "clay", name: "Clay",
-      accentHex: 0xB85C38,
-      lightStops: [0xFAF9F6, 0xFBFAF7, 0xFFFFFF],
-      darkStops: [0x0F0F10, 0x121211, 0x0A0A0A]
-    ),
-    GradientTheme(
       id: "teal", name: "Teal",
       accentHex: 0x00B4A6,
       lightStops: [0xE7FBF6, 0xF3FBFF, 0xFFFFFF],

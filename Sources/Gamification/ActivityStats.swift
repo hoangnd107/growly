@@ -234,6 +234,7 @@ struct StatsSummary: Equatable {
   let totalNoteWords: Int
   let yearEntries: Int
   let yearNotes: Int
+  let yearNoteWords: Int
 
   static func compute(
     entries: [Entry],
@@ -248,6 +249,7 @@ struct StatsSummary: Equatable {
     var noteByMonth: [Int: Int] = [:]
     var yearEntries = 0
     var yearNotes = 0
+    var yearNoteWords = 0
 
     for entry in entries {
       let comps = calendar.dateComponents([.year, .month], from: entry.day)
@@ -261,6 +263,7 @@ struct StatsSummary: Equatable {
       if comps.year == year, let month = comps.month {
         noteByMonth[month, default: 0] += 1
         yearNotes += 1
+        yearNoteWords += note.wordCount
       }
     }
 
@@ -282,7 +285,8 @@ struct StatsSummary: Equatable {
       totalNotes: activeNotes.count,
       totalNoteWords: totalNoteWords,
       yearEntries: yearEntries,
-      yearNotes: yearNotes
+      yearNotes: yearNotes,
+      yearNoteWords: yearNoteWords
     )
   }
 
