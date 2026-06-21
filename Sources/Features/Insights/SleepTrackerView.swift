@@ -17,6 +17,9 @@ struct SleepTrackerView: View {
   @State private var showAddSheet = false
   @State private var editingSleep: SleepLog?
   @State private var pendingDelete: SleepLog?
+  /// Time window for the report summary (redesign v2: every stats view filters
+  /// by time). The log list below stays complete.
+  @State private var range: StatsRange = .month
 
   private var theme: GradientTheme {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
@@ -119,24 +122,40 @@ struct SleepTrackerView: View {
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(theme.accent)
 
-        HStack(spacing: DLSpace.lg) {
-          averageHoursStat
-          Divider()
-            .frame(height: 44)
-            .overlay(DLColor.separator)
-          averageQualityStat
-        }
+        SlidingSegmentedControl(
+          items: StatsRange.allCases,
+          label: { $0.label },
+          selection: $range,
+          accent: theme.accent
+        )
 
-        if !chartPoints.isEmpty {
-          Divider().overlay(DLColor.separator)
-          Text(L("Duration over the last 14 logs"))
-            .font(.dl(.caption, weight: .medium))
-            .foregroundStyle(DLColor.textTertiary)
-          SleepDurationChart(points: chartPoints, accent: theme.accent, animate: animate)
-            .accessibilityLabel(L("Sleep duration over the last 14 logs"))
+        if rangedSleeps.isEmpty {
+          Text(L("No sleep logged in this range."))
+            .font(.dl(.subheadline))
+            .foregroundStyle(DLColor.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, DLSpace.sm)
+        } else {
+          HStack(spacing: DLSpace.lg) {
+            averageHoursStat
+            Divider()
+              .frame(height: 44)
+              .overlay(DLColor.separator)
+            averageQualityStat
+          }
+
+          if !chartPoints.isEmpty {
+            Divider().overlay(DLColor.separator)
+            Text(L("Sleep duration over time"))
+              .font(.dl(.caption, weight: .medium))
+              .foregroundStyle(DLColor.textTertiary)
+            SleepDurationChart(points: chartPoints, accent: theme.accent, animate: animate)
+              .accessibilityLabel(L("Sleep duration over time"))
+          }
         }
       }
     }
+    .animation(reduceMotion ? nil : DLAnim.standard, value: range)
   }
 
   private var averageHoursStat: some View {
@@ -206,20 +225,29 @@ struct SleepTrackerView: View {
 
   // MARK: Derived data
 
+  /// Logs within the active range (newest-first, like the query). `.all` keeps
+  /// every log.
+  private var rangedSleeps: [SleepLog] {
+    guard let start = range.startDate(now: Date(), calendar: Calendar.current) else { return sleeps }
+    let s = Calendar.current.startOfDay(for: start)
+    return sleeps.filter { $0.date >= s }
+  }
+
   private var averageHours: Double {
-    guard !sleeps.isEmpty else { return 0 }
-    return sleeps.map(\.durationHours).reduce(0, +) / Double(sleeps.count)
+    guard !rangedSleeps.isEmpty else { return 0 }
+    return rangedSleeps.map(\.durationHours).reduce(0, +) / Double(rangedSleeps.count)
   }
 
   private var averageQuality: Double {
-    guard !sleeps.isEmpty else { return 0 }
-    return Double(sleeps.map(\.computedQuality).reduce(0, +)) / Double(sleeps.count)
+    guard !rangedSleeps.isEmpty else { return 0 }
+    return Double(rangedSleeps.map(\.computedQuality).reduce(0, +)) / Double(rangedSleeps.count)
   }
 
-  /// The most recent 14 logs in chronological order (oldest → newest) for the bar chart.
+  /// Up to the most recent 60 logs in the range, chronological (oldest → newest)
+  /// for the bar chart so longer windows stay readable.
   private var chartPoints: [SleepDurationPoint] {
-    sleeps
-      .prefix(14)              // sleeps are newest-first
+    rangedSleeps
+      .prefix(60)              // sleeps are newest-first
       .reversed()              // → oldest-first for left-to-right plotting
       .map { SleepDurationPoint(date: $0.date, hours: $0.durationHours) }
   }
