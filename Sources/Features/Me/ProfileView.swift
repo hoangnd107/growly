@@ -111,20 +111,13 @@ private struct ProfileContent: View {
   /// Insights + History + the LevelHeader flame) to avoid cross-tab duplication.
   private var statsStrip: some View {
     let info = progress.levelInfo
-    let toNext = max(0, info.xpForNextLevel - info.xpIntoLevel)
-    return StatTileGrid(
+    return CompactStatRow(
       tiles: [
-        StatTileData(
-          value: "\(progress.totalXP)",
-          label: L("Total XP"),
-          sublabel: Lf("%d XP to level %d", toNext, info.level + 1),
-          tint: DLColor.xpGold
-        ),
+        StatTileData(value: "\(progress.totalXP)", label: L("Total XP"), tint: DLColor.xpGold),
         StatTileData(value: "\(info.level)", label: L("Level"), tint: DLColor.accent),
         StatTileData(value: "\(entries.count)", label: L("Reviews")),
         StatTileData(value: "\(notes.filter { $0.deletedAt == nil }.count)", label: L("Notes")),
-      ],
-      hero: true
+      ]
     )
   }
 

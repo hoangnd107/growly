@@ -428,7 +428,7 @@ struct NotesView: View {
       // deliberately live in Insights' WritingStatsView, not here, to avoid dupes.
       if !selecting {
         Section {
-          StatTileGrid(tiles: notesStatTiles, hero: true)
+          CompactStatRow(tiles: notesStatTiles)
           .listRowInsets(EdgeInsets(top: DLSpace.md, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
           .listRowBackground(Color.clear)
           .listRowSeparator(.hidden)

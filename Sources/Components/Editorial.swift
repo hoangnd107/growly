@@ -174,6 +174,47 @@ struct StatTileGrid: View {
   }
 }
 
+/// A compact one-line stat strip: each metric is a small centred value + label,
+/// split by short hairline dividers, on a single standard glass card. Used where a
+/// screen just needs an at-a-glance summary and the taller `StatTileGrid` (hero
+/// number + 2×2 ledger) would be too heavy (redesign v2: simpler Notes/Me headers).
+struct CompactStatRow: View {
+  let tiles: [StatTileData]
+
+  var body: some View {
+    HStack(alignment: .center, spacing: 0) {
+      ForEach(Array(tiles.enumerated()), id: \.element.id) { index, tile in
+        if index > 0 {
+          Rectangle()
+            .fill(DLColor.separator)
+            .frame(width: 1, height: 28)
+        }
+        VStack(spacing: 3) {
+          Text(tile.value)
+            .font(.dl(.title3, weight: .bold))
+            .foregroundStyle(tile.tint)
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+          Text(tile.label)
+            .font(.dl(.caption2, weight: .medium))
+            .foregroundStyle(DLColor.textSecondary)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DLSpace.sm)
+        .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(tile.label): \(tile.value)")
+      }
+    }
+    .padding(.horizontal, DLSpace.xs)
+    .glass(cornerRadius: DLRadius.card, level: .standard)
+  }
+}
+
 // MARK: - Report row (dashboard link)
 
 /// A tappable list row used in the Progress dashboard to open a detailed report.
