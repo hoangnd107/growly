@@ -6,11 +6,11 @@ import Charts
 ///
 /// Sections, top to bottom:
 /// 1. AI Insights  — on-device heuristic patterns from `InsightsEngine`.
-/// 2. Goals summary — active/completed counts + a link to goals.
-/// 3. Sleep summary — averages + a link to the sleep tracker.
-/// 4. Growth score — the compound score plus a cumulative-reviews curve.
-/// 5. Mood calendar — week / month / year views of mood color.
-/// 6. Charts        — mood trend, XP per day, mood distribution.
+/// 2. Manage hub   — Goals / Habits / Sleep / Life areas.
+/// 3. Detailed reports — editorial analytics destinations.
+/// 4. Lifetime     — Total XP / Level / Reviews / Notes (moved from the Me tab).
+/// 5. Streaks      — overall + per-type Note / Review / Mood runs (moved from Progress).
+/// 6. Growth score, XP per day, and Stats.
 ///
 /// Everything lives in a `NavigationStack` so the summary cards can push the
 /// Sleep and Goals destinations. The whole screen is reduce-motion aware and
@@ -29,12 +29,7 @@ struct InsightsView: View {
   /// Drives a spring entrance for the AI-insight cards.
   @State private var appeared = false
 
-  /// Selected granularity for the mood calendar section.
-  @State private var calendarScale: CalendarScale = .month
-  @Namespace private var scaleNS
-
-  /// Selected time ranges for the trend / XP charts (default 14 days, no cap).
-  @State private var moodRange: ChartRange = .twoWeeks
+  /// Selected time range for the XP-per-day chart (default 14 days, no cap).
   @State private var xpRange: ChartRange = .twoWeeks
 
   /// Presents the habit manager sheet from the Manage hub (it owns a NavigationStack).
@@ -104,14 +99,12 @@ struct InsightsView: View {
         aiInsightsCard
         manageHubCard
         reportsCard
+        lifetimeCard
         StreakCard()
-        CompleteDayStreakCard()
+        StreakDetailView()
         growthScoreCard
-        moodCalendarCard
         if !entries.isEmpty {
-          moodTrendCard
           xpPerDayCard
-          moodDistributionCard
         }
         StatsCard()
       }
@@ -312,6 +305,24 @@ struct InsightsView: View {
     .buttonStyle(ScaleButtonStyle(scale: 0.98))
   }
 
+  // MARK: Lifetime (moved from the Me tab)
+
+  /// Lifetime identity stats — Total XP, Level, Reviews, Notes — as an editorial
+  /// ledger. Moved here from the Me tab so the aggregate stats live in Insights.
+  private var lifetimeCard: some View {
+    let progress = progressList.first
+    let level = progress?.levelInfo.level ?? 1
+    return VStack(alignment: .leading, spacing: DLSpace.sm) {
+      SectionLabel(L("Lifetime"))
+      CompactStatRow(tiles: [
+        StatTileData(value: "\(progress?.totalXP ?? 0)", label: L("Total XP"), tint: DLColor.xpGold),
+        StatTileData(value: "\(level)", label: L("Level"), tint: DLColor.accent),
+        StatTileData(value: "\(entries.count)", label: L("Reviews")),
+        StatTileData(value: "\(allNotes.filter { $0.deletedAt == nil }.count)", label: L("Notes")),
+      ])
+    }
+  }
+
   // MARK: 2 — Growth score
 
   private var growthScoreCard: some View {
@@ -349,21 +360,9 @@ struct InsightsView: View {
     }
   }
 
-  // MARK: 3 — Mood calendar
+  // MARK: Chart range
 
-  private enum CalendarScale: String, CaseIterable, Identifiable {
-    case week, month, year
-    var id: String { rawValue }
-    var label: String {
-      switch self {
-      case .week: return L("Week")
-      case .month: return L("Month")
-      case .year: return L("Year")
-      }
-    }
-  }
-
-  /// Time window for the mood-trend and XP-per-day charts. `.all` is uncapped.
+  /// Time window for the XP-per-day chart. `.all` is uncapped.
   private enum ChartRange: Int, CaseIterable, Identifiable {
     case week = 7
     case twoWeeks = 14
@@ -384,236 +383,7 @@ struct InsightsView: View {
     }
   }
 
-  private var moodCalendarCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        HStack(alignment: .firstTextBaseline) {
-          Label(L("Mood calendar"), systemImage: "calendar")
-            .font(.dl(.headline, weight: .semibold))
-            .foregroundStyle(theme.accent)
-          Spacer()
-        }
-
-        calendarScalePicker
-
-        if entries.isEmpty {
-          Text(L("Log a daily review to fill your mood calendar."))
-            .font(.dl(.caption))
-            .foregroundStyle(DLColor.textTertiary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, DLSpace.sm)
-        } else {
-          switch calendarScale {
-          case .week:
-            weekMoodStrip
-              .accessibilityLabel(L("Mood this week"))
-          case .month:
-            moodMonthGrid
-              .accessibilityLabel(L("Mood calendar by day"))
-          case .year:
-            moodYearHeatmap
-              .accessibilityLabel(L("Mood by day over the year"))
-          }
-        }
-      }
-    }
-  }
-
-  private var calendarScalePicker: some View {
-    HStack(spacing: 4) {
-      ForEach(CalendarScale.allCases) { scale in
-        let isSelected = calendarScale == scale
-        Button {
-          withAnimation(animate ? DLAnim.standard : nil) { calendarScale = scale }
-          Haptics.selection()
-        } label: {
-          Text(scale.label)
-            .font(.dl(.subheadline, weight: .semibold))
-            .foregroundStyle(isSelected ? Color.white : DLColor.textSecondary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background {
-              if isSelected {
-                Capsule().fill(theme.accent)
-                  .matchedGeometryEffect(id: "calendarScalePill", in: scaleNS)
-              }
-            }
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-      }
-    }
-    .padding(4)
-    .background(DLColor.surfaceElevated, in: Capsule())
-    .overlay(Capsule().strokeBorder(DLColor.separator.opacity(0.6), lineWidth: 1))
-  }
-
-  /// The seven days of the current week (Monday → Sunday), each tinted by that
-  /// day's mood. Always exactly this week — never a multi-week overview.
-  private var weekMoodStrip: some View {
-    var moodByDay: [Date: Int] = [:]
-    for entry in entries {
-      moodByDay[calendar.startOfDay(for: entry.day)] = entry.moodRaw
-    }
-    return HStack(spacing: DLSpace.xs) {
-      ForEach(currentWeekDays, id: \.self) { day in
-        let key = calendar.startOfDay(for: day)
-        let isFuture = key > today
-        let isToday = calendar.isDate(key, inSameDayAs: today)
-        let option = moodByDay[key].flatMap { MoodCatalog.shared.option(forValue: $0) }
-        VStack(spacing: 6) {
-          Text(shortWeekday(day))
-            .font(.dl(.caption2, weight: .semibold))
-            .foregroundStyle(DLColor.textTertiary)
-          ZStack {
-            RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-              .fill(isFuture ? DLColor.separator.opacity(0.15)
-                             : (option?.color ?? DLColor.separator.opacity(0.35)))
-              .frame(height: 44)
-              .overlay(
-                RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-                  .strokeBorder(isToday ? theme.accent : DLColor.separator.opacity(0.3),
-                                lineWidth: isToday ? 2 : 0.5)
-              )
-            if let option, !isFuture {
-              Text(option.emoji).font(.system(size: 17))
-            }
-          }
-          Text(day, format: .dateTime.day())
-            .font(.dl(.caption2, weight: isToday ? .bold : .regular))
-            .foregroundStyle(isToday ? theme.accent : DLColor.textSecondary)
-            .monospacedDigit()
-        }
-        .frame(maxWidth: .infinity)
-        .opacity(isFuture ? 0.5 : 1)
-      }
-    }
-  }
-
-  /// Monday → Sunday of the week containing today.
-  private var currentWeekDays: [Date] {
-    let weekday = calendar.component(.weekday, from: today) // 1 = Sun … 7 = Sat
-    let daysSinceMonday = (weekday + 5) % 7                 // Mon → 0 … Sun → 6
-    guard let monday = calendar.date(byAdding: .day, value: -daysSinceMonday, to: today) else {
-      return [today]
-    }
-    return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
-  }
-
-  private func shortWeekday(_ date: Date) -> String {
-    let formatter = DateFormatter()
-    formatter.locale = LocalizationManager.shared.locale ?? .current
-    formatter.setLocalizedDateFormatFromTemplate("EEE")
-    return formatter.string(from: date)
-  }
-
-  /// Mood for each day this month, keyed by start-of-day (entries always carry a
-  /// mood). Shared by the month grid.
-  private var moodByDay: [Date: Int] {
-    var map: [Date: Int] = [:]
-    for entry in entries { map[calendar.startOfDay(for: entry.day)] = entry.moodRaw }
-    return map
-  }
-
-  /// The current month as a 7-column calendar grid (item 6) — same shape as the
-  /// Progress calendar — with each day cell filled by that day's mood color.
-  private var moodMonthGrid: some View {
-    var cal = calendar
-    cal.firstWeekday = 2 // Monday-first, matching CalendarMonthView.
-    let moods = moodByDay
-    let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: today)) ?? today
-    let range = cal.range(of: .day, in: .month, for: monthStart) ?? 1..<32
-    let firstWeekday = cal.component(.weekday, from: monthStart)
-    let leadingBlanks = (firstWeekday - cal.firstWeekday + 7) % 7
-
-    var slots: [Date?] = Array(repeating: nil, count: leadingBlanks)
-    for offset in 0..<range.count {
-      if let day = cal.date(byAdding: .day, value: offset, to: monthStart) {
-        slots.append(cal.startOfDay(for: day))
-      }
-    }
-
-    let weekdaySymbols = orderedVeryShortWeekdaySymbols(cal)
-    let columns = Array(repeating: GridItem(.flexible(), spacing: DLSpace.xs), count: 7)
-
-    return VStack(spacing: DLSpace.sm) {
-      LazyVGrid(columns: columns, spacing: 0) {
-        ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
-          Text(symbol)
-            .font(.dl(.caption2, weight: .semibold))
-            .foregroundStyle(DLColor.textTertiary)
-            .frame(maxWidth: .infinity)
-        }
-      }
-      LazyVGrid(columns: columns, spacing: DLSpace.xs) {
-        ForEach(Array(slots.enumerated()), id: \.offset) { _, day in
-          if let day {
-            moodMonthCell(day: day, mood: moods[day], isToday: cal.isDate(day, inSameDayAs: today), isFuture: day > today)
-          } else {
-            Color.clear.frame(height: 40)
-          }
-        }
-      }
-    }
-  }
-
-  private func moodMonthCell(day: Date, mood: Int?, isToday: Bool, isFuture: Bool) -> some View {
-    let option = mood.flatMap { MoodCatalog.shared.option(forValue: $0) }
-    return VStack(spacing: 2) {
-      Text(day, format: .dateTime.day())
-        .font(.dl(.caption2, weight: isToday ? .bold : .regular))
-        .foregroundStyle(isToday ? theme.accent : DLColor.textSecondary)
-        .monospacedDigit()
-      RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-        .fill(isFuture ? DLColor.separator.opacity(0.15)
-                       : (option?.color ?? DLColor.separator.opacity(0.35)))
-        .frame(height: 26)
-        .overlay(
-          RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous)
-            .strokeBorder(isToday ? theme.accent : DLColor.separator.opacity(0.3),
-                          lineWidth: isToday ? 2 : 0.5)
-        )
-        .overlay {
-          if let option, !isFuture {
-            Text(option.emoji).font(.system(size: 13))
-          }
-        }
-    }
-    .opacity(isFuture ? 0.5 : 1)
-  }
-
-  /// The current year as the shared GitHub-style heatmap (item 6) — same shape as
-  /// the Consistency "this year" view — with each day filled by its mood color.
-  private var moodYearHeatmap: some View {
-    let moods = moodByDay
-    return YearActivityHeatmap(year: calendar.component(.year, from: today), reduceMotion: reduceMotion) { day in
-      if let raw = moods[day], let option = MoodCatalog.shared.option(forValue: raw) {
-        return option.color
-      }
-      return DLColor.separator.opacity(0.35)
-    }
-  }
-
-  /// Very-short weekday symbols rotated to start at the calendar's `firstWeekday`.
-  private func orderedVeryShortWeekdaySymbols(_ cal: Calendar) -> [String] {
-    let symbols = cal.veryShortStandaloneWeekdaySymbols
-    let shift = cal.firstWeekday - 1
-    guard shift > 0, shift < symbols.count else { return symbols }
-    return Array(symbols[shift...] + symbols[..<shift])
-  }
-
   // MARK: 4 — Existing charts
-
-  private var moodTrendCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        rangeHeader(L("Mood over time"), icon: "face.smiling", tint: theme.accent, range: $moodRange)
-        MoodTrendChart(points: moodPoints(for: moodRange), animate: animate)
-          .accessibilityLabel(L("Mood trend"))
-      }
-    }
-  }
 
   private var xpPerDayCard: some View {
     GlassCard {
@@ -652,16 +422,6 @@ struct InsightsView: View {
         .background(tint.opacity(0.12), in: Capsule())
       }
       .accessibilityLabel(Lf("Range: %@", range.wrappedValue.label))
-    }
-  }
-
-  private var moodDistributionCard: some View {
-    GlassCard {
-      VStack(alignment: .leading, spacing: DLSpace.md) {
-        chartHeader(L("Mood distribution"), subtitle: L("All entries"), icon: "chart.bar.fill")
-        MoodDistributionChart(points: moodCountPoints, animate: animate)
-          .accessibilityLabel(L("How often each mood was logged across all entries"))
-      }
     }
   }
 
@@ -783,18 +543,6 @@ struct InsightsView: View {
     }
   }
 
-  private func chartHeader(_ title: String, subtitle: String, icon: String, tint: Color = Color.accentColor) -> some View {
-    HStack(alignment: .firstTextBaseline) {
-      Label(title, systemImage: icon)
-        .font(.dl(.headline, weight: .semibold))
-        .foregroundStyle(tint)
-      Spacer()
-      Text(subtitle)
-        .font(.dl(.caption, weight: .medium))
-        .foregroundStyle(DLColor.textTertiary)
-    }
-  }
-
   // MARK: - Derived data
 
   private var insights: [Insight] {
@@ -829,13 +577,6 @@ struct InsightsView: View {
     }
   }
 
-  private func moodPoints(for range: ChartRange) -> [MoodPoint] {
-    days(for: range).map { day in
-      let entry = entries.first { calendar.isDate($0.day, inSameDayAs: day) }
-      return MoodPoint(day: day, mood: entry?.moodRaw)
-    }
-  }
-
   private func xpPoints(for range: ChartRange) -> [DailyXPPoint] {
     // Sum transaction amounts per day; days with none read as zero.
     var totals: [Date: Int] = [:]
@@ -846,18 +587,6 @@ struct InsightsView: View {
     return days(for: range).map { day in
       DailyXPPoint(day: day, xp: totals[day, default: 0])
     }
-  }
-
-  private var moodCountPoints: [MoodCountPoint] {
-    var counts: [Int: Int] = [:]
-    for entry in entries where entry.isComplete {
-      counts[entry.moodRaw, default: 0] += 1
-    }
-    // Fall back to counting all entries if none are complete yet.
-    if counts.isEmpty {
-      for entry in entries { counts[entry.moodRaw, default: 0] += 1 }
-    }
-    return MoodCatalog.shared.options.map { MoodCountPoint(mood: $0, count: counts[$0.value, default: 0]) }
   }
 
   /// Cumulative count of completed reviews, oldest → newest, for the growth curve.

@@ -143,7 +143,7 @@ struct CalendarMonthView: View {
     var parts: [String] = []
     if mark.hasNote { parts.append(L("note")) }
     if mark.hasMood { parts.append(L("mood")) }
-    if mark.hasComplete { parts.append(L("day completed")) }
+    if mark.hasComplete { parts.append(L("day reviewed")) }
     return parts.joined(separator: ", ")
   }
 }

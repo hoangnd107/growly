@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// A GitHub-contributions-style heatmap for a single calendar year: 7 day-rows ×
-/// however many week-columns span Jan 1 → Dec 31 of `year`. Each in-year,
-/// non-future day is colored by the `fill` closure; days that spill in from the
-/// neighbouring year (in the first/last week column) and future days render
-/// empty so the grid stays aligned.
+/// however many week-columns span Jan 1 → Dec 31 of `year`. EVERY day of the year
+/// renders a cell — colored by the `fill` closure when it has activity, or the
+/// closure's neutral "empty" color otherwise (no dimming, future days included).
+/// Only the leading/trailing cells that spill in from the neighbouring year (in
+/// the first/last week column) render blank, to keep the grid aligned.
 ///
 /// Shared so the "year" view looks identical everywhere it appears (items 4 & 6):
 /// Consistency, per-habit analytics, and the Insights mood calendar. Scrolls
@@ -44,7 +45,9 @@ struct YearActivityHeatmap: View {
   // MARK: Cells
 
   private func cellView(_ day: YearDay) -> some View {
-    let visible = day.inYear && !day.isFuture
+    // Every in-year day is shown (including future ones); only padding cells from
+    // the neighbouring year stay blank. Empty days get the closure's neutral fill.
+    let visible = day.inYear
     return RoundedRectangle(cornerRadius: 2.5, style: .continuous)
       .fill(visible ? fill(day.date) : Color.clear)
       .frame(width: cell, height: cell)

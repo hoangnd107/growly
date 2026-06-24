@@ -1,10 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// History — a calendar + searchable journal, plus Streak and Stats views (a
-/// segmented control switches between them). The calendar dots days that have a
+/// History — a calendar + searchable journal. The calendar dots days that have a
 /// reflection and/or notes; tapping any day (or a list row) opens a `DayDetailView`
 /// summarizing that day's reflection, notes, completed goals/habits, media, and sleep.
+/// Streak and Stats now live on the Insights tab.
 struct HistoryView: View {
   @Query(sort: \Entry.day, order: .reverse) private var entries: [Entry]
   @Query private var notes: [DayNote]
@@ -15,7 +15,6 @@ struct HistoryView: View {
   @State private var visibleMonth = Calendar.current.startOfDay(for: Date())
   @State private var selectedDay: DaySelection?
   @State private var showMonthPicker = false
-  @State private var historyMode: HistoryMode = .calendar
   /// A4: the per-day mood list under the calendar — month-scoped vs. all history.
   @State private var moodListAllMonths = false
   /// A4: collapse the daily-mood list; in all-time mode page it 30 days at a time.
@@ -24,18 +23,6 @@ struct HistoryView: View {
   private let moodListPageSize = 30
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-  private enum HistoryMode: String, CaseIterable, Identifiable {
-    case calendar, streak, stats
-    var id: String { rawValue }
-    var label: String {
-      switch self {
-      case .calendar: return L("Calendar")
-      case .streak: return L("Streak")
-      case .stats: return L("Stats")
-      }
-    }
-  }
 
   /// Wraps a day for `.sheet(item:)` presentation of `DayDetailView`.
   private struct DaySelection: Identifiable {
@@ -135,7 +122,7 @@ struct HistoryView: View {
       .navigationTitle(L("Progress"))
       .searchable(text: $query, prompt: Text(L("Search reflections")))
       .toolbar {
-        if !allTags.isEmpty && historyMode == .calendar {
+        if !allTags.isEmpty {
           ToolbarItem(placement: .topBarTrailing) { tagMenu }
         }
       }
@@ -205,29 +192,13 @@ struct HistoryView: View {
   private var content: some View {
     ScrollView {
       LazyVStack(spacing: DLSpace.md) {
-        modePicker
-        switch historyMode {
-        case .calendar: calendarSection
-        case .streak: StreakDetailView()
-        case .stats: StatsCard()
-        }
+        calendarSection
       }
       .padding(DLSpace.md)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: tagFilter)
       .animation(reduceMotion ? nil : DLAnim.smooth, value: query)
-      .animation(reduceMotion ? nil : DLAnim.smooth, value: historyMode)
     }
     .scrollDismissesKeyboard(.interactively)
-  }
-
-  private var modePicker: some View {
-    SlidingSegmentedControl(
-      items: HistoryMode.allCases,
-      label: { $0.label },
-      selection: $historyMode,
-      accent: theme.accent
-    )
-    .accessibilityLabel(L("Progress view"))
   }
 
   @ViewBuilder
@@ -312,7 +283,7 @@ struct HistoryView: View {
     HStack(spacing: DLSpace.md) {
       legendItem(color: CalendarDayMark.noteColor, label: L("Note"))
       legendItem(color: CalendarDayMark.moodColor, label: L("Mood"))
-      legendItem(color: CalendarDayMark.completeColor, label: L("Completed"))
+      legendItem(color: CalendarDayMark.completeColor, label: L("Reviewed"))
       Spacer(minLength: 0)
     }
     .frame(maxWidth: .infinity, alignment: .leading)

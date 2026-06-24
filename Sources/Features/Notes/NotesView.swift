@@ -121,23 +121,49 @@ struct NotesView: View {
     notes.filter { $0.deletedAt == nil }
   }
 
-  /// Tiles for the stats-forward header (item 8). The note count leads as a
-  /// full-width hero with a "+N this week" momentum cue; pinned / bookmarked /
-  /// with-media follow as a 2×2 ledger.
+  /// Tiles for the stats-forward header (item 8). "Total notes" leads and resets
+  /// the filter; the Pinned / Bookmarked / With-media tiles are tappable filter
+  /// shortcuts and only appear when their count is greater than zero. Tapping the
+  /// active filter toggles it back off.
   private var notesStatTiles: [StatTileData] {
     let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
     let recent = activeNotes.filter { $0.createdAt >= weekAgo }.count
-    return [
+    let pinned = activeNotes.filter { $0.pinned }.count
+    let bookmarked = activeNotes.filter { $0.bookmarked }.count
+    let withMedia = activeNotes.filter { !$0.attachments.isEmpty }.count
+
+    var tiles: [StatTileData] = [
       StatTileData(
         value: "\(activeNotes.count)",
         label: L("Total notes"),
         sublabel: recent > 0 ? Lf("+%d this week", recent) : nil,
-        tint: DLColor.accent
-      ),
-      StatTileData(value: "\(activeNotes.filter { $0.pinned }.count)", label: L("Pinned"), tint: DLColor.xpGold),
-      StatTileData(value: "\(activeNotes.filter { $0.bookmarked }.count)", label: L("Bookmarked")),
-      StatTileData(value: "\(activeNotes.filter { !$0.attachments.isEmpty }.count)", label: L("With media")),
+        tint: DLColor.accent,
+        action: { applyStatFilter(.all) },
+        isActive: filter == .all
+      )
     ]
+    if pinned > 0 {
+      tiles.append(StatTileData(value: "\(pinned)", label: L("Pinned"), tint: DLColor.xpGold,
+                                action: { applyStatFilter(.pinned) }, isActive: filter == .pinned))
+    }
+    if bookmarked > 0 {
+      tiles.append(StatTileData(value: "\(bookmarked)", label: L("Bookmarked"),
+                                action: { applyStatFilter(.bookmarked) }, isActive: filter == .bookmarked))
+    }
+    if withMedia > 0 {
+      tiles.append(StatTileData(value: "\(withMedia)", label: L("With media"),
+                                action: { applyStatFilter(.media) }, isActive: filter == .media))
+    }
+    return tiles
+  }
+
+  /// Applies a filter from a tapped stat tile. Tapping the active filter (other
+  /// than All) toggles back to All so the tiles double as a quick reset.
+  private func applyStatFilter(_ target: NoteFilter) {
+    Haptics.light()
+    withAnimation(reduceMotion ? nil : DLAnim.quick) {
+      filter = (target != .all && filter == target) ? .all : target
+    }
   }
 
   /// Notes currently in the Trash.
@@ -718,10 +744,9 @@ struct NotesView: View {
       }
 
       if note.charCount > 0 {
-        Label(Lf("%d chars", note.charCount), systemImage: "textformat.size")
+        Text(Lf("%d chars", note.charCount))
           .font(.dl(.caption, weight: .medium))
           .foregroundStyle(DLColor.textTertiary)
-          .labelStyle(.titleAndIcon)
           .monospacedDigit()
       }
 

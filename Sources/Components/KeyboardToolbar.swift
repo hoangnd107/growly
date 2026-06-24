@@ -62,9 +62,9 @@ private struct KeyboardAwareModifier: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      // Tapping anywhere outside a field resigns the responder (item 3). Uses a
-      // simultaneous gesture so taps on buttons / links / fields still fire.
-      .simultaneousGesture(TapGesture().onEnded { KeyboardHelper.dismiss() })
+      // Dismissal is via the always-visible "Done" bar only. We deliberately do
+      // NOT attach a tap-outside gesture: a global tap recognizer competes with
+      // text selection / caret placement and adds input latency while typing.
       .safeAreaInset(edge: .bottom, spacing: 0) {
         if keyboard.isVisible {
           KeyboardDoneBar()
@@ -83,12 +83,6 @@ extension View {
 
   /// Alias with a clearer name for new call sites.
   func keyboardAware() -> some View { modifier(KeyboardAwareModifier()) }
-
-  /// Dismisses the keyboard when the user taps an empty area of this view.
-  /// Kept for call sites that only want tap-to-dismiss without the Done bar.
-  func dismissKeyboardOnTap() -> some View {
-    simultaneousGesture(TapGesture().onEnded { KeyboardHelper.dismiss() })
-  }
 }
 
 enum KeyboardHelper {

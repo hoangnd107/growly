@@ -221,7 +221,7 @@ private struct TodayContent: View {
     completionCard
 
     if entry.xpAwarded > 0 {
-      Label(Lf("Day complete · +%d XP earned", entry.xpAwarded), systemImage: "checkmark.seal.fill")
+      Label(Lf("Day reviewed · +%d XP earned", entry.xpAwarded), systemImage: "checkmark.seal.fill")
         .font(.dl(.headline, weight: .semibold))
         .foregroundStyle(DLColor.success)
         .frame(maxWidth: .infinity)

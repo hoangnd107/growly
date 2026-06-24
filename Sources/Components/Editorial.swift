@@ -72,6 +72,10 @@ struct StatTileData: Identifiable {
   let label: String
   var sublabel: String? = nil
   var tint: Color = DLColor.textPrimary
+  /// When set, the tile in a `CompactStatRow` becomes a tappable filter button.
+  var action: (() -> Void)? = nil
+  /// Highlights the tile to show it is the currently-applied filter.
+  var isActive: Bool = false
 }
 
 struct StatTile: View {
@@ -189,29 +193,44 @@ struct CompactStatRow: View {
             .fill(DLColor.separator)
             .frame(width: 1, height: 28)
         }
-        VStack(spacing: 3) {
-          Text(tile.value)
-            .font(.dl(.title3, weight: .bold))
-            .foregroundStyle(tile.tint)
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
-          Text(tile.label)
-            .font(.dl(.caption2, weight: .medium))
-            .foregroundStyle(DLColor.textSecondary)
-            .multilineTextAlignment(.center)
-            .lineLimit(2)
-            .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, DLSpace.sm)
-        .padding(.horizontal, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(tile.label): \(tile.value)")
+        tileCell(tile)
       }
     }
     .padding(.horizontal, DLSpace.xs)
     .glass(cornerRadius: DLRadius.card, level: .standard)
+  }
+
+  @ViewBuilder
+  private func tileCell(_ tile: StatTileData) -> some View {
+    let content = VStack(spacing: 3) {
+      Text(tile.value)
+        .font(.dl(.title3, weight: .bold))
+        .foregroundStyle(tile.isActive ? DLColor.accent : tile.tint)
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+      Text(tile.label)
+        .font(.dl(.caption2, weight: tile.isActive ? .bold : .medium))
+        .foregroundStyle(tile.isActive ? DLColor.accent : DLColor.textSecondary)
+        .multilineTextAlignment(.center)
+        .lineLimit(2)
+        .minimumScaleFactor(0.8)
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, DLSpace.sm)
+    .padding(.horizontal, 4)
+    .background(tile.isActive ? DLColor.accent.opacity(0.12) : .clear,
+                in: RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous))
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("\(tile.label): \(tile.value)")
+
+    if let action = tile.action {
+      Button(action: action) { content }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(tile.isActive ? [.isButton, .isSelected] : .isButton)
+    } else {
+      content
+    }
   }
 }
 

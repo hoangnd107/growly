@@ -30,7 +30,7 @@
 "Morning" = "早晨";
 "New entry" = "新建记录";
 "Edit entry" = "编辑记录";
-"Complete the day" = "完成今天";
+"Complete the day" = "复盘今天";
 "Mood & Energy" = "心情与精力";
 "How are you feeling?" = "你感觉如何？";
 "Tags" = "标签";
@@ -41,11 +41,11 @@
 "Yesterday's adjustment" = "昨天的调整";
 "Attach a photo" = "添加照片";
 "Add media" = "添加照片/视频";
-"Completion" = "完成度";
+"Completion" = "复盘";
 
 /* Celebration */
 "Level Up!" = "升级了！";
-"Day complete!" = "今天完成！";
+"Day complete!" = "今天已复盘！";
 
 /* Insights */
 "Weekly coach" = "每周教练";
@@ -417,3 +417,9 @@
 "Tap to read your manifesto" = "点按阅读你的宣言";
 "Define who you're becoming" = "定义你想成为的人";
 "Set your identity and write your manifesto" = "设定你的身份并写下你的宣言";
+
+// --- v1.15 review rebrand ---
+"Reviewed" = "已复盘";
+"Day reviewed · +%d XP earned" = "今天已复盘 · +%d 经验值";
+"day reviewed" = "已复盘当天";
+"Review Streak" = "复盘连续记录";

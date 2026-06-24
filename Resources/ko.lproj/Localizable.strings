@@ -30,7 +30,7 @@
 "Morning" = "아침";
 "New entry" = "새 기록";
 "Edit entry" = "기록 편집";
-"Complete the day" = "하루 완료";
+"Complete the day" = "하루 회고하기";
 "Mood & Energy" = "기분 & 에너지";
 "How are you feeling?" = "오늘 기분은 어때요?";
 "Tags" = "태그";
@@ -41,11 +41,11 @@
 "Yesterday's adjustment" = "어제의 개선";
 "Attach a photo" = "사진 첨부";
 "Add media" = "사진/동영상 추가";
-"Completion" = "완성도";
+"Completion" = "회고";
 
 /* Celebration */
 "Level Up!" = "레벨 업!";
-"Day complete!" = "하루 완료!";
+"Day complete!" = "하루 회고 완료!";
 
 /* Insights */
 "Weekly coach" = "주간 코치";
@@ -417,3 +417,9 @@
 "Tap to read your manifesto" = "선언문을 읽으려면 탭하세요";
 "Define who you're becoming" = "되고 싶은 모습을 정의하세요";
 "Set your identity and write your manifesto" = "정체성을 설정하고 선언문을 작성하세요";
+
+// --- v1.15 review rebrand ---
+"Reviewed" = "회고함";
+"Day reviewed · +%d XP earned" = "하루 회고 완료 · +%d XP";
+"day reviewed" = "하루 회고함";
+"Review Streak" = "회고 연속";

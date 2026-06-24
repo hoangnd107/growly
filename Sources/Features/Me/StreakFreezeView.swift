@@ -31,7 +31,6 @@ struct StreakFreezeView: View {
       .frame(maxWidth: .infinity)
     }
     .scrollDismissesKeyboard(.interactively)
-    .dismissKeyboardOnTap()
     .keyboardDismissButton()
     .themedBackground(progress.gradientTheme)
     .navigationTitle(L("Streak Freeze"))

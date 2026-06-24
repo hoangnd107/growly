@@ -30,7 +30,7 @@
 "Morning" = "Morning";
 "New entry" = "New entry";
 "Edit entry" = "Edit entry";
-"Complete the day" = "Complete the day";
+"Complete the day" = "Review the day";
 "Mood & Energy" = "Mood & Energy";
 "How are you feeling?" = "How are you feeling?";
 "Tags" = "Tags";
@@ -41,11 +41,11 @@
 "Yesterday's adjustment" = "Yesterday's adjustment";
 "Attach a photo" = "Attach a photo";
 "Add media" = "Add media";
-"Completion" = "Completion";
+"Completion" = "Review";
 
 /* Celebration */
 "Level Up!" = "Level Up!";
-"Day complete!" = "Day complete!";
+"Day complete!" = "Day reviewed!";
 
 /* Insights */
 "Weekly coach" = "Weekly coach";
@@ -417,3 +417,9 @@
 "Tap to read your manifesto" = "Tap to read your manifesto";
 "Define who you're becoming" = "Define who you're becoming";
 "Set your identity and write your manifesto" = "Set your identity and write your manifesto";
+
+// --- v1.15 review rebrand ---
+"Reviewed" = "Reviewed";
+"Day reviewed · +%d XP earned" = "Day reviewed · +%d XP earned";
+"day reviewed" = "day reviewed";
+"Review Streak" = "Review Streak";

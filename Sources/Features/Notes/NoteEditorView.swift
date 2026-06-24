@@ -56,6 +56,17 @@ private struct NoteEditorForm: View {
   @State private var previewing = false
   @State private var showLocationPicker = false
 
+  /// Local edit buffers (item 10). The title/body fields bind here so each
+  /// keystroke updates only this view; the write-back to the SwiftData model —
+  /// which dirties it and triggers an autosave — is debounced off the typing
+  /// path, matching `ReflectionCard`, so typing stays smooth in long notes.
+  @State private var titleDraft = ""
+  @State private var bodyDraft = ""
+  @State private var commitTask: Task<Void, Never>?
+  /// Set once Save/Cancel has run, so the `onDisappear` flush is skipped (and we
+  /// never touch a note that Cancel just deleted).
+  @State private var didFinalize = false
+
   private let presetColors = ["FF3D5A", "FF9F0A", "FFC83D", "34C759", "00B4A6", "5AC8FA", "7E5BEF", "FF5C8A"]
 
   private var theme: GradientTheme {
@@ -70,7 +81,7 @@ private struct NoteEditorForm: View {
           GlassCard(padding: DLSpace.lg) {
             VStack(alignment: .leading, spacing: DLSpace.md) {
               metaRow
-              TextField(L("Title"), text: $note.title, axis: .vertical)
+              TextField(L("Title"), text: $titleDraft, axis: .vertical)
                 .font(.dl(.title, weight: .bold))
                 .foregroundStyle(DLColor.textPrimary)
                 .textInputAutocapitalization(.sentences)
@@ -79,19 +90,19 @@ private struct NoteEditorForm: View {
 
               if previewing {
                 Group {
-                  if note.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                  if bodyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text(L("Nothing to preview yet."))
                       .font(.dl(.body))
                       .foregroundStyle(DLColor.textTertiary)
                   } else {
-                    MarkdownText(raw: note.text)
+                    MarkdownText(raw: bodyDraft)
                   }
                 }
                 .frame(maxWidth: .infinity, minHeight: 160, alignment: .topLeading)
                 .contentShape(Rectangle())
                 .onTapGesture { withAnimation(DLAnim.quick) { previewing = false } }
               } else {
-                TextField(L("Write your note…"), text: $note.text, axis: .vertical)
+                TextField(L("Write your note…"), text: $bodyDraft, axis: .vertical)
                   .font(.dl(.body))
                   .foregroundStyle(DLColor.textPrimary)
                   .lineLimit(6...40)
@@ -168,7 +179,21 @@ private struct NoteEditorForm: View {
       .onChange(of: dictator.isRecording) { was, now in
         if was && !now { appendToBody(dictator.transcript) }
       }
-      .onAppear(perform: migrateLegacyLocation)
+      .onChange(of: titleDraft) { _, _ in scheduleCommit() }
+      .onChange(of: bodyDraft) { _, _ in scheduleCommit() }
+      .onAppear {
+        migrateLegacyLocation()
+        // Seed the edit buffers once from the model.
+        titleDraft = note.title
+        bodyDraft = note.text
+      }
+      .onDisappear {
+        // Flush any pending debounced edit so nothing is lost on interactive
+        // (swipe-down) dismiss. Skipped after Save/Cancel already finalized.
+        guard !didFinalize else { return }
+        commitTask?.cancel()
+        commitDrafts()
+      }
     }
   }
 
@@ -366,7 +391,7 @@ private struct NoteEditorForm: View {
       }
 
       toolButton("arrow.uturn.backward", L("Undo")) {
-        if let snap = undoSnapshot { note.text = snap; Haptics.light() }
+        if let snap = undoSnapshot { bodyDraft = snap; Haptics.light() }
       }
     }
     .padding(.horizontal, DLSpace.sm)
@@ -410,17 +435,34 @@ private struct NoteEditorForm: View {
   }
 
   private func insertMarker(_ marker: String) {
-    undoSnapshot = note.text
-    note.text += (note.text.isEmpty || note.text.hasSuffix(" ") || note.text.hasSuffix("\n") ? "" : " ") + marker + " "
+    undoSnapshot = bodyDraft
+    bodyDraft += (bodyDraft.isEmpty || bodyDraft.hasSuffix(" ") || bodyDraft.hasSuffix("\n") ? "" : " ") + marker + " "
     Haptics.light()
   }
 
   private func appendToBody(_ transcript: String) {
     let captured = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !captured.isEmpty else { return }
-    undoSnapshot = note.text
-    note.text += (note.text.isEmpty ? "" : (note.text.hasSuffix(" ") ? "" : " ")) + captured
+    undoSnapshot = bodyDraft
+    bodyDraft += (bodyDraft.isEmpty ? "" : (bodyDraft.hasSuffix(" ") ? "" : " ")) + captured
     Haptics.success()
+  }
+
+  /// Debounced write-back of the edit buffers to the model (coalesces keystrokes,
+  /// so the SwiftData mutation + autosave happens a few times a second at most).
+  private func scheduleCommit() {
+    commitTask?.cancel()
+    commitTask = Task { @MainActor in
+      try? await Task.sleep(nanoseconds: 300_000_000)
+      guard !Task.isCancelled else { return }
+      commitDrafts()
+    }
+  }
+
+  /// Flush the edit buffers into the model (no save; the context autosaves).
+  private func commitDrafts() {
+    if note.title != titleDraft { note.title = titleDraft }
+    if note.text != bodyDraft { note.text = bodyDraft }
   }
 
   private func toggleVoiceMemo() {
@@ -495,9 +537,12 @@ private struct NoteEditorForm: View {
   }
 
   private func save() {
+    didFinalize = true
+    commitTask?.cancel()
     if recorder.isRecording { _ = recorder.stop() }
     if dictator.isRecording { dictator.toggle() }
-    note.title = note.title.trimmingCharacters(in: .whitespaces)
+    note.title = titleDraft.trimmingCharacters(in: .whitespaces)
+    note.text = bodyDraft
     note.updatedAt = Date()
     try? context.save()
     Haptics.success()
@@ -505,14 +550,22 @@ private struct NoteEditorForm: View {
   }
 
   private func cancel() {
+    didFinalize = true
+    commitTask?.cancel()
     if recorder.isRecording { _ = recorder.stop() }
     if dictator.isRecording { dictator.toggle() }
-    let empty = note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-      && note.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    let empty = titleDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && bodyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       && note.attachments.isEmpty
     if isNew && empty {
       for media in note.attachments { MediaStore.delete(media.fileName) }
       context.delete(note)
+      try? context.save()
+    } else {
+      // Cancel keeps edits for an existing/non-empty note (the prior live-binding
+      // behaviour); flush the buffers so nothing typed is lost.
+      commitDrafts()
+      note.updatedAt = Date()
       try? context.save()
     }
     dismiss()

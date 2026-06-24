@@ -93,7 +93,7 @@ struct StreakDetailView: View {
   var body: some View {
     VStack(spacing: DLSpace.md) {
       card(title: L("Note Streak"), icon: "note.text", tint: CalendarDayMark.noteColor, streak: bundle.note)
-      card(title: L("Complete the Day Streak"), icon: "checkmark.seal.fill", tint: CalendarDayMark.completeColor, streak: bundle.completeDay)
+      card(title: L("Review Streak"), icon: "checkmark.seal.fill", tint: CalendarDayMark.completeColor, streak: bundle.completeDay)
       card(title: L("Mood Streak"), icon: "face.smiling", tint: CalendarDayMark.moodColor, streak: bundle.mood)
     }
   }

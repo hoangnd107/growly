@@ -18,7 +18,7 @@ struct CompleteDayStreakCard: View {
   var body: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        Label(L("Complete the Day Streak"), systemImage: "checkmark.seal.fill")
+        Label(L("Review Streak"), systemImage: "checkmark.seal.fill")
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(CalendarDayMark.completeColor)
 

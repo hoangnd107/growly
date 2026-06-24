@@ -30,7 +30,7 @@
 "Morning" = "Buổi sáng";
 "New entry" = "Mục mới";
 "Edit entry" = "Sửa mục";
-"Complete the day" = "Hoàn thành ngày";
+"Complete the day" = "Review hôm nay";
 "Mood & Energy" = "Tâm trạng & Năng lượng";
 "How are you feeling?" = "Bạn cảm thấy thế nào?";
 "Tags" = "Thẻ";
@@ -41,11 +41,11 @@
 "Yesterday's adjustment" = "Điều chỉnh hôm qua";
 "Attach a photo" = "Đính kèm ảnh";
 "Add media" = "Thêm ảnh/video";
-"Completion" = "Tiến độ";
+"Completion" = "Review";
 
 /* Celebration */
 "Level Up!" = "Lên cấp!";
-"Day complete!" = "Hoàn thành ngày!";
+"Day complete!" = "Đã review hôm nay!";
 
 /* Insights */
 "Weekly coach" = "Huấn luyện viên tuần";
@@ -417,3 +417,9 @@
 "Tap to read your manifesto" = "Chạm để đọc tuyên ngôn của bạn";
 "Define who you're becoming" = "Xác định con người bạn muốn trở thành";
 "Set your identity and write your manifesto" = "Thiết lập bản sắc và viết tuyên ngôn của bạn";
+
+// --- v1.15 review rebrand ---
+"Reviewed" = "Đã review";
+"Day reviewed · +%d XP earned" = "Đã review hôm nay · +%d XP";
+"day reviewed" = "đã review ngày";
+"Review Streak" = "Chuỗi review";

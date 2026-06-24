@@ -53,6 +53,10 @@ private struct ProfileContent: View {
 
   private var earnedIDs: Set<String> { Set(badgeRecords.map(\.badgeID)) }
 
+  /// Earned badges that still exist in the catalog (ignores records for badges
+  /// that have since been removed), so the "X of Y" count never exceeds Y.
+  private var earnedBadgeCount: Int { BadgeCatalog.all.filter { earnedIDs.contains($0.id) }.count }
+
   private var stats: GamificationStats {
     GamificationService.computeStats(
       progress: progress,
@@ -75,10 +79,6 @@ private struct ProfileContent: View {
     ScrollView {
       VStack(alignment: .leading, spacing: DLSpace.lg) {
         levelHeaderSection
-        VStack(alignment: .leading, spacing: DLSpace.sm) {
-          SectionLabel(L("Lifetime"))
-          statsStrip
-        }
         badgeGallery
         navigationCards
         streakFreezeSummaryCard
@@ -89,7 +89,6 @@ private struct ProfileContent: View {
       .frame(maxWidth: .infinity)
     }
     .scrollDismissesKeyboard(.interactively)
-    .dismissKeyboardOnTap()
     .keyboardDismissButton()
     .sheet(item: $selectedBadge) { badge in
       badgeDetailSheet(badge)
@@ -102,23 +101,6 @@ private struct ProfileContent: View {
     // The "Your rank" card was removed (feature 15); rank/level/streak still live
     // in the header at the top.
     LevelHeader(progress: progress)
-  }
-
-  // MARK: 2. Stats strip
-
-  /// Lifetime identity stats as an editorial ledger. Deliberately excludes
-  /// growth score (owned by Insights) and current/longest streak (owned by
-  /// Insights + History + the LevelHeader flame) to avoid cross-tab duplication.
-  private var statsStrip: some View {
-    let info = progress.levelInfo
-    return CompactStatRow(
-      tiles: [
-        StatTileData(value: "\(progress.totalXP)", label: L("Total XP"), tint: DLColor.xpGold),
-        StatTileData(value: "\(info.level)", label: L("Level"), tint: DLColor.accent),
-        StatTileData(value: "\(entries.count)", label: L("Reviews")),
-        StatTileData(value: "\(notes.filter { $0.deletedAt == nil }.count)", label: L("Notes")),
-      ]
-    )
   }
 
   // MARK: 3. Streak freeze (summary → full editor)
@@ -153,7 +135,7 @@ private struct ProfileContent: View {
             BadgeShowcaseView()
           } label: {
             HStack(spacing: 4) {
-              Text("\(earnedIDs.count)/\(BadgeCatalog.all.count)")
+              Text("\(earnedBadgeCount)/\(BadgeCatalog.all.count)")
                 .font(.dl(.subheadline, weight: .semibold))
                 .monospacedDigit()
               Image(systemName: "chevron.right")
@@ -168,7 +150,7 @@ private struct ProfileContent: View {
           columns: Array(repeating: GridItem(.flexible(), spacing: DLSpace.md), count: 3),
           spacing: DLSpace.md
         ) {
-          ForEach(Array(BadgeCatalog.all.enumerated()), id: \.element.id) { index, badge in
+          ForEach(Array(BadgeCatalog.visible(earned: earnedIDs).enumerated()), id: \.element.id) { index, badge in
             BadgeCell(
               badge: badge,
               earned: earnedIDs.contains(badge.id),

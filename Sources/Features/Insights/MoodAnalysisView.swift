@@ -372,10 +372,12 @@ struct MoodAnalysisView: View {
           y: .value("Mood", item.average ?? 0)
         )
         .cornerRadius(4)
-        // Vertical gradient fill (item 5); empty weekdays collapse to nothing.
+        // Each weekday bar is tinted by the mood matching its average, so the
+        // chart reads in the same palette as the Distribution section. Empty
+        // weekdays collapse to nothing.
         .foregroundStyle(
           LinearGradient(
-            colors: [DLColor.accent, DLColor.accent.opacity(0.55)],
+            colors: [weekdayColor(item.average), weekdayColor(item.average).opacity(0.55)],
             startPoint: .top,
             endPoint: .bottom
           )
@@ -417,6 +419,13 @@ struct MoodAnalysisView: View {
           .fixedSize(horizontal: false, vertical: true)
       }
     }
+  }
+
+  /// Mood color matching a weekday's average (rounded to the nearest mood on the
+  /// catalog scale), so the by-weekday bars share the Distribution palette.
+  private func weekdayColor(_ average: Double?) -> Color {
+    guard let average else { return DLColor.accent }
+    return MoodCatalog.shared.option(forValue: Int(average.rounded()))?.color ?? DLColor.accent
   }
 
   /// "Mondays are your best day; Thursdays your hardest." style note.
