@@ -255,7 +255,7 @@ struct LifeAreaReportView: View {
         GeometryReader { geo in
           ZStack(alignment: .leading) {
             Capsule()
-              .fill(DLColor.separator.opacity(0.4))
+              .fill(DLColor.track)
               .frame(height: 6)
             Capsule()
               .fill(area.color)
@@ -364,7 +364,7 @@ private struct RadarChart<Axis: Hashable & Identifiable>: View {
           // Grid rings.
           ForEach(Array(rings.enumerated()), id: \.offset) { _, ring in
             polygonPath(count: count, center: center, radius: radius * ring)
-              .stroke(DLColor.separator.opacity(0.4), lineWidth: 1)
+              .stroke(DLColor.track, lineWidth: 1)
           }
 
           // Spokes from center to each vertex.
@@ -374,7 +374,7 @@ private struct RadarChart<Axis: Hashable & Identifiable>: View {
               path.addLine(to: vertex(index: i, count: count, center: center, radius: radius))
             }
           }
-          .stroke(DLColor.separator.opacity(0.35), lineWidth: 1)
+          .stroke(DLColor.track, lineWidth: 1)
 
           // Data polygon.
           dataPath(count: count, center: center, radius: radius)

@@ -37,6 +37,11 @@ enum DLColor {
   static let textSecondary = Color(lightHex: 0x6B665E, darkHex: 0xA8A296)
   static let textTertiary = Color(lightHex: 0xA39C90, darkHex: 0x6E685D)
   static let separator = Color(lightHex: 0xE7E3DB, darkHex: 0x2A2823)
+  // Track / "empty" fill for progress rings, bars, grid lines, and unfilled
+  // heatmap cells. Deliberately lighter than `separator` in dark mode so these
+  // "no data / not reached yet" elements stay clearly visible against the near-
+  // black background instead of blending in.
+  static let track = Color(lightHex: 0xDCD6CA, darkHex: 0x3C3A33)
 
   // App accent — the pre-redesign default Violet, matching `progress.accentColor`.
   static let accent = Color(hex: 0x7E5BEF)

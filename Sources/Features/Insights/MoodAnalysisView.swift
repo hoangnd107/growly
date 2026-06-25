@@ -504,7 +504,7 @@ struct MoodAnalysisView: View {
            let option = MoodCatalog.shared.option(forValue: Int(avg.rounded())) {
           return option.color
         }
-        return DLColor.separator.opacity(0.35)
+        return DLColor.track
       }
 
       moodLegend

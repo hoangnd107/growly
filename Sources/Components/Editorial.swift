@@ -216,9 +216,12 @@ struct CompactStatRow: View {
         .lineLimit(2)
         .minimumScaleFactor(0.8)
     }
-    .frame(maxWidth: .infinity)
     .padding(.vertical, DLSpace.sm)
     .padding(.horizontal, 4)
+    // Stretch each cell to the row's full height BEFORE drawing the highlight so
+    // the active tint fills the whole parent card — no sliver of card background
+    // peeking below the rounded highlight.
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(tile.isActive ? DLColor.accent.opacity(0.12) : .clear,
                 in: RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous))
     .accessibilityElement(children: .combine)

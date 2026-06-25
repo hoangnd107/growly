@@ -119,7 +119,7 @@ struct ConsistencyView: View {
         SectionLabel(String(selectedYear))
 
         YearActivityHeatmap(year: selectedYear, reduceMotion: reduceMotion) { day in
-          activeDays.contains(day) ? DLColor.accent : DLColor.separator.opacity(0.35)
+          activeDays.contains(day) ? DLColor.accent : DLColor.track
         }
 
         // 3) What counts.

@@ -46,14 +46,22 @@ struct DayDetailView: View {
     allGoals.filter { $0.deletedAt == nil && $0.isCompleted && ($0.completedAt.map(isSameDay) ?? false) }
   }
 
-  private var completedHabits: [Habit] {
-    habits.filter { !$0.isArchived && $0.deletedAt == nil && $0.isCompleted(on: dayStart, calendar: calendar) }
+  /// All active (non-archived, non-trashed) habits, so a forgotten one can be
+  /// ticked for this day — not just the ones already completed.
+  private var activeHabits: [Habit] {
+    habits.filter { !$0.isArchived && $0.deletedAt == nil }
+  }
+
+  /// Habits are only editable up to today — no back-filling the future.
+  private var canEditHabits: Bool {
+    dayStart <= calendar.startOfDay(for: Date())
   }
 
   private var sleep: SleepLog? { sleeps.first { isSameDay($0.date) } }
 
   private var isEmpty: Bool {
-    entry == nil && notes.isEmpty && completedGoals.isEmpty && completedHabits.isEmpty && sleep == nil
+    entry == nil && notes.isEmpty && completedGoals.isEmpty && sleep == nil
+      && !(canEditHabits && !activeHabits.isEmpty)
   }
 
   var body: some View {
@@ -135,7 +143,7 @@ struct DayDetailView: View {
         }
 
         if !completedGoals.isEmpty { goalsCard.dayDetailRow() }
-        if !completedHabits.isEmpty { habitsCard.dayDetailRow() }
+        if canEditHabits && !activeHabits.isEmpty { habitsCard.dayDetailRow() }
         if let sleep {
           sleepCard(sleep)
             .contentShape(Rectangle())
@@ -407,24 +415,53 @@ struct DayDetailView: View {
   private var habitsCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        Label(L("Habits completed"), systemImage: "checklist")
+        Label(L("Habits"), systemImage: "checklist")
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(theme.accent)
-        ForEach(completedHabits) { habit in
-          HStack(spacing: DLSpace.sm) {
-            Text(habit.emoji)
-            Text(habit.name)
-              .font(.dl(.subheadline, weight: .medium))
-              .foregroundStyle(DLColor.textPrimary)
-              .lineLimit(1)
-            Spacer(minLength: 0)
-            Image(systemName: "checkmark.circle.fill")
-              .font(.system(size: 15))
-              .foregroundStyle(DLColor.success)
-          }
+        ForEach(activeHabits) { habit in
+          habitToggleRow(habit)
         }
       }
     }
+  }
+
+  /// A tappable habit row: tick it to mark the habit complete for THIS day (or
+  /// untick to undo) — lets you back-fill a habit you forgot to log.
+  private func habitToggleRow(_ habit: Habit) -> some View {
+    let done = habit.isCompleted(on: dayStart, calendar: calendar)
+    return Button {
+      toggleHabit(habit)
+    } label: {
+      HStack(spacing: DLSpace.sm) {
+        Text(habit.emoji)
+        Text(habit.name)
+          .font(.dl(.subheadline, weight: .medium))
+          .foregroundStyle(DLColor.textPrimary)
+          .lineLimit(1)
+        Spacer(minLength: DLSpace.sm)
+        Text("+\(habit.xpValue)")
+          .font(.dl(.caption2, weight: .semibold))
+          .foregroundStyle(DLColor.xpGold)
+        Image(systemName: done ? "checkmark.circle.fill" : "circle")
+          .font(.system(size: 22))
+          .foregroundStyle(done ? DLColor.success : DLColor.textTertiary)
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel(habit.name)
+    .accessibilityValue(done ? L("Done") : "")
+  }
+
+  /// Toggles this habit's completion for `dayStart`, creating the log if needed.
+  private func toggleHabit(_ habit: Habit) {
+    if let log = habit.logs.first(where: { calendar.isDate($0.date, inSameDayAs: dayStart) }) {
+      log.completed.toggle()
+    } else {
+      context.insert(HabitLog(date: dayStart, completed: true, habit: habit))
+    }
+    try? context.save()
+    Haptics.selection()
   }
 
   // MARK: - Sleep

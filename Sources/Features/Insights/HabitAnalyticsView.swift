@@ -161,7 +161,7 @@ private struct HabitAnalyticsCard: View {
       VStack(alignment: .leading, spacing: DLSpace.md) {
         headerRow
         YearActivityHeatmap(year: year, reduceMotion: reduceMotion) { day in
-          completedDays.contains(day) ? habitColor : DLColor.separator.opacity(0.35)
+          completedDays.contains(day) ? habitColor : DLColor.track
         }
         captionRow
       }

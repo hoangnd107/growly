@@ -342,7 +342,7 @@ struct LifeOSScoreView: View {
     let pillarColors = LifeOSPillar.allCases.map(\.color)
     return ZStack {
       Circle()
-        .stroke(DLColor.separator.opacity(0.4), lineWidth: 16)
+        .stroke(DLColor.track, lineWidth: 16)
       Circle()
         .trim(from: 0, to: max(0.001, score.fraction))
         .stroke(
@@ -409,7 +409,7 @@ struct LifeOSScoreView: View {
       if p.hasData {
         GeometryReader { geo in
           ZStack(alignment: .leading) {
-            Capsule().fill(DLColor.separator.opacity(0.3))
+            Capsule().fill(DLColor.track)
             Capsule()
               .fill(
                 LinearGradient(
