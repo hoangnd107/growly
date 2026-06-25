@@ -15,6 +15,7 @@ struct MoodAnalysisView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   @State private var range: StatsRange = .month
+  @State private var selectedYear = Calendar.current.component(.year, from: Date())
 
   private var animate: Bool { !reduceMotion }
   private let calendar = Calendar.current
@@ -217,6 +218,9 @@ struct MoodAnalysisView: View {
           emptyState
         } else {
           StatTileGrid(tiles: headlineTiles)
+
+          Hairline()
+          calendarSection
 
           Hairline()
           trendSection
@@ -440,6 +444,92 @@ struct MoodAnalysisView: View {
       return Lf("Best weekday: %@ (%.1f)", best.0, best.1)
     }
     return Lf("Best: %@ (%.1f) · Hardest: %@ (%.1f)", best.0, best.1, worst.0, worst.1)
+  }
+
+  // MARK: - Year calendar
+
+  /// Average mood per calendar day across ALL data (entries + mood-bearing live
+  /// notes), ignoring the range filter — the calendar always shows the whole
+  /// selected year. Keyed by start-of-day.
+  private var moodAverageByDay: [Date: Double] {
+    var sums: [Date: Int] = [:]
+    var counts: [Date: Int] = [:]
+    for entry in entries {
+      let day = calendar.startOfDay(for: entry.day)
+      sums[day, default: 0] += entry.moodRaw
+      counts[day, default: 0] += 1
+    }
+    for note in notes where note.deletedAt == nil {
+      guard let raw = note.moodRaw else { continue }
+      let day = calendar.startOfDay(for: note.createdAt)
+      sums[day, default: 0] += raw
+      counts[day, default: 0] += 1
+    }
+    var out: [Date: Double] = [:]
+    for (day, total) in sums {
+      out[day] = Double(total) / Double(counts[day] ?? 1)
+    }
+    return out
+  }
+
+  /// Years that have any mood data, plus the current year — for the stepper.
+  private var moodYears: [Int] {
+    var ys = Set(moodAverageByDay.keys.map { calendar.component(.year, from: $0) })
+    ys.insert(calendar.component(.year, from: Date()))
+    return ys.sorted()
+  }
+
+  private var minMoodYear: Int { moodYears.min() ?? selectedYear }
+  private var maxMoodYear: Int { calendar.component(.year, from: Date()) }
+
+  /// A full-year mood heatmap (GitHub-contributions style) matching the
+  /// Consistency and Habit analytics calendars: every day of the year renders a
+  /// cell, tinted by that day's average mood, neutral when nothing was logged.
+  private var calendarSection: some View {
+    VStack(alignment: .leading, spacing: DLSpace.md) {
+      HStack {
+        SectionLabel(L("Calendar"))
+        Spacer(minLength: DLSpace.sm)
+        YearStepper(
+          year: $selectedYear,
+          minYear: minMoodYear,
+          maxYear: maxMoodYear,
+          years: moodYears
+        )
+      }
+
+      let averages = moodAverageByDay
+      YearActivityHeatmap(year: selectedYear, reduceMotion: reduceMotion) { day in
+        if let avg = averages[day],
+           let option = MoodCatalog.shared.option(forValue: Int(avg.rounded())) {
+          return option.color
+        }
+        return DLColor.separator.opacity(0.35)
+      }
+
+      moodLegend
+    }
+  }
+
+  /// Color scale legend, anchored by the lowest and highest mood emoji so the
+  /// palette reads the same as the Distribution section.
+  private var moodLegend: some View {
+    HStack(spacing: DLSpace.sm) {
+      if let low = MoodCatalog.shared.options.first {
+        Text(low.emoji).font(.system(size: 12))
+      }
+      HStack(spacing: 3) {
+        ForEach(MoodCatalog.shared.options) { mood in
+          RoundedRectangle(cornerRadius: 2, style: .continuous)
+            .fill(mood.color)
+            .frame(width: 10, height: 10)
+        }
+      }
+      if let high = MoodCatalog.shared.options.last {
+        Text(high.emoji).font(.system(size: 12))
+      }
+    }
+    .accessibilityHidden(true)
   }
 
   // MARK: - Helpers

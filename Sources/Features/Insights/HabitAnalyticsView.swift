@@ -93,6 +93,7 @@ private struct HabitAnalyticsCard: View {
   let habit: Habit
   let year: Int
 
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   private let calendar = Calendar.current
 
   /// The habit's accent color, parsed from its stored hex string.
@@ -159,7 +160,7 @@ private struct HabitAnalyticsCard: View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
         headerRow
-        YearActivityHeatmap(year: year) { day in
+        YearActivityHeatmap(year: year, reduceMotion: reduceMotion) { day in
           completedDays.contains(day) ? habitColor : DLColor.separator.opacity(0.35)
         }
         captionRow
