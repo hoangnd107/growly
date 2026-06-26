@@ -533,3 +533,27 @@
 "Set a name, emoji, and color for each habit — used across your habit analytics." = "为每个习惯设置名称、表情和颜色 — 用于习惯分析。";
 "Rename each mood, set an emoji and color, or add your own — moods show everywhere." = "重命名每个心情、设置表情和颜色，或添加自定义 — 心情会显示在各处。";
 "Tap to edit · swipe left to delete, right to edit." = "点按编辑 · 左滑删除，右滑编辑。";
+
+/* Round 7 — 批量补录、睡眠按月筛选与查看全部 */
+"Bulk log" = "批量记录";
+"What to log" = "记录内容";
+"Habit" = "习惯";
+"Energy" = "精力";
+"Choose a habit" = "选择一个习惯";
+"Choose a mood" = "选择一种心情";
+"Choose an energy level" = "选择精力等级";
+"Selected" = "已选";
+"Already logged" = "已记录";
+"Clear selection" = "清除选择";
+"Apply to %d days" = "应用到 %d 天";
+"Select days to fill" = "选择要填充的日期";
+"Previous month" = "上个月";
+"Next month" = "下个月";
+"Choose month and year" = "选择月份和年份";
+"Jump to month" = "跳转到月份";
+"This month" = "本月";
+"Last 7 days" = "最近 7 天";
+"Last 30 days" = "最近 30 天";
+"Last 90 days" = "最近 90 天";
+"Last year" = "最近一年";
+"All sleep" = "全部睡眠";

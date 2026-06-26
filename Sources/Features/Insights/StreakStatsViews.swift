@@ -77,8 +77,9 @@ struct StreakCard: View {
 
 // MARK: - Detailed streak view (History → Streak)
 
-/// Three streak cards — Note, Complete-the-Day, and Mood — each showing current
-/// and longest runs with their date ranges (feature 8).
+/// Two streak cards — Note and Complete-the-Day — each showing current and
+/// longest runs with their date ranges (feature 8; the Mood streak was removed in
+/// round 7, item 4).
 struct StreakDetailView: View {
   @Query(sort: \Entry.day, order: .reverse) private var entries: [Entry]
   @Query private var notes: [DayNote]
@@ -94,7 +95,6 @@ struct StreakDetailView: View {
     VStack(spacing: DLSpace.md) {
       card(title: L("Note Streak"), icon: "note.text", tint: CalendarDayMark.noteColor, streak: bundle.note)
       card(title: L("Review Streak"), icon: "checkmark.seal.fill", tint: CalendarDayMark.completeColor, streak: bundle.completeDay)
-      card(title: L("Mood Streak"), icon: "face.smiling", tint: CalendarDayMark.moodColor, streak: bundle.mood)
     }
   }
 

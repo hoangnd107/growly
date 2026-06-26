@@ -533,3 +533,27 @@
 "Set a name, emoji, and color for each habit — used across your habit analytics." = "각 습관의 이름, 이모지, 색을 설정하세요 — 습관 분석에 사용됩니다.";
 "Rename each mood, set an emoji and color, or add your own — moods show everywhere." = "각 기분의 이름을 바꾸고 이모지와 색을 정하거나 직접 추가하세요 — 기분은 어디에나 표시됩니다.";
 "Tap to edit · swipe left to delete, right to edit." = "탭하여 편집 · 왼쪽으로 밀면 삭제, 오른쪽으로 밀면 편집.";
+
+/* Round 7 — 일괄 기록, 수면 월별 필터 및 전체 보기 */
+"Bulk log" = "일괄 기록";
+"What to log" = "기록할 항목";
+"Habit" = "습관";
+"Energy" = "에너지";
+"Choose a habit" = "습관 선택";
+"Choose a mood" = "기분 선택";
+"Choose an energy level" = "에너지 수준 선택";
+"Selected" = "선택됨";
+"Already logged" = "이미 기록됨";
+"Clear selection" = "선택 해제";
+"Apply to %d days" = "%d일에 적용";
+"Select days to fill" = "채울 날짜를 선택하세요";
+"Previous month" = "이전 달";
+"Next month" = "다음 달";
+"Choose month and year" = "월과 연도 선택";
+"Jump to month" = "월로 이동";
+"This month" = "이번 달";
+"Last 7 days" = "최근 7일";
+"Last 30 days" = "최근 30일";
+"Last 90 days" = "최근 90일";
+"Last year" = "최근 1년";
+"All sleep" = "전체 수면";

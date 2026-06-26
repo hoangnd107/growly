@@ -16,6 +16,7 @@ struct HistoryView: View {
   @State private var visibleMonth = Calendar.current.startOfDay(for: Date())
   @State private var selectedDay: DaySelection?
   @State private var showMonthPicker = false
+  @State private var showBulkLog = false
   /// Collapse/expand the per-day mood list. The list is always scoped to the
   /// visible month (the all-time time filter was removed — round 4, item 3).
   @State private var moodListExpanded = true
@@ -133,9 +134,22 @@ struct HistoryView: View {
       .navigationTitle(L("Progress"))
       .searchable(text: $query, prompt: Text(L("Search reflections")))
       .toolbar {
+        // Bulk back-fill habits / mood / energy across past days (round 7, item 1).
+        ToolbarItem(placement: .topBarTrailing) {
+          Button {
+            Haptics.light()
+            showBulkLog = true
+          } label: {
+            Image(systemName: "calendar.badge.plus")
+          }
+          .accessibilityLabel(L("Bulk log"))
+        }
         if !allTags.isEmpty {
           ToolbarItem(placement: .topBarTrailing) { tagMenu }
         }
+      }
+      .sheet(isPresented: $showBulkLog) {
+        BulkLogSheet()
       }
       .sheet(item: $selectedDay) { selection in
         DayDetailView(day: selection.day)

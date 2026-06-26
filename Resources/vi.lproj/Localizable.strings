@@ -533,3 +533,27 @@
 "Set a name, emoji, and color for each habit — used across your habit analytics." = "Đặt tên, biểu tượng và màu cho mỗi thói quen — dùng trong phân tích thói quen.";
 "Rename each mood, set an emoji and color, or add your own — moods show everywhere." = "Đổi tên mỗi tâm trạng, đặt biểu tượng và màu, hoặc thêm mới — tâm trạng hiển thị ở mọi nơi.";
 "Tap to edit · swipe left to delete, right to edit." = "Chạm để sửa · vuốt trái để xóa, phải để sửa.";
+
+/* Round 7 — nhập hàng loạt, lọc giấc ngủ theo tháng & xem tất cả */
+"Bulk log" = "Nhập hàng loạt";
+"What to log" = "Chọn mục để nhập";
+"Habit" = "Thói quen";
+"Energy" = "Năng lượng";
+"Choose a habit" = "Chọn một thói quen";
+"Choose a mood" = "Chọn một tâm trạng";
+"Choose an energy level" = "Chọn mức năng lượng";
+"Selected" = "Đã chọn";
+"Already logged" = "Đã ghi nhận";
+"Clear selection" = "Xóa lựa chọn";
+"Apply to %d days" = "Áp dụng cho %d ngày";
+"Select days to fill" = "Chọn ngày để điền";
+"Previous month" = "Tháng trước";
+"Next month" = "Tháng sau";
+"Choose month and year" = "Chọn tháng và năm";
+"Jump to month" = "Chuyển đến tháng";
+"This month" = "Tháng này";
+"Last 7 days" = "7 ngày qua";
+"Last 30 days" = "30 ngày qua";
+"Last 90 days" = "90 ngày qua";
+"Last year" = "Năm qua";
+"All sleep" = "Tất cả giấc ngủ";

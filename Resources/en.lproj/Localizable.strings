@@ -533,3 +533,27 @@
 "Set a name, emoji, and color for each habit — used across your habit analytics." = "Set a name, emoji, and color for each habit — used across your habit analytics.";
 "Rename each mood, set an emoji and color, or add your own — moods show everywhere." = "Rename each mood, set an emoji and color, or add your own — moods show everywhere.";
 "Tap to edit · swipe left to delete, right to edit." = "Tap to edit · swipe left to delete, right to edit.";
+
+/* Round 7 — bulk back-fill, sleep month filter & view-all */
+"Bulk log" = "Bulk log";
+"What to log" = "What to log";
+"Habit" = "Habit";
+"Energy" = "Energy";
+"Choose a habit" = "Choose a habit";
+"Choose a mood" = "Choose a mood";
+"Choose an energy level" = "Choose an energy level";
+"Selected" = "Selected";
+"Already logged" = "Already logged";
+"Clear selection" = "Clear selection";
+"Apply to %d days" = "Apply to %d days";
+"Select days to fill" = "Select days to fill";
+"Previous month" = "Previous month";
+"Next month" = "Next month";
+"Choose month and year" = "Choose month and year";
+"Jump to month" = "Jump to month";
+"This month" = "This month";
+"Last 7 days" = "Last 7 days";
+"Last 30 days" = "Last 30 days";
+"Last 90 days" = "Last 90 days";
+"Last year" = "Last year";
+"All sleep" = "All sleep";

@@ -172,12 +172,12 @@ struct DetailedStreak: Equatable {
   }
 }
 
-/// The three streak types shown in History → Streak (feature 8): notes, completed
-/// reviews (full WMLA), and recorded mood — each with current/longest + ranges.
+/// The streak types shown in History → Streak (feature 8): notes and completed
+/// reviews (full WMLA), each with current/longest + ranges. (The mood streak was
+/// removed in round 7, item 4.)
 struct StreakBundle: Equatable {
   var note: DetailedStreak
   var completeDay: DetailedStreak
-  var mood: DetailedStreak
 
   static func compute(
     entries: [Entry],
@@ -197,17 +197,9 @@ struct StreakBundle: Equatable {
       completeDays.insert(calendar.startOfDay(for: entry.day))
     }
 
-    // Mood days: any entry (mood always recorded) or any note with a mood set.
-    var moodDays = Set<Date>()
-    for entry in entries { moodDays.insert(calendar.startOfDay(for: entry.day)) }
-    for note in activeNotes where note.moodRaw != nil {
-      moodDays.insert(calendar.startOfDay(for: note.createdAt))
-    }
-
     return StreakBundle(
       note: DetailedStreak.compute(days: noteDays, calendar: calendar, today: today),
-      completeDay: DetailedStreak.compute(days: completeDays, calendar: calendar, today: today),
-      mood: DetailedStreak.compute(days: moodDays, calendar: calendar, today: today)
+      completeDay: DetailedStreak.compute(days: completeDays, calendar: calendar, today: today)
     )
   }
 }
