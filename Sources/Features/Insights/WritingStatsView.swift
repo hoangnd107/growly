@@ -12,7 +12,11 @@ struct WritingStatsView: View {
 
   @State private var range: StatsRange = .month
   @State private var editorNote: DayNote?
+  /// Selected year for the writing calendar / consistency section (feature 6).
+  @State private var selectedYear = Calendar.current.component(.year, from: Date())
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  private let calendar = Calendar.current
 
   // MARK: - Derived data
 
@@ -78,6 +82,57 @@ struct WritingStatsView: View {
 
   private var animate: Bool { !reduceMotion }
 
+  // MARK: - Writing calendar / consistency (feature 6) — note-writing days
+
+  /// All non-deleted notes (ignores the range filter; the calendar is year-scoped).
+  private var activeNotes: [DayNote] { notes.filter { $0.deletedAt == nil } }
+
+  private var hasAnyNotes: Bool { !activeNotes.isEmpty }
+
+  /// Days (start-of-day) on which at least one note was written.
+  private var noteDays: Set<Date> {
+    var days = Set<Date>()
+    days.reserveCapacity(activeNotes.count)
+    for note in activeNotes { days.insert(calendar.startOfDay(for: note.createdAt)) }
+    return days
+  }
+
+  /// Current/longest note-writing streaks (notes only, no reviews).
+  private var noteStreaks: StreakStats {
+    StreakStats.compute(entries: [], notes: activeNotes)
+  }
+
+  /// Years with any note, plus the current year — for the stepper bounds.
+  private var availableYears: [Int] {
+    var ys = Set(noteDays.map { calendar.component(.year, from: $0) })
+    ys.insert(calendar.component(.year, from: Date()))
+    return ys.sorted()
+  }
+
+  private var minYear: Int { availableYears.min() ?? selectedYear }
+  private var maxYear: Int { calendar.component(.year, from: Date()) }
+
+  /// Note-writing days within `selectedYear`.
+  private var daysInSelectedYear: Int {
+    noteDays.filter { calendar.component(.year, from: $0) == selectedYear }.count
+  }
+
+  /// Days elapsed in `selectedYear` (full year for past years, Jan 1…today for the
+  /// current year) — the "% of year" denominator.
+  private var daysElapsedInSelectedYear: Int {
+    let nowYear = calendar.component(.year, from: Date())
+    guard let jan1 = calendar.date(from: DateComponents(year: selectedYear, month: 1, day: 1)) else { return 1 }
+    if selectedYear > nowYear { return 1 }
+    let endDate: Date
+    if selectedYear < nowYear {
+      endDate = calendar.date(from: DateComponents(year: selectedYear, month: 12, day: 31)) ?? jan1
+    } else {
+      endDate = calendar.startOfDay(for: Date())
+    }
+    let elapsed = (calendar.dateComponents([.day], from: jan1, to: endDate).day ?? 0) + 1
+    return max(1, elapsed)
+  }
+
   // MARK: - Body
 
   var body: some View {
@@ -114,14 +169,78 @@ struct WritingStatsView: View {
             longestList
           }
         }
+
+        if hasAnyNotes {
+          Hairline()
+          writingCalendarSection
+        }
       }
       .padding(.horizontal, DLSpace.lg)
       .padding(.vertical, DLSpace.xl)
     }
     .background(ThemedBackground())
     .navigationBarTitleDisplayMode(.inline)
+    .animation(reduceMotion ? nil : DLAnim.standard, value: selectedYear)
+    .onAppear {
+      if !availableYears.contains(selectedYear), let latest = availableYears.last {
+        selectedYear = latest
+      }
+    }
     .sheet(item: $editorNote) { note in
       NavigationStack { NoteEditorView(note: note) }
+    }
+  }
+
+  // MARK: - Writing calendar section
+
+  private var writingCalendarSection: some View {
+    let thisYear = daysInSelectedYear
+    let elapsed = daysElapsedInSelectedYear
+    let percent = Int((Double(thisYear) / Double(elapsed) * 100).rounded())
+    let stats = noteStreaks
+
+    return VStack(alignment: .leading, spacing: DLSpace.md) {
+      HStack(alignment: .firstTextBaseline) {
+        SectionLabel(L("Writing calendar"))
+        Spacer(minLength: DLSpace.sm)
+        YearStepper(year: $selectedYear, minYear: minYear, maxYear: maxYear, years: availableYears)
+      }
+
+      StatTileGrid(tiles: [
+        StatTileData(
+          value: "\(thisYear)",
+          label: L("Days written"),
+          sublabel: Lf("of %d", elapsed)
+        ),
+        StatTileData(
+          value: "\(percent)%",
+          label: L("Of the year"),
+          tint: DLColor.accent
+        ),
+        StatTileData(
+          value: "\(stats.currentDaily)",
+          label: L("Current streak"),
+          sublabel: L("days"),
+          tint: DLColor.streakStart
+        ),
+        StatTileData(
+          value: "\(stats.longestDaily)",
+          label: L("Longest streak"),
+          sublabel: L("days"),
+          tint: DLColor.streakEnd
+        ),
+      ])
+
+      SectionLabel(String(selectedYear))
+
+      YearActivityHeatmap(year: selectedYear, reduceMotion: reduceMotion) { day in
+        noteDays.contains(day) ? DLColor.accent : DLColor.track
+      }
+
+      Text(L("Each cell is a day. A day is filled when you wrote at least one note."))
+        .font(.dl(.caption2))
+        .foregroundStyle(DLColor.textTertiary)
+        .fixedSize(horizontal: false, vertical: true)
     }
   }
 

@@ -3,10 +3,11 @@ import MapKit
 import CoreLocation
 
 /// A map sheet for picking a place: search an address, tap anywhere to drop a
-/// pin, or center on your current location. The chosen place (name + coordinate)
-/// is returned via `onPick`. Used to add one of possibly many locations to a note.
+/// pin, center on your current location — or just type a place name with no
+/// coordinate at all. The chosen place (name + optional coordinate) is returned
+/// via `onPick`. Used to add one of possibly many locations to a note.
 struct MapLocationPicker: View {
-  var onPick: (_ name: String, _ latitude: Double, _ longitude: Double) -> Void
+  var onPick: (_ name: String, _ latitude: Double?, _ longitude: Double?) -> Void
 
   @Environment(\.dismiss) private var dismiss
 
@@ -37,7 +38,7 @@ struct MapLocationPicker: View {
         ToolbarItem(placement: .topBarTrailing) {
           Button(L("Add")) { confirm() }
             .fontWeight(.semibold)
-            .disabled(picked == nil)
+            .disabled(picked == nil && name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
       }
       .onAppear { locationManager.requestWhenInUseAuthorization() }
@@ -107,22 +108,23 @@ struct MapLocationPicker: View {
   // MARK: Footer (name + hint)
 
   private var footer: some View {
-    VStack(spacing: DLSpace.sm) {
-      if picked != nil {
-        HStack(spacing: DLSpace.sm) {
-          Image(systemName: "mappin.circle.fill")
-            .font(.system(size: 22))
-            .foregroundStyle(.red)
-          TextField(L("Location name"), text: $name)
-            .font(.dl(.body, weight: .medium))
-            .foregroundStyle(DLColor.textPrimary)
-        }
-      } else {
-        Text(L("Search an address, or tap the map to drop a pin."))
-          .font(.dl(.subheadline))
-          .foregroundStyle(DLColor.textSecondary)
-          .multilineTextAlignment(.center)
-          .frame(maxWidth: .infinity)
+    VStack(alignment: .leading, spacing: DLSpace.sm) {
+      // Always editable so a place can be tagged by name alone — no pin required.
+      HStack(spacing: DLSpace.sm) {
+        Image(systemName: picked != nil ? "mappin.circle.fill" : "mappin.slash.circle")
+          .font(.system(size: 22))
+          .foregroundStyle(picked != nil ? .red : DLColor.textSecondary)
+        TextField(L("Location name"), text: $name)
+          .font(.dl(.body, weight: .medium))
+          .foregroundStyle(DLColor.textPrimary)
+          .submitLabel(.done)
+          .onSubmit { confirm() }
+      }
+      if picked == nil {
+        Text(L("Type a place name, or search / tap the map to add a pin."))
+          .font(.dl(.caption))
+          .foregroundStyle(DLColor.textTertiary)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
     .padding(DLSpace.md)
@@ -162,9 +164,11 @@ struct MapLocationPicker: View {
   }
 
   private func confirm() {
-    guard let picked else { return }
     let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-    onPick(trimmed.isEmpty ? L("Pinned location") : trimmed, picked.latitude, picked.longitude)
+    // A pin is optional: confirm with a name alone (no coordinate) too.
+    guard picked != nil || !trimmed.isEmpty else { return }
+    let label = trimmed.isEmpty ? L("Pinned location") : trimmed
+    onPick(label, picked?.latitude, picked?.longitude)
     dismiss()
   }
 }

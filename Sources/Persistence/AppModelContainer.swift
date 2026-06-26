@@ -18,6 +18,8 @@ enum AppModelContainer {
     Identity.self,
     PersonalManifesto.self,
     LifeAreaReview.self,
+    FinanceCategory.self,
+    FinanceTransaction.self,
   ])
 
   static let shared: ModelContainer = {

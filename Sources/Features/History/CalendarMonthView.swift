@@ -94,11 +94,14 @@ struct CalendarMonthView: View {
   private func dayCell(_ day: Date) -> some View {
     let isToday = calendar.isDate(day, inSameDayAs: today)
     let mark = marks[day]
-    let hasContent = mark?.hasContent ?? false
     let dayNumber = calendar.component(.day, from: day)
+    // Any past/today day is tappable so you can add or edit that day; future days
+    // stay disabled (no back-filling tomorrow).
+    let isFuture = day > today
+    let tappable = !isFuture
 
     Button {
-      guard hasContent else { return }
+      guard tappable else { return }
       onSelect(day)
       Haptics.selection()
     } label: {
@@ -130,12 +133,13 @@ struct CalendarMonthView: View {
       .frame(maxWidth: .infinity)
       .frame(height: 44)
       .contentShape(Rectangle())
+      .opacity(isFuture ? 0.35 : 1)
     }
     .buttonStyle(.plain)
-    .disabled(!hasContent)
+    .disabled(!tappable)
     .accessibilityLabel(Text(day, format: .dateTime.month().day()))
     .accessibilityValue(Text(accessibilityValue(for: mark)))
-    .accessibilityAddTraits(hasContent ? .isButton : [])
+    .accessibilityAddTraits(tappable ? .isButton : [])
   }
 
   private func accessibilityValue(for mark: CalendarDayMark?) -> String {

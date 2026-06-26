@@ -269,9 +269,22 @@ private struct HabitRow: View {
 
   var body: some View {
     HStack(spacing: DLSpace.sm) {
-      Text(habit.emoji.isEmpty ? "✅" : habit.emoji)
+      // Editable icon (one grapheme) — change a habit's emoji any time after it's
+      // created. Commits on every change so it persists immediately.
+      TextField("✅", text: $habit.emoji)
         .font(.system(size: 24))
-        .frame(width: 32)
+        .multilineTextAlignment(.center)
+        .frame(width: 40)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .onChange(of: habit.emoji) { _, value in
+          if let first = value.first {
+            let single = String(first)
+            if single != value { habit.emoji = single }
+          }
+          try? context.save()
+        }
+        .accessibilityLabel(L("Habit icon"))
 
       VStack(alignment: .leading, spacing: 2) {
         TextField(L("Habit name"), text: $habit.name)

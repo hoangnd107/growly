@@ -3,14 +3,13 @@ import SwiftData
 
 // MARK: - Consistency (year activity heatmap)
 
-/// A year-long, GitHub-contributions-style heatmap of the days you journaled.
-/// A day counts when it has a reflection (`Entry`) OR a non-deleted note
-/// (`DayNote`). A year filter (shared `YearStepper`) scopes the heatmap and the
-/// headline tiles. Self-contained: fetches its own data with `@Query`, so it can
-/// be pushed via `NavigationLink { ConsistencyView() }`.
+/// A year-long, GitHub-contributions-style heatmap of the days you wrote a daily
+/// review (`Entry`). Notes have their own consistency section in Writing stats, so
+/// this view is now review-only. A year filter (shared `YearStepper`) scopes the
+/// heatmap and the headline tiles. Self-contained: fetches its own data with
+/// `@Query`, so it can be pushed via `NavigationLink { ConsistencyView() }`.
 struct ConsistencyView: View {
   @Query(sort: \Entry.day, order: .reverse) private var entries: [Entry]
-  @Query private var notes: [DayNote]
   @Query private var progressList: [UserProgress]
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -23,22 +22,19 @@ struct ConsistencyView: View {
 
   // MARK: Derived data
 
-  /// The set of active days: Entry.day ∪ non-deleted DayNote.day, normalized to
-  /// start-of-day.
+  /// The set of review days: Entry.day, normalized to start-of-day. Notes are
+  /// tracked separately in Writing stats.
   private var activeDays: Set<Date> {
     var days = Set<Date>()
-    days.reserveCapacity(entries.count + notes.count)
+    days.reserveCapacity(entries.count)
     for entry in entries { days.insert(calendar.startOfDay(for: entry.day)) }
-    for note in notes where note.deletedAt == nil {
-      days.insert(calendar.startOfDay(for: note.day))
-    }
     return days
   }
 
   private var streakStats: StreakStats {
     StreakStats.compute(
       entries: entries,
-      notes: notes,
+      notes: [],
       frozenDays: progress?.streakFreezeDates ?? [],
       weekStartsMonday: progress?.weekStartsMonday ?? true
     )
@@ -123,7 +119,7 @@ struct ConsistencyView: View {
         }
 
         // 3) What counts.
-        Text(L("Each cell is a day. A day is filled when you wrote a reflection or any note."))
+        Text(L("Each cell is a day. A day is filled when you completed a daily review."))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
           .fixedSize(horizontal: false, vertical: true)

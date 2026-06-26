@@ -1,10 +1,11 @@
 import SwiftUI
 import SwiftData
 
-/// A read-only summary of everything that happened on one day: the reflection
-/// (Win · Mistake · Lesson · Adjustment, mood/energy, media), that day's notes,
-/// goals completed that day, habits completed, and bed/wake time. Opens for any
-/// day that has content — including days with only notes (no reflection).
+/// An editable summary of one day. Every section is always shown — mood, energy,
+/// review (Win · Mistake · Lesson · Adjustment + intention), notes, habits, and
+/// sleep — so any day (today or past) can be filled in or edited. Sections with no
+/// data yet show a "Tap to set/add" placeholder, mirroring the unset-mood state.
+/// Habits show only what's completed; tapping opens the full per-day toggle list.
 struct DayDetailView: View {
   let day: Date
 
@@ -23,6 +24,7 @@ struct DayDetailView: View {
   @State private var editorNote: DayNote?
   @State private var editingSleep: SleepLog?
   @State private var showMoodPicker = false
+  @State private var showHabitSheet = false
   @State private var pendingSleepDelete: SleepLog?
 
   private let calendar = Calendar.current
@@ -52,6 +54,11 @@ struct DayDetailView: View {
     habits.filter { !$0.isArchived && $0.deletedAt == nil }
   }
 
+  /// Active habits that are completed on this day (shown by default in the card).
+  private var completedHabits: [Habit] {
+    activeHabits.filter { $0.isCompleted(on: dayStart, calendar: calendar) }
+  }
+
   /// Habits are only editable up to today — no back-filling the future.
   private var canEditHabits: Bool {
     dayStart <= calendar.startOfDay(for: Date())
@@ -59,9 +66,11 @@ struct DayDetailView: View {
 
   private var sleep: SleepLog? { sleeps.first { isSameDay($0.date) } }
 
-  private var isEmpty: Bool {
-    entry == nil && notes.isEmpty && completedGoals.isEmpty && sleep == nil
-      && !(canEditHabits && !activeHabits.isEmpty)
+  /// Whether this day already has a reflection with any text in the WMLA fields.
+  private var hasReviewText: Bool {
+    guard let entry else { return false }
+    return entry.filledCount > 0
+      || !entry.morningIntention.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
   var body: some View {
@@ -69,97 +78,29 @@ struct DayDetailView: View {
       // A List (not a ScrollView) so each row gets native swipe-to-edit/delete;
       // the themed background shows through via `.scrollContentBackground(.hidden)`.
       List {
-        if let entry {
-          moodEnergyCard(entry)
-            .contentShape(Rectangle())
-            .onTapGesture { showMoodPicker = true }
-            .dayDetailRow()
-            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-              Button { showMoodPicker = true } label: { Label(L("Edit"), systemImage: "pencil") }
-                .tint(theme.accent)
-            }
+        // 1) Mood & Energy — always shown, inline-editable (tap mood / a bolt).
+        moodEnergyCard
+          .dayDetailRow()
 
-          ForEach(ReflectionKind.allCases) { kind in
-            let text = entry.text(for: kind).trimmingCharacters(in: .whitespacesAndNewlines)
-            if !text.isEmpty {
-              reflectionCard(kind, text: text)
-                .contentShape(Rectangle())
-                .onTapGesture { editingEntry = entry }
-                .dayDetailRow()
-                .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                  Button { editingEntry = entry } label: { Label(L("Edit"), systemImage: "pencil") }
-                    .tint(theme.accent)
-                }
-            }
-          }
+        // 2) Review (Win · Mistake · Lesson · Adjustment + intention).
+        reviewSection
 
-          if !entry.morningIntention.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            intentionCard(entry)
-              .contentShape(Rectangle())
-              .onTapGesture { editingEntry = entry }
-              .dayDetailRow()
-              .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                Button { editingEntry = entry } label: { Label(L("Edit"), systemImage: "pencil") }
-                  .tint(theme.accent)
-              }
-          }
+        // 3) Notes — always shown with an add affordance.
+        notesSection
 
-          if !entry.sortedAttachments.isEmpty {
-            mediaCard(L("Reflection media"), attachments: entry.sortedAttachments)
-              .dayDetailRow()
-          }
-        } else if !notes.isEmpty {
-          // Note-only day: still allow setting/editing a mood for the day (A2).
-          noteMoodCard
-            .contentShape(Rectangle())
-            .onTapGesture { showMoodPicker = true }
-            .dayDetailRow()
-            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-              Button { showMoodPicker = true } label: { Label(L("Edit"), systemImage: "pencil") }
-                .tint(theme.accent)
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-              if currentMoodValue != nil {
-                Button(role: .destructive) { applyMood(nil) } label: { Label(L("Clear"), systemImage: "xmark") }
-              }
-            }
-        }
-
-        if !notes.isEmpty {
-          notesHeader.dayDetailRow()
-          ForEach(notes) { note in
-            noteRow(note)
-              .contentShape(Rectangle())
-              .onTapGesture { editorNote = note }
-              .dayDetailRow()
-              .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                Button { editorNote = note } label: { Label(L("Edit"), systemImage: "pencil") }
-                  .tint(theme.accent)
-              }
-              .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button(role: .destructive) { deleteNote(note) } label: { Label(L("Delete"), systemImage: "trash") }
-              }
-          }
-        }
-
+        // 4) Goals completed that day (only when present).
         if !completedGoals.isEmpty { goalsCard.dayDetailRow() }
-        if canEditHabits && !activeHabits.isEmpty { habitsCard.dayDetailRow() }
-        if let sleep {
-          sleepCard(sleep)
-            .contentShape(Rectangle())
-            .onTapGesture { editingSleep = sleep }
-            .dayDetailRow()
-            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-              Button { editingSleep = sleep } label: { Label(L("Edit"), systemImage: "pencil") }
-                .tint(theme.accent)
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-              Button(role: .destructive) { pendingSleepDelete = sleep } label: { Label(L("Delete"), systemImage: "trash") }
-            }
-        }
-        if let entry, entry.xpAwarded > 0 { xpCard(entry).dayDetailRow() }
 
-        if isEmpty { emptyState.dayDetailRow() }
+        // 5) Habits — completed ones shown; tap to open the full toggle list.
+        habitsCard
+          .contentShape(Rectangle())
+          .onTapGesture { if canEditHabits { showHabitSheet = true } }
+          .dayDetailRow()
+
+        // 6) Sleep — always shown; tap to add or edit.
+        sleepSection
+
+        if let entry, entry.xpAwarded > 0 { xpCard(entry).dayDetailRow() }
       }
       .listStyle(.plain)
       .scrollContentBackground(.hidden)
@@ -186,6 +127,9 @@ struct DayDetailView: View {
           applyMood(value)
         }
       }
+      .sheet(isPresented: $showHabitSheet) {
+        habitToggleSheet
+      }
       .alert(L("Delete this sleep log?"), isPresented: deleteSleepBinding) {
         Button(L("Cancel"), role: .cancel) { pendingSleepDelete = nil }
         Button(L("Delete"), role: .destructive) { confirmDeleteSleep() }
@@ -203,7 +147,20 @@ struct DayDetailView: View {
     )
   }
 
-  // MARK: - Mood editing (A2)
+  // MARK: - Entry helpers
+
+  /// Returns this day's Entry, creating + inserting one if it doesn't exist yet,
+  /// so mood/energy/review can be set on a day that had no reflection.
+  @discardableResult
+  private func ensureEntry() -> Entry {
+    if let entry { return entry }
+    let new = Entry(day: dayStart)
+    context.insert(new)
+    try? context.save()
+    return new
+  }
+
+  // MARK: - Mood / energy editing (A2)
 
   /// The day's current mood value: the entry's if present, else the first note's.
   private var currentMoodValue: Int? {
@@ -211,17 +168,28 @@ struct DayDetailView: View {
     return notes.first?.moodRaw
   }
 
-  /// Applies a chosen mood to the day's Entry, or the first note when there's no entry.
+  /// Applies a chosen mood — to the day's Entry (creating it if needed), or to the
+  /// first note when there's no entry but a note carries the mood.
   private func applyMood(_ value: Int?) {
-    if let entry {
-      if let value { entry.moodRaw = value }
-      entry.updatedAt = Date()
-    } else if let note = notes.first {
+    if entry == nil, let note = notes.first {
       note.moodRaw = value
       note.updatedAt = Date()
+    } else if let value {
+      let e = ensureEntry()
+      e.moodRaw = value
+      e.updatedAt = Date()
     }
     try? context.save()
     Haptics.success()
+  }
+
+  /// Sets the day's energy (1...5), creating the Entry if needed.
+  private func setEnergy(_ level: Int) {
+    let e = ensureEntry()
+    e.energy = level
+    e.updatedAt = Date()
+    try? context.save()
+    Haptics.selection()
   }
 
   private func confirmDeleteSleep() {
@@ -232,66 +200,247 @@ struct DayDetailView: View {
     Haptics.warning()
   }
 
-  /// A compact mood card for note-only days; tap the row (or swipe) to set/edit.
-  private var noteMoodCard: some View {
+  // MARK: - Mood & Energy (always shown)
+
+  /// Combined mood + energy card. Tap the mood to pick one; tap a bolt to set
+  /// energy. Both create the day's Entry on demand. Unset states read "Tap to set".
+  private var moodEnergyCard: some View {
     GlassCard {
-      HStack(spacing: DLSpace.md) {
-        VStack(alignment: .leading, spacing: 2) {
-          Text(L("Mood"))
-            .font(.dl(.caption, weight: .medium))
-            .foregroundStyle(DLColor.textTertiary)
-          if let value = currentMoodValue, let option = MoodCatalog.shared.option(forValue: value) {
-            HStack(spacing: DLSpace.sm) {
-              Text(option.emoji).font(.system(size: 28))
-              Text(option.displayName)
-                .font(.dl(.subheadline, weight: .semibold))
-                .foregroundStyle(option.color)
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        // Mood row (tap to open the picker).
+        Button { showMoodPicker = true } label: {
+          HStack(spacing: DLSpace.md) {
+            VStack(alignment: .leading, spacing: 2) {
+              Text(L("Mood"))
+                .font(.dl(.caption, weight: .medium))
+                .foregroundStyle(DLColor.textTertiary)
+              if let value = currentMoodValue, let option = MoodCatalog.shared.option(forValue: value) {
+                HStack(spacing: DLSpace.sm) {
+                  Text(option.emoji).font(.system(size: 28))
+                  Text(option.displayName)
+                    .font(.dl(.subheadline, weight: .semibold))
+                    .foregroundStyle(option.color)
+                }
+              } else {
+                Text(L("Tap to set a mood"))
+                  .font(.dl(.subheadline))
+                  .foregroundStyle(DLColor.textSecondary)
+              }
             }
-          } else {
-            Text(L("Tap to set a mood"))
-              .font(.dl(.subheadline))
-              .foregroundStyle(DLColor.textSecondary)
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+              .font(.system(size: 12, weight: .semibold))
+              .foregroundStyle(DLColor.textTertiary)
           }
+          .contentShape(Rectangle())
         }
-        Spacer(minLength: 0)
-      }
-    }
-  }
+        .buttonStyle(.plain)
 
-  // MARK: - Reflection
+        Divider().overlay(DLColor.separator)
 
-  private func moodEnergyCard(_ entry: Entry) -> some View {
-    GlassCard {
-      HStack(spacing: DLSpace.lg) {
-        VStack(alignment: .leading, spacing: 2) {
-          Text(L("Mood"))
-            .font(.dl(.caption, weight: .medium))
-            .foregroundStyle(DLColor.textTertiary)
-          HStack(spacing: DLSpace.sm) {
-            Text(entry.moodOption.emoji).font(.system(size: 28))
-            Text(entry.moodOption.displayName)
-              .font(.dl(.subheadline, weight: .semibold))
-              .foregroundStyle(entry.moodOption.color)
-          }
-        }
+        // Energy row (tap a bolt to set 1...5).
         VStack(alignment: .leading, spacing: 4) {
           Text(L("Energy"))
             .font(.dl(.caption, weight: .medium))
             .foregroundStyle(DLColor.textTertiary)
-          HStack(spacing: 4) {
+          HStack(spacing: DLSpace.sm) {
+            let current = entry?.energy ?? 0
             ForEach(1...5, id: \.self) { level in
-              Image(systemName: level <= entry.energy ? "bolt.fill" : "bolt")
-                .font(.system(size: 13))
-                .foregroundStyle(level <= entry.energy ? DLColor.xpGold : DLColor.textTertiary)
+              Button { setEnergy(level) } label: {
+                Image(systemName: level <= current ? "bolt.fill" : "bolt")
+                  .font(.system(size: 20))
+                  .foregroundStyle(level <= current ? DLColor.xpGold : DLColor.textTertiary)
+                  .contentShape(Rectangle())
+              }
+              .buttonStyle(.plain)
+            }
+            if entry == nil {
+              Text(L("Tap to set"))
+                .font(.dl(.caption))
+                .foregroundStyle(DLColor.textSecondary)
+                .padding(.leading, DLSpace.xs)
             }
           }
           .accessibilityElement(children: .ignore)
-          .accessibilityLabel(Lf("Energy %d of 5", entry.energy))
+          .accessibilityLabel(Lf("Energy %d of 5", entry?.energy ?? 0))
         }
-        Spacer(minLength: 0)
       }
     }
   }
+
+  // MARK: - Review section (always shown)
+
+  @ViewBuilder
+  private var reviewSection: some View {
+    if let entry, hasReviewText {
+      ForEach(ReflectionKind.allCases) { kind in
+        let text = entry.text(for: kind).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !text.isEmpty {
+          reflectionCard(kind, text: text)
+            .contentShape(Rectangle())
+            .onTapGesture { editingEntry = entry }
+            .dayDetailRow()
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+              Button { editingEntry = entry } label: { Label(L("Edit"), systemImage: "pencil") }
+                .tint(theme.accent)
+            }
+        }
+      }
+
+      if !entry.morningIntention.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        intentionCard(entry)
+          .contentShape(Rectangle())
+          .onTapGesture { editingEntry = entry }
+          .dayDetailRow()
+          .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button { editingEntry = entry } label: { Label(L("Edit"), systemImage: "pencil") }
+              .tint(theme.accent)
+          }
+      }
+
+      if !entry.sortedAttachments.isEmpty {
+        mediaCard(L("Reflection media"), attachments: entry.sortedAttachments)
+          .dayDetailRow()
+      }
+    } else {
+      reviewPlaceholderCard
+        .contentShape(Rectangle())
+        .onTapGesture { editingEntry = ensureEntry() }
+        .dayDetailRow()
+    }
+  }
+
+  private var reviewPlaceholderCard: some View {
+    GlassCard {
+      HStack(spacing: DLSpace.md) {
+        ZStack {
+          Circle().fill(theme.accent.opacity(0.18)).frame(width: 34, height: 34)
+          Image(systemName: "square.and.pencil")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(theme.accent)
+        }
+        VStack(alignment: .leading, spacing: 2) {
+          Text(L("Review"))
+            .font(.dl(.headline, weight: .semibold))
+            .foregroundStyle(DLColor.textPrimary)
+          Text(L("Tap to write your daily review"))
+            .font(.dl(.subheadline))
+            .foregroundStyle(DLColor.textSecondary)
+        }
+        Spacer(minLength: 0)
+        Image(systemName: "chevron.right")
+          .font(.system(size: 12, weight: .semibold))
+          .foregroundStyle(DLColor.textTertiary)
+      }
+    }
+  }
+
+  // MARK: - Notes section (always shown)
+
+  @ViewBuilder
+  private var notesSection: some View {
+    notesHeader.dayDetailRow()
+    ForEach(notes) { note in
+      noteRow(note)
+        .contentShape(Rectangle())
+        .onTapGesture { editorNote = note }
+        .dayDetailRow()
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+          Button { editorNote = note } label: { Label(L("Edit"), systemImage: "pencil") }
+            .tint(theme.accent)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+          Button(role: .destructive) { deleteNote(note) } label: { Label(L("Delete"), systemImage: "trash") }
+        }
+    }
+    addNoteRow.dayDetailRow()
+  }
+
+  private var addNoteRow: some View {
+    Button { addNote() } label: {
+      Label(L("Add note"), systemImage: "plus.circle.fill")
+        .font(.dl(.subheadline, weight: .semibold))
+        .foregroundStyle(theme.accent)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+  }
+
+  /// Creates a note dated to this day and opens the editor on it.
+  private func addNote() {
+    let note = DayNote()
+    note.createdAt = calendar.isDateInToday(dayStart)
+      ? Date()
+      : (calendar.date(bySettingHour: 12, minute: 0, second: 0, of: dayStart) ?? dayStart)
+    context.insert(note)
+    try? context.save()
+    Haptics.light()
+    editorNote = note
+  }
+
+  // MARK: - Sleep section (always shown)
+
+  @ViewBuilder
+  private var sleepSection: some View {
+    if let sleep {
+      sleepCard(sleep)
+        .contentShape(Rectangle())
+        .onTapGesture { editingSleep = sleep }
+        .dayDetailRow()
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+          Button { editingSleep = sleep } label: { Label(L("Edit"), systemImage: "pencil") }
+            .tint(theme.accent)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+          Button(role: .destructive) { pendingSleepDelete = sleep } label: { Label(L("Delete"), systemImage: "trash") }
+        }
+    } else {
+      sleepPlaceholderCard
+        .contentShape(Rectangle())
+        .onTapGesture { addSleep() }
+        .dayDetailRow()
+    }
+  }
+
+  private var sleepPlaceholderCard: some View {
+    GlassCard {
+      HStack(spacing: DLSpace.md) {
+        ZStack {
+          Circle().fill(theme.accent.opacity(0.18)).frame(width: 34, height: 34)
+          Image(systemName: "bed.double.fill")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(theme.accent)
+        }
+        VStack(alignment: .leading, spacing: 2) {
+          Text(L("Sleep"))
+            .font(.dl(.headline, weight: .semibold))
+            .foregroundStyle(DLColor.textPrimary)
+          Text(L("Tap to add sleep"))
+            .font(.dl(.subheadline))
+            .foregroundStyle(DLColor.textSecondary)
+        }
+        Spacer(minLength: 0)
+        Image(systemName: "chevron.right")
+          .font(.system(size: 12, weight: .semibold))
+          .foregroundStyle(DLColor.textTertiary)
+      }
+    }
+  }
+
+  /// Creates a sleep log for this day with sensible defaults and opens the editor.
+  private func addSleep() {
+    let bed = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: dayStart) ?? dayStart
+    let wakeBase = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+    let wake = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: wakeBase) ?? wakeBase
+    let log = SleepLog(date: dayStart, bedTime: bed, wakeTime: wake)
+    context.insert(log)
+    try? context.save()
+    Haptics.light()
+    editingSleep = log
+  }
+
+  // MARK: - Reflection cards
 
   private func reflectionCard(_ kind: ReflectionKind, text: String) -> some View {
     GlassCard {
@@ -412,17 +561,81 @@ struct DayDetailView: View {
 
   // MARK: - Habits completed
 
+  /// Card shown in the day summary: only the habits COMPLETED that day, plus a
+  /// chevron — tapping the card opens the full toggle list (`habitToggleSheet`).
   private var habitsCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        Label(L("Habits"), systemImage: "checklist")
-          .font(.dl(.headline, weight: .semibold))
-          .foregroundStyle(theme.accent)
-        ForEach(activeHabits) { habit in
-          habitToggleRow(habit)
+        HStack {
+          Label(L("Habits"), systemImage: "checklist")
+            .font(.dl(.headline, weight: .semibold))
+            .foregroundStyle(theme.accent)
+          Spacer(minLength: 0)
+          if canEditHabits {
+            Image(systemName: "chevron.right")
+              .font(.system(size: 12, weight: .semibold))
+              .foregroundStyle(DLColor.textTertiary)
+          }
+        }
+        if completedHabits.isEmpty {
+          Text(canEditHabits ? L("Tap to log your habits") : L("No habits completed"))
+            .font(.dl(.subheadline))
+            .foregroundStyle(DLColor.textSecondary)
+        } else {
+          ForEach(completedHabits) { habit in
+            HStack(spacing: DLSpace.sm) {
+              Text(habit.emoji.isEmpty ? "✅" : habit.emoji)
+              Text(habit.name)
+                .font(.dl(.subheadline, weight: .medium))
+                .foregroundStyle(DLColor.textPrimary)
+                .lineLimit(1)
+              Spacer(minLength: 0)
+              Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(DLColor.success)
+            }
+          }
         }
       }
     }
+  }
+
+  /// Full habit list with per-day toggles, presented when the habits card is tapped.
+  private var habitToggleSheet: some View {
+    NavigationStack {
+      List {
+        if activeHabits.isEmpty {
+          Text(L("No habits yet. Add habits from Insights → Manage."))
+            .font(.dl(.subheadline))
+            .foregroundStyle(DLColor.textSecondary)
+            .listRowBackground(Color.clear)
+        } else {
+          Section {
+            ForEach(activeHabits) { habit in
+              habitToggleRow(habit)
+                .listRowBackground(Color.clear)
+            }
+          } header: {
+            Text(dayStart.formatted(.dateTime.weekday(.wide).month().day()))
+              .font(.dl(.caption, weight: .semibold))
+              .foregroundStyle(DLColor.textSecondary)
+          }
+        }
+      }
+      .listStyle(.plain)
+      .scrollContentBackground(.hidden)
+      .themedBackground(theme)
+      .navigationTitle(L("Habits"))
+      .navigationBarTitleDisplayMode(.inline)
+      .tint(theme.accent)
+      .toolbar {
+        ToolbarItem(placement: .topBarTrailing) {
+          Button(L("Done")) { showHabitSheet = false }.fontWeight(.semibold)
+        }
+      }
+    }
+    .presentationDetents([.medium, .large])
+    .presentationDragIndicator(.visible)
   }
 
   /// A tappable habit row: tick it to mark the habit complete for THIS day (or
@@ -533,14 +746,6 @@ struct DayDetailView: View {
       .background(DLColor.xpGold.opacity(0.12), in: RoundedRectangle(cornerRadius: DLRadius.small, style: .continuous))
   }
 
-  private var emptyState: some View {
-    ContentUnavailableView {
-      Label(L("Nothing logged"), systemImage: "calendar")
-    } description: {
-      Text(L("No reflection, notes, goals, habits, or sleep for this day."))
-    }
-    .padding(.top, DLSpace.xl)
-  }
 }
 
 private extension View {

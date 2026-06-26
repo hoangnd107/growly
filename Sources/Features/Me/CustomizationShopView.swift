@@ -11,6 +11,9 @@ struct CustomizationShopView: View {
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+  /// Active (non-trashed) habits, for the per-habit color picker (feature 5).
+  @Query(sort: \Habit.sortIndex) private var allHabits: [Habit]
+
   private var currentLevel: Int { progress.levelInfo.level }
 
   private let columns = [GridItem(.adaptive(minimum: 96), spacing: DLSpace.md)]
@@ -20,6 +23,13 @@ struct CustomizationShopView: View {
 
   /// Preset colors offered when recoloring a mood.
   private let moodPalette = ["E5484D", "F0883E", "F5C84B", "8CCF4D", "34C759", "30B0C7", "5AC8FA", "7E5BEF", "AF52DE", "FF5C8A"]
+
+  /// Preset colors offered when recoloring a habit (shown in habit analytics).
+  private let habitPalette = ["7E5BEF", "5AC8FA", "34C759", "FFC83D", "FF9F0A", "FF5C8A", "E5484D", "30B0C7", "AF52DE", "8CCF4D", "2D9CDB", "FF7849"]
+
+  private var activeHabits: [Habit] {
+    allHabits.filter { $0.deletedAt == nil }
+  }
 
   var body: some View {
     ZStack {
@@ -31,6 +41,8 @@ struct CustomizationShopView: View {
           gradientThemesCard
 
           moodsCard
+
+          habitColorsCard
 
           GlassCard {
             LazyVGrid(columns: columns, spacing: DLSpace.md) {
@@ -147,6 +159,74 @@ struct CustomizationShopView: View {
   private func selectGradientTheme(_ theme: GradientTheme) {
     progress.gradientThemeID = theme.id
     progress.accentColorHex = theme.accentHexString
+    try? context.save()
+    Haptics.selection()
+  }
+
+  // MARK: Habit colors (recolor each habit — applied across habit analytics)
+
+  private var habitColorsCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        Label(L("Habit colors"), systemImage: "checklist")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(progress.accentColor)
+
+        Text(L("Pick a color for each habit — it's used in your habit analytics."))
+          .font(.dl(.caption2))
+          .foregroundStyle(DLColor.textTertiary)
+
+        if activeHabits.isEmpty {
+          Text(L("No habits yet. Add habits from Insights → Manage."))
+            .font(.dl(.subheadline))
+            .foregroundStyle(DLColor.textSecondary)
+            .padding(.vertical, DLSpace.xs)
+        } else {
+          ForEach(activeHabits) { habit in
+            habitColorRow(habit)
+            if habit.id != activeHabits.last?.id {
+              Divider().overlay(DLColor.separator.opacity(0.5))
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private func habitColorRow(_ habit: Habit) -> some View {
+    HStack(spacing: DLSpace.sm) {
+      Menu {
+        ForEach(habitPalette, id: \.self) { hex in
+          Button { setHabitColor(habit, to: hex) } label: {
+            Label {
+              Text(verbatim: "#\(hex)")
+            } icon: {
+              Image(systemName: "circle.fill").foregroundStyle(Color(hexString: hex))
+            }
+          }
+        }
+      } label: {
+        Circle()
+          .fill(Color(hexString: habit.colorHex))
+          .frame(width: 26, height: 26)
+          .overlay(Circle().strokeBorder(DLColor.separator, lineWidth: 1))
+      }
+      .accessibilityLabel(L("Habit color"))
+
+      Text(habit.emoji.isEmpty ? "✅" : habit.emoji)
+        .font(.system(size: 20))
+
+      Text(habit.name)
+        .font(.dl(.body))
+        .foregroundStyle(DLColor.textPrimary)
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(.vertical, 2)
+  }
+
+  private func setHabitColor(_ habit: Habit, to hex: String) {
+    habit.colorHex = hex
     try? context.save()
     Haptics.selection()
   }

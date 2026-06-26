@@ -25,6 +25,7 @@ struct InsightsView: View {
   @Query(sort: \SleepLog.date, order: .reverse) private var sleeps: [SleepLog]
   @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
   @Query private var allNotes: [DayNote]
+  @Query private var financeTransactions: [FinanceTransaction]
 
   /// Drives a spring entrance for the AI-insight cards.
   @State private var appeared = false
@@ -151,6 +152,12 @@ struct InsightsView: View {
           manageRowLabel(L("Life areas"), subtitle: L("Review & track health, work, and more"), systemImage: "chart.xyaxis.line", tint: DLColor.warning)
         }
         .buttonStyle(ScaleButtonStyle(scale: 0.98))
+        Hairline()
+
+        NavigationLink { FinanceView() } label: {
+          manageRowLabel(L("Finances"), subtitle: financeManageSubtitle, systemImage: "creditcard.fill", tint: DLColor.success)
+        }
+        .buttonStyle(ScaleButtonStyle(scale: 0.98))
       }
     }
   }
@@ -189,6 +196,15 @@ struct InsightsView: View {
   private var sleepManageSubtitle: String {
     sleeps.isEmpty ? L("Log a night to see your rest patterns")
                    : Lf("%.1f hrs avg over %d nights", avgSleepHours, sleeps.count)
+  }
+
+  /// This-month net balance for the Manage hub Finances row (income − expense).
+  private var financeManageSubtitle: String {
+    let monthStart = calendar.dateInterval(of: .month, for: Date())?.start ?? today
+    let inMonth = financeTransactions.filter { $0.date >= monthStart }
+    guard !inMonth.isEmpty else { return L("Track income and spending") }
+    let net = inMonth.reduce(0.0) { $0 + ($1.isExpense ? -$1.amount : $1.amount) }
+    return Lf("%@ this month", CurrencyFormatter.vnd(net))
   }
 
   // MARK: 1 — AI Insights
@@ -263,8 +279,6 @@ struct InsightsView: View {
           .padding(.bottom, DLSpace.xs)
         reportLink(emoji: "📋", L("Weekly Life Review")) { WeeklyLifeReviewView() }
         Hairline()
-        reportLink(emoji: "🧭", L("Life OS Score")) { LifeOSScoreView() }
-        Hairline()
         reportLink(emoji: "🙂", L("Mood analysis")) { MoodAnalysisView() }
         Hairline()
         reportLink(emoji: "🌙", L("Sleep analysis")) { SleepAnalysisView() }
@@ -272,8 +286,6 @@ struct InsightsView: View {
         reportLink(emoji: "✅", L("Habit analytics")) { HabitAnalyticsView() }
         Hairline()
         reportLink(emoji: "✍️", L("Writing stats")) { WritingStatsView() }
-        Hairline()
-        reportLink(emoji: "◈", L("Life areas")) { LifeAreaReportView() }
         Hairline()
         reportLink(emoji: "▦", L("Consistency")) { ConsistencyView() }
       }

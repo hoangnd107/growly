@@ -53,7 +53,6 @@ private struct NoteEditorForm: View {
   @State private var newTag = ""
   @State private var undoSnapshot: String?
   @State private var showCamera = false
-  @State private var previewing = false
   @State private var showLocationPicker = false
 
   /// Local edit buffers (item 10). The title/body fields bind here so each
@@ -73,6 +72,19 @@ private struct NoteEditorForm: View {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
   }
 
+  /// The auto-title used when the user leaves the title blank — "<place>, dd-MM-yyyy"
+  /// where the place is the note's first tagged location (or "Hà Nội" by default)
+  /// and the date is the note's own date. Shown as the field placeholder and saved
+  /// verbatim if the title is left empty, so you can just write content and still
+  /// get a sensible, editable title.
+  private var defaultTitle: String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.dateFormat = "dd-MM-yyyy"
+    let place = note.primaryLocationName ?? "Hà Nội"
+    return "\(place), \(formatter.string(from: note.createdAt))"
+  }
+
   var body: some View {
     NavigationStack {
       ScrollView {
@@ -81,33 +93,18 @@ private struct NoteEditorForm: View {
           GlassCard(padding: DLSpace.lg) {
             VStack(alignment: .leading, spacing: DLSpace.md) {
               metaRow
-              TextField(L("Title"), text: $titleDraft, axis: .vertical)
+              TextField(defaultTitle, text: $titleDraft, axis: .vertical)
                 .font(.dl(.title, weight: .bold))
                 .foregroundStyle(DLColor.textPrimary)
                 .textInputAutocapitalization(.sentences)
 
               Divider().overlay(DLColor.separator)
 
-              if previewing {
-                Group {
-                  if bodyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(L("Nothing to preview yet."))
-                      .font(.dl(.body))
-                      .foregroundStyle(DLColor.textTertiary)
-                  } else {
-                    MarkdownText(raw: bodyDraft)
-                  }
-                }
-                .frame(maxWidth: .infinity, minHeight: 160, alignment: .topLeading)
-                .contentShape(Rectangle())
-                .onTapGesture { withAnimation(DLAnim.quick) { previewing = false } }
-              } else {
-                TextField(L("Write your note…"), text: $bodyDraft, axis: .vertical)
-                  .font(.dl(.body))
-                  .foregroundStyle(DLColor.textPrimary)
-                  .lineLimit(6...40)
-                  .textInputAutocapitalization(.sentences)
-              }
+              TextField(L("Write your note…"), text: $bodyDraft, axis: .vertical)
+                .font(.dl(.body))
+                .foregroundStyle(DLColor.textPrimary)
+                .lineLimit(6...40)
+                .textInputAutocapitalization(.sentences)
 
               if dictator.isRecording {
                 recordingBanner(L("Listening…"), color: DLColor.warning)
@@ -168,8 +165,11 @@ private struct NoteEditorForm: View {
       }
       .keyboardDismissButton()
       .fullScreenCover(isPresented: $showCamera) {
-        CameraPicker { image in addCamera(image) }
-          .ignoresSafeArea()
+        CameraCaptureView(
+          onImage: { image in addCamera(image) },
+          onVideo: { url in addCameraVideo(url) }
+        )
+        .ignoresSafeArea()
       }
       .sheet(isPresented: $showLocationPicker) {
         MapLocationPicker { name, latitude, longitude in
@@ -223,7 +223,7 @@ private struct NoteEditorForm: View {
   private var locationsSection: some View {
     ForEach(note.sortedLocations) { place in
       HStack(spacing: DLSpace.sm) {
-        Image(systemName: "mappin.circle.fill")
+        Image(systemName: place.hasCoordinate ? "mappin.circle.fill" : "mappin.slash.circle")
           .font(.system(size: 18))
           .foregroundStyle(theme.accent)
         Text(place.name)
@@ -363,18 +363,6 @@ private struct NoteEditorForm: View {
 
   private var toolbar: some View {
     HStack(spacing: DLSpace.sm) {
-      Menu {
-        Button(L("Bold")) { insertMarker("**bold**") }
-        Button(L("Italic")) { insertMarker("_italic_") }
-        Button(L("Highlight")) { insertMarker("==highlight==") }
-        Button(L("Bullet")) { insertMarker("\n- ") }
-      } label: { toolIcon("textformat") }
-
-      toolButton(previewing ? "eye.fill" : "eye", L("Preview")) {
-        withAnimation(DLAnim.quick) { previewing.toggle() }
-        if previewing { KeyboardHelper.dismiss() }
-      }
-
       toolButton("camera.fill", L("Camera")) {
         if UIImagePickerController.isSourceTypeAvailable(.camera) { showCamera = true }
       }
@@ -431,12 +419,6 @@ private struct NoteEditorForm: View {
     guard !raw.isEmpty, !note.tags.contains(raw) else { newTag = ""; return }
     note.tags.append(raw)
     newTag = ""
-    Haptics.light()
-  }
-
-  private func insertMarker(_ marker: String) {
-    undoSnapshot = bodyDraft
-    bodyDraft += (bodyDraft.isEmpty || bodyDraft.hasSuffix(" ") || bodyDraft.hasSuffix("\n") ? "" : " ") + marker + " "
     Haptics.light()
   }
 
@@ -502,9 +484,19 @@ private struct NoteEditorForm: View {
     addAttachment(data: data, type: .image, ext: "jpg")
   }
 
+  /// Saves a freshly-recorded camera video (a temp file URL) into the media store
+  /// and attaches it as a video.
+  private func addCameraVideo(_ url: URL) {
+    guard let name = MediaStore.copyFile(at: url) else { return }
+    let media = MediaAttachment(fileName: name, type: .video, order: note.attachments.count)
+    media.note = note
+    context.insert(media)
+    try? context.save()
+  }
+
   // MARK: Location actions
 
-  private func addLocation(name: String, latitude: Double, longitude: Double) {
+  private func addLocation(name: String, latitude: Double?, longitude: Double?) {
     let place = NoteLocation(name: name, latitude: latitude, longitude: longitude, order: note.locations.count)
     place.note = note
     context.insert(place)
@@ -541,7 +533,9 @@ private struct NoteEditorForm: View {
     commitTask?.cancel()
     if recorder.isRecording { _ = recorder.stop() }
     if dictator.isRecording { dictator.toggle() }
-    note.title = titleDraft.trimmingCharacters(in: .whitespaces)
+    let trimmedTitle = titleDraft.trimmingCharacters(in: .whitespaces)
+    // Skipping the title keeps the editable "<place>, dd-MM-yyyy" default.
+    note.title = trimmedTitle.isEmpty ? defaultTitle : trimmedTitle
     note.text = bodyDraft
     note.updatedAt = Date()
     try? context.save()
@@ -565,6 +559,9 @@ private struct NoteEditorForm: View {
       // Cancel keeps edits for an existing/non-empty note (the prior live-binding
       // behaviour); flush the buffers so nothing typed is lost.
       commitDrafts()
+      if note.title.trimmingCharacters(in: .whitespaces).isEmpty {
+        note.title = defaultTitle
+      }
       note.updatedAt = Date()
       try? context.save()
     }
@@ -577,33 +574,3 @@ private struct NoteEditorForm: View {
   }
 }
 
-// MARK: - Camera
-
-private struct CameraPicker: UIViewControllerRepresentable {
-  var onImage: (UIImage) -> Void
-
-  func makeUIViewController(context: Context) -> UIImagePickerController {
-    let picker = UIImagePickerController()
-    picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
-    picker.delegate = context.coordinator
-    return picker
-  }
-
-  func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-  func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-  final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-    let parent: CameraPicker
-    init(_ parent: CameraPicker) { self.parent = parent }
-
-    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-      if let image = info[.originalImage] as? UIImage { parent.onImage(image) }
-      picker.presentingViewController?.dismiss(animated: true)
-    }
-
-    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-      picker.presentingViewController?.dismiss(animated: true)
-    }
-  }
-}

@@ -20,6 +20,7 @@ final class MediaAttachment {
 
   var entry: Entry?
   var note: DayNote?
+  var transaction: FinanceTransaction?
 
   init(fileName: String, type: MediaType, order: Int = 0, createdAt: Date = Date()) {
     self.id = UUID()
@@ -29,6 +30,7 @@ final class MediaAttachment {
     self.order = order
     self.entry = nil
     self.note = nil
+    self.transaction = nil
   }
 
   var type: MediaType { MediaType(rawValue: typeRaw) ?? .image }
