@@ -106,12 +106,14 @@ struct NotesView: View {
 
   // MARK: - Action colors (consistent + distinct across swipe / batch / badges)
 
+  // Sourced from the app-wide `RowAction` so these stay identical to the swipe /
+  // context-menu colors everywhere else (round 6, item 2).
   private enum NoteActionColor {
-    static let edit = Color(hex: 0x0A84FF)      // blue
-    static let pin = DLColor.xpGold             // gold
-    static let bookmark = Color(hex: 0xAF52DE)  // purple
-    static let date = Color(hex: 0x30B0C7)      // teal
-    static let delete = DLColor.streakEnd       // red
+    static let edit = RowAction.edit.color          // blue
+    static let pin = RowAction.pin.color            // gold
+    static let bookmark = RowAction.bookmark.color  // purple
+    static let date = RowAction.date.color          // teal
+    static let delete = RowAction.delete.color      // red
   }
 
   // MARK: - Derived data

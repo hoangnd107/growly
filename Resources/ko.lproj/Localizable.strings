@@ -524,3 +524,12 @@
 "Goal" = "목표";
 "goal deadline" = "목표 마감일";
 "This day hasn't arrived yet." = "아직 오지 않은 날입니다.";
+
+/* Round 6 — 스와이프 방향, 동작 색상, 기간 선택, 보고서 차트, 커스터마이즈 */
+"Choose period" = "기간 선택";
+"Choose month" = "월 선택";
+"Finance categories" = "재무 카테고리";
+"Rename, recolor, or add the categories used across your finances." = "재무 전반에 쓰이는 카테고리의 이름·색을 바꾸거나 추가하세요.";
+"Set a name, emoji, and color for each habit — used across your habit analytics." = "각 습관의 이름, 이모지, 색을 설정하세요 — 습관 분석에 사용됩니다.";
+"Rename each mood, set an emoji and color, or add your own — moods show everywhere." = "각 기분의 이름을 바꾸고 이모지와 색을 정하거나 직접 추가하세요 — 기분은 어디에나 표시됩니다.";
+"Tap to edit · swipe left to delete, right to edit." = "탭하여 편집 · 왼쪽으로 밀면 삭제, 오른쪽으로 밀면 편집.";

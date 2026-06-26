@@ -208,24 +208,25 @@ struct GoalsView: View {
               .listRowInsets(EdgeInsets(top: DLSpace.xs, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
               .listRowBackground(Color.clear)
               .listRowSeparator(.hidden)
-              // Swipe-left (trailing) = edit, plus reuse when completed; swipe-right
-              // (leading) = delete only (round 5, item 8). Tapping the card also edits.
-              .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+              // Swipe-right (leading) = edit, plus reuse when completed; swipe-left
+              // (trailing) = delete only (round 6, item 1). Tapping the card also edits.
+              .swipeActions(edge: .leading, allowsFullSwipe: true) {
                 Button { editingGoal = goal } label: {
-                  Label(L("Edit"), systemImage: "pencil")
+                  Label(L("Edit"), systemImage: RowAction.edit.icon)
                 }
-                .tint(Color(hex: 0x0A84FF))
+                .tint(RowAction.edit.color)
                 if goal.isCompleted {
                   Button { reuse(goal) } label: {
-                    Label(L("Reuse"), systemImage: "arrow.counterclockwise")
+                    Label(L("Reuse"), systemImage: RowAction.reuse.icon)
                   }
-                  .tint(DLColor.success)
+                  .tint(RowAction.reuse.color)
                 }
               }
-              .swipeActions(edge: .leading, allowsFullSwipe: true) {
+              .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) { softDelete(goal) } label: {
-                  Label(L("Delete"), systemImage: "trash")
+                  Label(L("Delete"), systemImage: RowAction.delete.icon)
                 }
+                .tint(RowAction.delete.color)
               }
               .contextMenu { goalContextMenu(goal) }
           }

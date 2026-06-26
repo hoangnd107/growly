@@ -1,11 +1,12 @@
 import SwiftUI
 import SwiftData
 
-/// The detailed finance report — the full ledger (round 5, items 4–6). Opened
-/// from Insights → Detailed reports. A Month/Year filter scopes a compact summary,
-/// the editable transaction list (tap / swipe / long-press to edit or delete), and
-/// per-category totals. The visual overview (pie, bar chart, year calendar) lives
-/// on the Money screen.
+/// The detailed finance report. Opened from Insights → Detailed reports. A
+/// Month/Year filter scopes a compact summary, the same visual charts as the Money
+/// screen (breakdown pie always; income-vs-expense bars and a year calendar in the
+/// Year view — round 6, item 5), the most recent transactions with a link to the
+/// full filtered ledger (tap / swipe / long-press to edit or delete), and
+/// per-category totals.
 struct FinanceReportView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.modelContext) private var context
@@ -13,13 +14,17 @@ struct FinanceReportView: View {
   @Query(sort: \FinanceCategory.sortIndex) private var categories: [FinanceCategory]
   @Query private var progressList: [UserProgress]
 
-  @State private var scope: FinanceTimeScope = .month
-  @State private var anchor: Date = Calendar.current.start(of: .month, for: Date())
+  @State private var scope: FinanceTimeScope = .year
+  @State private var anchor: Date = Calendar.current.start(of: .year, for: Date())
   @State private var editingTx: FinanceTransaction?
   @State private var showAdd = false
+  @State private var showAll = false
 
   private let calendar = Calendar.current
   private let expenseColor = Color(hex: 0xE5484D)
+  /// Show only the most recent few transactions inline; the rest open in the full
+  /// ledger scoped to the current filter (round 6, item 7).
+  private let transactionLimit = 5
 
   private var theme: GradientTheme {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
@@ -34,6 +39,9 @@ struct FinanceReportView: View {
   private var totalIncome: Double { txInWindow.filter { !$0.isExpense }.reduce(0) { $0 + $1.amount } }
   private var totalExpense: Double { txInWindow.filter { $0.isExpense }.reduce(0) { $0 + $1.amount } }
   private var net: Double { totalIncome - totalExpense }
+
+  /// The anchored year, for the year-only charts.
+  private var year: Int { calendar.component(.year, from: anchor) }
 
   private var isCurrentPeriod: Bool { calendar.isSame(scope, anchor, Date()) }
   private var addDefaultDate: Date? {
@@ -77,6 +85,8 @@ struct FinanceReportView: View {
           .financeRow()
       }
 
+      chartsSection
+
       transactionsSection
 
       categoryTotalsSection
@@ -99,8 +109,27 @@ struct FinanceReportView: View {
     .sheet(item: $editingTx) { tx in
       TransactionEditorSheet(existing: tx)
     }
+    .sheet(isPresented: $showAll) {
+      AllTransactionsView(initialScope: scope, initialAnchor: anchor)
+    }
     .animation(reduceMotion ? nil : DLAnim.standard, value: scope)
     .animation(reduceMotion ? nil : DLAnim.standard, value: anchor)
+  }
+
+  // MARK: - Charts (round 6, item 5)
+
+  @ViewBuilder
+  private var chartsSection: some View {
+    Section {
+      FinanceBreakdownCard(transactions: txInWindow, categories: categories, accent: theme.accent)
+        .financeRow()
+      if scope == .year {
+        FinanceMonthlyBarCard(transactions: txInWindow, year: year, accent: theme.accent)
+          .financeRow()
+        FinanceYearCalendarCard(transactions: txInWindow, year: year, accent: theme.accent)
+          .financeRow()
+      }
+    }
   }
 
   // MARK: - Summary
@@ -141,7 +170,22 @@ struct FinanceReportView: View {
           .foregroundStyle(DLColor.textSecondary)
           .financeRow()
       } else {
-        FinanceTransactionRows(transactions: txInWindow, accent: theme.accent) { editingTx = $0 }
+        FinanceTransactionRows(transactions: Array(txInWindow.prefix(transactionLimit)),
+                               accent: theme.accent) { editingTx = $0 }
+        if txInWindow.count > transactionLimit {
+          Button { showAll = true } label: {
+            HStack(spacing: 4) {
+              Text(Lf("View all %d", txInWindow.count))
+              Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold))
+            }
+            .font(.dl(.subheadline, weight: .semibold))
+            .foregroundStyle(theme.accent)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+          .financeRow()
+        }
       }
     } header: {
       Text(L("Transactions"))
@@ -149,7 +193,7 @@ struct FinanceReportView: View {
         .foregroundStyle(DLColor.textSecondary)
     } footer: {
       if !txInWindow.isEmpty {
-        Text(L("Tap to edit · swipe left to edit, right to delete."))
+        Text(L("Tap to edit · swipe left to delete, right to edit."))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
       }

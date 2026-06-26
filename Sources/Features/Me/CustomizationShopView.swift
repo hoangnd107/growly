@@ -38,6 +38,8 @@ struct CustomizationShopView: View {
 
           habitColorsCard
 
+          FinanceCategoryQuickEditor(accent: progress.accentColor)
+
           GlassCard {
             LazyVGrid(columns: columns, spacing: DLSpace.md) {
               ForEach(AccentTheme.catalog) { theme in
@@ -162,11 +164,11 @@ struct CustomizationShopView: View {
   private var habitColorsCard: some View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        Label(L("Habit colors"), systemImage: "checklist")
+        Label(L("Habits"), systemImage: "checklist")
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(progress.accentColor)
 
-        Text(L("Pick a color for each habit — it's used in your habit analytics."))
+        Text(L("Set a name, emoji, and color for each habit — used across your habit analytics."))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
 
@@ -177,7 +179,7 @@ struct CustomizationShopView: View {
             .padding(.vertical, DLSpace.xs)
         } else {
           ForEach(activeHabits) { habit in
-            habitColorRow(habit)
+            HabitCustomizeRow(habit: habit)
             if habit.id != activeHabits.last?.id {
               Divider().overlay(DLColor.separator.opacity(0.5))
             }
@@ -185,29 +187,6 @@ struct CustomizationShopView: View {
         }
       }
     }
-  }
-
-  private func habitColorRow(_ habit: Habit) -> some View {
-    HStack(spacing: DLSpace.sm) {
-      ColorSwatchPicker(
-        hex: Binding(get: { habit.colorHex }, set: { habit.colorHex = $0 }),
-        onChange: {
-          try? context.save()
-          Haptics.selection()
-        }
-      )
-      .accessibilityLabel(L("Habit color"))
-
-      Text(habit.emoji.isEmpty ? "✅" : habit.emoji)
-        .font(.system(size: 20))
-
-      Text(habit.name)
-        .font(.dl(.body))
-        .foregroundStyle(DLColor.textPrimary)
-        .lineLimit(1)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    .padding(.vertical, 2)
   }
 
   // MARK: Moods (rename / recolor built-ins, add custom moods — applied app-wide)
@@ -227,7 +206,7 @@ struct CustomizationShopView: View {
           }
         }
 
-        Text(L("Set an emoji and color for each mood, or add your own — moods show everywhere."))
+        Text(L("Rename each mood, set an emoji and color, or add your own — moods show everywhere."))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
 
@@ -279,18 +258,14 @@ struct CustomizationShopView: View {
             .fill(DLColor.separator.opacity(0.35))
         )
 
-      // Name — built-ins keep their localized label; custom moods are editable.
-      if mood.isBuiltIn {
-        Text(mood.displayName)
-          .font(.dl(.body))
-          .foregroundStyle(DLColor.textPrimary)
-          .frame(maxWidth: .infinity, alignment: .leading)
-      } else {
-        TextField(L("Mood name"), text: nameBinding(index))
-          .font(.dl(.body))
-          .foregroundStyle(DLColor.textPrimary)
-          .textInputAutocapitalization(.words)
-          .frame(maxWidth: .infinity, alignment: .leading)
+      // Name — editable for every mood, built-ins included; only custom moods can
+      // be removed (round 6, item 6).
+      TextField(L("Mood name"), text: nameBinding(index))
+        .font(.dl(.body))
+        .foregroundStyle(DLColor.textPrimary)
+        .textInputAutocapitalization(.words)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      if !mood.isBuiltIn {
         Button { removeMood(mood) } label: {
           Image(systemName: "minus.circle.fill")
             .font(.system(size: 20))
@@ -317,7 +292,9 @@ struct CustomizationShopView: View {
 
   private func nameBinding(_ index: Int) -> Binding<String> {
     Binding(
-      get: { moods.indices.contains(index) ? moods[index].label : "" },
+      // Built-ins show their localized name until renamed; the edit is stored
+      // verbatim on `label` and surfaces everywhere via `displayName`.
+      get: { moods.indices.contains(index) ? moods[index].displayName : "" },
       set: { newValue in
         guard moods.indices.contains(index) else { return }
         moods[index].label = newValue
@@ -453,6 +430,45 @@ struct CustomizationShopView: View {
     }
     try? context.save()
     Haptics.selection()
+  }
+}
+
+/// One editable habit row in Customize: color, emoji, and an inline-renamable
+/// name — full appearance customization beyond just the color (round 6, item 6).
+private struct HabitCustomizeRow: View {
+  @Environment(\.modelContext) private var context
+  @Bindable var habit: Habit
+
+  var body: some View {
+    HStack(spacing: DLSpace.sm) {
+      ColorSwatchPicker(hex: $habit.colorHex) {
+        try? context.save()
+        Haptics.selection()
+      }
+      .accessibilityLabel(L("Habit color"))
+
+      TextField("✅", text: $habit.emoji)
+        .multilineTextAlignment(.center)
+        .font(.system(size: 20))
+        .frame(width: 38)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .onChange(of: habit.emoji) { _, value in
+          if let first = value.first {
+            let single = String(first)
+            if single != value { habit.emoji = single }
+          }
+          try? context.save()
+        }
+        .accessibilityLabel(L("Habit icon"))
+
+      TextField(L("Habit name"), text: $habit.name)
+        .font(.dl(.body))
+        .foregroundStyle(DLColor.textPrimary)
+        .textInputAutocapitalization(.sentences)
+        .onSubmit { try? context.save() }
+    }
+    .padding(.vertical, 2)
   }
 }
 

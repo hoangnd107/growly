@@ -29,17 +29,18 @@ struct FinanceTransactionRows: View {
       row(tx)
         .contentShape(Rectangle())
         .onTapGesture { onEdit(tx) }
-        // swipe-left (trailing) = edit, swipe-right (leading) = delete (item 6).
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-          Button { onEdit(tx) } label: { Label(L("Edit"), systemImage: "pencil") }
-            .tint(accent)
-        }
+        // swipe-right (leading) = edit, swipe-left (trailing) = delete (round 6, item 1).
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
-          Button(role: .destructive) { delete(tx) } label: { Label(L("Delete"), systemImage: "trash") }
+          Button { onEdit(tx) } label: { Label(L("Edit"), systemImage: RowAction.edit.icon) }
+            .tint(RowAction.edit.color)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+          Button(role: .destructive) { delete(tx) } label: { Label(L("Delete"), systemImage: RowAction.delete.icon) }
+            .tint(RowAction.delete.color)
         }
         .contextMenu {
-          Button { onEdit(tx) } label: { Label(L("Edit"), systemImage: "pencil") }
-          Button(role: .destructive) { delete(tx) } label: { Label(L("Delete"), systemImage: "trash") }
+          Button { onEdit(tx) } label: { Label(L("Edit"), systemImage: RowAction.edit.icon) }
+          Button(role: .destructive) { delete(tx) } label: { Label(L("Delete"), systemImage: RowAction.delete.icon) }
         }
         .financeRow()
     }

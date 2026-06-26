@@ -524,3 +524,12 @@
 "Goal" = "目标";
 "goal deadline" = "目标截止日";
 "This day hasn't arrived yet." = "这一天还未到来。";
+
+/* Round 6 — 滑动方向、操作颜色、时段选择、报告图表、自定义 */
+"Choose period" = "选择时段";
+"Choose month" = "选择月份";
+"Finance categories" = "财务分类";
+"Rename, recolor, or add the categories used across your finances." = "重命名、改色或添加用于财务的分类。";
+"Set a name, emoji, and color for each habit — used across your habit analytics." = "为每个习惯设置名称、表情和颜色 — 用于习惯分析。";
+"Rename each mood, set an emoji and color, or add your own — moods show everywhere." = "重命名每个心情、设置表情和颜色，或添加自定义 — 心情会显示在各处。";
+"Tap to edit · swipe left to delete, right to edit." = "点按编辑 · 左滑删除，右滑编辑。";
