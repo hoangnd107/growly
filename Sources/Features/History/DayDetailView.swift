@@ -26,6 +26,8 @@ struct DayDetailView: View {
   @State private var showMoodPicker = false
   @State private var showHabitSheet = false
   @State private var pendingSleepDelete: SleepLog?
+  /// A goal whose deadline is this day, opened for editing (round 5, item 9).
+  @State private var editingGoalDue: SmartGoal?
 
   private let calendar = Calendar.current
 
@@ -46,6 +48,30 @@ struct DayDetailView: View {
 
   private var completedGoals: [SmartGoal] {
     allGoals.filter { $0.deletedAt == nil && $0.isCompleted && ($0.completedAt.map(isSameDay) ?? false) }
+  }
+
+  /// Whether this day is in the future (so only goal deadlines are shown — there's
+  /// nothing to back-fill for a day that hasn't happened).
+  private var isFuture: Bool { dayStart > calendar.startOfDay(for: Date()) }
+
+  /// Goals (active or completed) whose deadline lands on this day (round 5, item 9).
+  private var goalsDue: [SmartGoal] {
+    allGoals.filter { $0.deletedAt == nil && ($0.deadline.map(isSameDay) ?? false) }
+      .sorted { ($0.deadline ?? .distantFuture) < ($1.deadline ?? .distantFuture) }
+  }
+
+  /// Distinct goal categories, to seed the editor's "choose existing" menu.
+  private var goalCategories: [String] {
+    var seen = Set<String>()
+    var ordered: [String] = []
+    for goal in allGoals where goal.deletedAt == nil {
+      if let category = goal.category?.trimmingCharacters(in: .whitespacesAndNewlines),
+         !category.isEmpty, !seen.contains(category) {
+        seen.insert(category)
+        ordered.append(category)
+      }
+    }
+    return ordered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
   }
 
   /// All active (non-archived, non-trashed) habits, so a forgotten one can be
@@ -78,33 +104,42 @@ struct DayDetailView: View {
       // A List (not a ScrollView) so each row gets native swipe-to-edit/delete;
       // the themed background shows through via `.scrollContentBackground(.hidden)`.
       List {
-        // 1) Mood & Energy — always shown, inline-editable (tap mood / a bolt).
-        moodEnergyCard
-          .dayDetailRow()
+        // Goals due this day (active or completed), editable — shown for any day
+        // including the future (round 5, item 9).
+        if !goalsDue.isEmpty { goalsDueCard.dayDetailRow() }
 
-        // 2) Review (Win · Mistake · Lesson · Adjustment + intention).
-        reviewSection
+        if isFuture {
+          // A future day has nothing to back-fill; show only its goal deadlines.
+          if goalsDue.isEmpty { futurePlaceholderCard.dayDetailRow() }
+        } else {
+          // 1) Mood & Energy — always shown, inline-editable (tap mood / a bolt).
+          moodEnergyCard
+            .dayDetailRow()
 
-        // 3) Notes — always shown with an add affordance.
-        notesSection
+          // 2) Review (Win · Mistake · Lesson · Adjustment + intention).
+          reviewSection
 
-        // 4) Goals completed that day (only when present).
-        if !completedGoals.isEmpty { goalsCard.dayDetailRow() }
+          // 3) Notes — always shown with an add affordance.
+          notesSection
 
-        // 5) Habits — completed ones shown; tap to open the full toggle list.
-        habitsCard
-          .contentShape(Rectangle())
-          .onTapGesture { if canEditHabits { showHabitSheet = true } }
-          .dayDetailRow()
+          // 4) Goals completed that day (only when present).
+          if !completedGoals.isEmpty { goalsCard.dayDetailRow() }
 
-        // 6) Finances — log income/expense for this day (item 11).
-        DayFinanceSection(day: dayStart)
-          .dayDetailRow()
+          // 5) Habits — completed ones shown; tap to open the full toggle list.
+          habitsCard
+            .contentShape(Rectangle())
+            .onTapGesture { if canEditHabits { showHabitSheet = true } }
+            .dayDetailRow()
 
-        // 7) Sleep — always shown; tap to add or edit.
-        sleepSection
+          // 6) Finances — log income/expense for this day (item 11).
+          DayFinanceSection(day: dayStart)
+            .dayDetailRow()
 
-        if let entry, entry.xpAwarded > 0 { xpCard(entry).dayDetailRow() }
+          // 7) Sleep — always shown; tap to add or edit.
+          sleepSection
+
+          if let entry, entry.xpAwarded > 0 { xpCard(entry).dayDetailRow() }
+        }
       }
       .listStyle(.plain)
       .scrollContentBackground(.hidden)
@@ -133,6 +168,9 @@ struct DayDetailView: View {
       }
       .sheet(isPresented: $showHabitSheet) {
         habitToggleSheet
+      }
+      .sheet(item: $editingGoalDue) { goal in
+        GoalEditorSheet(theme: theme, goal: goal, existingCategories: goalCategories)
       }
       .alert(L("Delete this sleep log?"), isPresented: deleteSleepBinding) {
         Button(L("Cancel"), role: .cancel) { pendingSleepDelete = nil }
@@ -559,6 +597,65 @@ struct DayDetailView: View {
             Spacer(minLength: 0)
           }
         }
+      }
+    }
+  }
+
+  // MARK: - Goals due this day (round 5, item 9)
+
+  /// Goals whose deadline is this day — active or completed. Each is tappable to
+  /// open the goal editor; works for past, today, and future days.
+  private var goalsDueCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        Label(L("Goals due"), systemImage: "target")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(theme.accent)
+        ForEach(goalsDue) { goal in
+          Button { editingGoalDue = goal } label: {
+            HStack(spacing: DLSpace.sm) {
+              Image(systemName: goal.isCompleted ? "checkmark.seal.fill" : "target")
+                .font(.system(size: 16))
+                .foregroundStyle(goal.isCompleted ? DLColor.success : (goal.colorHex.map { Color(hexString: $0, fallback: 0x7E5BEF) } ?? theme.accent))
+              VStack(alignment: .leading, spacing: 2) {
+                Text(goal.title)
+                  .font(.dl(.subheadline, weight: .semibold))
+                  .foregroundStyle(DLColor.textPrimary)
+                  .strikethrough(goal.isCompleted, color: DLColor.textSecondary)
+                  .lineLimit(2)
+                Text("\(Int((goal.progress * 100).rounded()))%")
+                  .font(.dl(.caption2, weight: .semibold))
+                  .foregroundStyle(DLColor.textSecondary)
+                  .monospacedDigit()
+              }
+              Spacer(minLength: 0)
+              Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(DLColor.textTertiary)
+            }
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+        }
+      }
+    }
+  }
+
+  /// Shown when a future day is opened only because it carries a goal deadline,
+  /// but that goal has since been removed — there's nothing else to fill in.
+  private var futurePlaceholderCard: some View {
+    GlassCard {
+      HStack(spacing: DLSpace.md) {
+        ZStack {
+          Circle().fill(theme.accent.opacity(0.18)).frame(width: 34, height: 34)
+          Image(systemName: "calendar")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(theme.accent)
+        }
+        Text(L("This day hasn't arrived yet."))
+          .font(.dl(.subheadline))
+          .foregroundStyle(DLColor.textSecondary)
+        Spacer(minLength: 0)
       }
     }
   }

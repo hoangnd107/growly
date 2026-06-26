@@ -509,3 +509,18 @@
 "By category" = "按类别";
 "Tap to log income or an expense for this day." = "点按记录当天的收入或支出。";
 "Add income or expense" = "添加收入或支出";
+
+/* Round 5 — 财务时间筛选、账目与目标截止日 */
+"Previous" = "上一个";
+"Next" = "下一个";
+"All transactions" = "全部交易";
+"View all %d" = "查看全部 %d 条";
+"No spending in this period yet." = "本期暂无支出。";
+"No income in this period yet." = "本期暂无收入。";
+"No transactions in this period yet." = "本期暂无交易。";
+"Tap to edit · swipe left to edit, right to delete." = "点按编辑 · 左滑编辑，右滑删除。";
+"Tap a goal to edit, or swipe to delete or reuse." = "点按目标可编辑，或滑动以删除或重用。";
+"Goals due" = "到期目标";
+"Goal" = "目标";
+"goal deadline" = "目标截止日";
+"This day hasn't arrived yet." = "这一天还未到来。";

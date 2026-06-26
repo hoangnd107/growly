@@ -509,3 +509,18 @@
 "By category" = "Theo danh mục";
 "Tap to log income or an expense for this day." = "Chạm để ghi thu nhập hoặc chi tiêu cho ngày này.";
 "Add income or expense" = "Thêm thu nhập hoặc chi tiêu";
+
+/* Round 5 — bộ lọc thời gian tài chính, sổ giao dịch & hạn chót mục tiêu */
+"Previous" = "Trước";
+"Next" = "Sau";
+"All transactions" = "Tất cả giao dịch";
+"View all %d" = "Xem tất cả %d";
+"No spending in this period yet." = "Chưa có chi tiêu trong kỳ này.";
+"No income in this period yet." = "Chưa có thu nhập trong kỳ này.";
+"No transactions in this period yet." = "Chưa có giao dịch trong kỳ này.";
+"Tap to edit · swipe left to edit, right to delete." = "Chạm để sửa · vuốt trái để sửa, phải để xóa.";
+"Tap a goal to edit, or swipe to delete or reuse." = "Chạm vào mục tiêu để sửa, hoặc vuốt để xóa hoặc dùng lại.";
+"Goals due" = "Mục tiêu đến hạn";
+"Goal" = "Mục tiêu";
+"goal deadline" = "hạn chót mục tiêu";
+"This day hasn't arrived yet." = "Ngày này chưa đến.";

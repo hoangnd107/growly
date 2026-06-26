@@ -202,20 +202,19 @@ struct GoalsView: View {
             .listRowSeparator(.hidden)
         } else {
           ForEach(matched) { goal in
-            GoalCard(goal: goal, accent: theme.accent, animate: animate) { save() }
+            GoalCard(goal: goal, accent: theme.accent, animate: animate,
+                     onEdit: { Haptics.light(); editingGoal = goal },
+                     onChange: { save() })
               .listRowInsets(EdgeInsets(top: DLSpace.xs, leading: DLSpace.md, bottom: DLSpace.xs, trailing: DLSpace.md))
               .listRowBackground(Color.clear)
               .listRowSeparator(.hidden)
+              // Swipe-left (trailing) = edit, plus reuse when completed; swipe-right
+              // (leading) = delete only (round 5, item 8). Tapping the card also edits.
               .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button(role: .destructive) { softDelete(goal) } label: {
-                  Label(L("Delete"), systemImage: "trash")
-                }
                 Button { editingGoal = goal } label: {
                   Label(L("Edit"), systemImage: "pencil")
                 }
                 .tint(Color(hex: 0x0A84FF))
-              }
-              .swipeActions(edge: .leading) {
                 if goal.isCompleted {
                   Button { reuse(goal) } label: {
                     Label(L("Reuse"), systemImage: "arrow.counterclockwise")
@@ -223,11 +222,16 @@ struct GoalsView: View {
                   .tint(DLColor.success)
                 }
               }
+              .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                Button(role: .destructive) { softDelete(goal) } label: {
+                  Label(L("Delete"), systemImage: "trash")
+                }
+              }
               .contextMenu { goalContextMenu(goal) }
           }
         }
       } footer: {
-        Text(L("Swipe a goal to edit, reuse, or move it to Trash."))
+        Text(L("Tap a goal to edit, or swipe to delete or reuse."))
           .font(.dl(.caption2))
           .foregroundStyle(DLColor.textTertiary)
           .padding(.horizontal, DLSpace.xs)
@@ -340,6 +344,8 @@ private struct GoalCard: View {
   @Bindable var goal: SmartGoal
   let accent: Color
   let animate: Bool
+  /// Tapping the card's text area opens the editor (round 5, item 8).
+  let onEdit: () -> Void
   let onChange: () -> Void
 
   /// How much one tap of +/- moves the value. Scales with the target so big
@@ -367,17 +373,26 @@ private struct GoalCard: View {
           .accessibilityHidden(true)
 
         VStack(alignment: .leading, spacing: DLSpace.sm) {
-          header
-          if !goal.detail.isEmpty {
-            Text(goal.detail)
-              .font(.dl(.subheadline))
-              .foregroundStyle(DLColor.textSecondary)
-              .fixedSize(horizontal: false, vertical: true)
+          // The textual area is a tap-to-edit button; the +/- and complete
+          // controls below stay their own buttons so they keep working.
+          Button(action: onEdit) {
+            VStack(alignment: .leading, spacing: DLSpace.sm) {
+              header
+              if !goal.detail.isEmpty {
+                Text(goal.detail)
+                  .font(.dl(.subheadline))
+                  .foregroundStyle(DLColor.textSecondary)
+                  .fixedSize(horizontal: false, vertical: true)
+              }
+              progressBlock
+              if goal.deadline != nil {
+                deadlineRow
+              }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
           }
-          progressBlock
-          if goal.deadline != nil {
-            deadlineRow
-          }
+          .buttonStyle(.plain)
           controls
         }
       }
@@ -578,8 +593,9 @@ private struct GoalCard: View {
 // MARK: - Goal editor (create + edit)
 
 /// Sheet form capturing a SMART goal. Creates a new goal when `goal` is nil, or
-/// edits the passed goal in place.
-private struct GoalEditorSheet: View {
+/// edits the passed goal in place. Reused by the Progress day detail to edit a
+/// goal due that day (round 5, item 9).
+struct GoalEditorSheet: View {
   @Environment(\.modelContext) private var context
   @Environment(\.dismiss) private var dismiss
 

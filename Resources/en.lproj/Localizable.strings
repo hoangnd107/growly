@@ -509,3 +509,18 @@
 "By category" = "By category";
 "Tap to log income or an expense for this day." = "Tap to log income or an expense for this day.";
 "Add income or expense" = "Add income or expense";
+
+/* Round 5 — finance time filter, ledger & goal deadlines */
+"Previous" = "Previous";
+"Next" = "Next";
+"All transactions" = "All transactions";
+"View all %d" = "View all %d";
+"No spending in this period yet." = "No spending in this period yet.";
+"No income in this period yet." = "No income in this period yet.";
+"No transactions in this period yet." = "No transactions in this period yet.";
+"Tap to edit · swipe left to edit, right to delete." = "Tap to edit · swipe left to edit, right to delete.";
+"Tap a goal to edit, or swipe to delete or reuse." = "Tap a goal to edit, or swipe to delete or reuse.";
+"Goals due" = "Goals due";
+"Goal" = "Goal";
+"goal deadline" = "goal deadline";
+"This day hasn't arrived yet." = "This day hasn't arrived yet.";

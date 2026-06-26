@@ -3,28 +3,26 @@ import SwiftData
 import UIKit
 import Charts
 
-/// Personal finance hub: income/expense/balance for a selectable time window, a
-/// spending-by-category breakdown, and the transaction log. New transactions can
-/// attach photos/videos (camera or library). Categories are user-managed. All
-/// amounts are Vietnamese đồng (e.g. 10.000.000đ). Self-contained — pushed as
-/// `FinanceView()` from the Insights → Manage hub.
+/// Personal finance overview (round 5): income/expense/balance and a
+/// spending-by-category breakdown for a selectable Month or Year window. In the
+/// Year view it also charts income-vs-expense per month and a year calendar of
+/// daily net flow. The full transaction ledger lives in the Detailed Report
+/// (Insights → Detailed reports), keeping this screen a quick visual overview.
+/// All amounts are Vietnamese đồng (e.g. 10.000.000đ). Categories are
+/// user-managed. Pushed as `FinanceView()` from the Insights → Manage hub.
 struct FinanceView: View {
   @Environment(\.modelContext) private var context
   @Query(sort: \FinanceTransaction.date, order: .reverse) private var transactions: [FinanceTransaction]
   @Query(sort: \FinanceCategory.sortIndex) private var categories: [FinanceCategory]
   @Query private var progressList: [UserProgress]
 
-  /// The month being viewed (start-of-month). The summary, pie chart, and
-  /// transaction list are all scoped to this month — finance is month-based
-  /// (round 4): use the chevrons to step months.
-  @State private var monthAnchor: Date = FinanceView.currentMonthStart
+  /// The selected time window: Month or Year, anchored at its start (item 2–3).
+  @State private var scope: FinanceTimeScope = .month
+  @State private var anchor: Date = Calendar.current.start(of: .month, for: Date())
   @State private var showAdd = false
-  @State private var editingTx: FinanceTransaction?
   @State private var showCategories = false
-  /// Expense vs income side for the breakdown pie (item 5).
+  /// Expense vs income side for the breakdown pie.
   @State private var pieKind: PieKind = .expense
-  /// Transactions list: capped at 5 by default, all when expanded (item 6).
-  @State private var transactionsExpanded = false
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -32,11 +30,6 @@ struct FinanceView: View {
     case expense, income
     var id: String { rawValue }
     var label: String { self == .expense ? L("Expenses") : L("Income") }
-  }
-
-  private static var currentMonthStart: Date {
-    Calendar.current.dateInterval(of: .month, for: Date())?.start
-      ?? Calendar.current.startOfDay(for: Date())
   }
 
   private var calendar: Calendar { Calendar.current }
@@ -47,23 +40,21 @@ struct FinanceView: View {
 
   private let expenseColor = Color(hex: 0xE5484D)
 
-  /// Default transactions shown before expanding (item 6).
-  private let collapsedTransactionLimit = 5
-
   // MARK: - Derived data
 
-  /// Whether the viewed month is the current one (caps the forward chevron).
-  private var isCurrentMonth: Bool {
-    calendar.isDate(monthAnchor, equalTo: Date(), toGranularity: .month)
+  /// The year currently anchored (used by the year-only charts).
+  private var year: Int { calendar.component(.year, from: anchor) }
+
+  /// Whether the anchored window is the current month/year (caps the forward step).
+  private var isCurrentPeriod: Bool { calendar.isSame(scope, anchor, Date()) }
+
+  /// Transactions in the selected window (already newest-first from the query).
+  private var txInWindow: [FinanceTransaction] {
+    transactions.filter { calendar.isSame(scope, $0.date, anchor) }
   }
 
-  /// Transactions in the viewed month (already newest-first from the query).
-  private var txInMonth: [FinanceTransaction] {
-    transactions.filter { calendar.isDate($0.date, equalTo: monthAnchor, toGranularity: .month) }
-  }
-
-  private var totalIncome: Double { txInMonth.filter { !$0.isExpense }.reduce(0) { $0 + $1.amount } }
-  private var totalExpense: Double { txInMonth.filter { $0.isExpense }.reduce(0) { $0 + $1.amount } }
+  private var totalIncome: Double { txInWindow.filter { !$0.isExpense }.reduce(0) { $0 + $1.amount } }
+  private var totalExpense: Double { txInWindow.filter { $0.isExpense }.reduce(0) { $0 + $1.amount } }
   private var balance: Double { totalIncome - totalExpense }
 
   private struct SpendSlice: Identifiable {
@@ -74,11 +65,11 @@ struct FinanceView: View {
     let amount: Double
   }
 
-  /// Category totals for one side (expense/income) within the month, largest first.
+  /// Category totals for one side (expense/income) within the window, largest first.
   private func slices(expense: Bool) -> [SpendSlice] {
     var byCategory: [UUID: Double] = [:]
     var uncategorized = 0.0
-    for tx in txInMonth where tx.isExpense == expense {
+    for tx in txInWindow where tx.isExpense == expense {
       if let cat = tx.category { byCategory[cat.id, default: 0] += tx.amount } else { uncategorized += tx.amount }
     }
     var slices: [SpendSlice] = []
@@ -93,10 +84,43 @@ struct FinanceView: View {
     return slices.sorted { $0.amount > $1.amount }
   }
 
+  private struct MonthBar: Identifiable {
+    let id = UUID()
+    let month: Int
+    let label: String
+    let income: Double
+    let expense: Double
+  }
+
+  /// Income and expense totals per month (Jan…Dec) of the anchored year.
+  private var monthBars: [MonthBar] {
+    let symbols = calendar.shortStandaloneMonthSymbols
+    var income = Array(repeating: 0.0, count: 12)
+    var expense = Array(repeating: 0.0, count: 12)
+    for tx in txInWindow {
+      let m = calendar.component(.month, from: tx.date) - 1
+      guard (0..<12).contains(m) else { continue }
+      if tx.isExpense { expense[m] += tx.amount } else { income[m] += tx.amount }
+    }
+    return (0..<12).map { m in
+      MonthBar(month: m + 1, label: symbols.indices.contains(m) ? symbols[m] : "\(m + 1)",
+               income: income[m], expense: expense[m])
+    }
+  }
+
+  /// Net signed flow per day (income − expense) for the year calendar fill.
+  private var dailyNet: [Date: Double] {
+    var map: [Date: Double] = [:]
+    for tx in txInWindow {
+      map[calendar.startOfDay(for: tx.date), default: 0] += tx.signedAmount
+    }
+    return map
+  }
+
   /// The default date for a brand-new transaction from the toolbar +: today when
-  /// viewing the current month, else noon on the 1st of the viewed month.
+  /// the current period is shown, else noon at the start of the anchored window.
   private var addDefaultDate: Date? {
-    isCurrentMonth ? nil : calendar.date(bySettingHour: 12, minute: 0, second: 0, of: monthAnchor)
+    isCurrentPeriod ? nil : calendar.date(bySettingHour: 12, minute: 0, second: 0, of: anchor)
   }
 
   // MARK: - Body
@@ -106,20 +130,21 @@ struct FinanceView: View {
       VStack(alignment: .leading, spacing: DLSpace.lg) {
         EditorialHeader(L("FINANCES"), L("Money"))
 
-        monthNavigator
+        FinancePeriodBar(scope: $scope, anchor: $anchor, accent: theme.accent)
 
         summaryCard
 
         pieChartCard
 
-        transactionsSection
-
-        reportLink
+        if scope == .year {
+          monthlyBarCard
+          yearCalendarCard
+        }
       }
       .padding(.horizontal, DLSpace.lg)
       .padding(.vertical, DLSpace.xl)
-      .animation(reduceMotion ? nil : DLAnim.standard, value: monthAnchor)
-      .animation(reduceMotion ? nil : DLAnim.standard, value: transactionsExpanded)
+      .animation(reduceMotion ? nil : DLAnim.standard, value: scope)
+      .animation(reduceMotion ? nil : DLAnim.standard, value: anchor)
     }
     .background(ThemedBackground(theme: theme))
     .navigationBarTitleDisplayMode(.inline)
@@ -141,60 +166,10 @@ struct FinanceView: View {
     .sheet(isPresented: $showAdd) {
       TransactionEditorSheet(existing: nil, defaultDate: addDefaultDate)
     }
-    .sheet(item: $editingTx) { tx in
-      TransactionEditorSheet(existing: tx)
-    }
     .sheet(isPresented: $showCategories) {
       FinanceCategoryManagerView()
     }
     .onAppear(perform: seedDefaultCategoriesIfNeeded)
-  }
-
-  // MARK: - Month navigator
-
-  /// "‹ June 2026 ›" — steps the viewed month; the forward chevron disables on the
-  /// current month so you can't page into the future.
-  private var monthNavigator: some View {
-    HStack(spacing: DLSpace.sm) {
-      monthChevron(systemName: "chevron.left", enabled: true, label: L("Previous month")) {
-        shiftMonth(by: -1)
-      }
-      Spacer(minLength: 0)
-      Text(monthAnchor, format: .dateTime.month(.wide).year())
-        .font(.dl(.headline, weight: .bold))
-        .foregroundStyle(DLColor.textPrimary)
-        .contentTransition(.numericText())
-      Spacer(minLength: 0)
-      monthChevron(systemName: "chevron.right", enabled: !isCurrentMonth, label: L("Next month")) {
-        shiftMonth(by: 1)
-      }
-    }
-  }
-
-  private func monthChevron(systemName: String, enabled: Bool, label: String, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
-      Image(systemName: systemName)
-        .font(.system(size: 15, weight: .semibold))
-        .foregroundStyle(enabled ? theme.accent : DLColor.textTertiary)
-        .frame(width: 40, height: 40)
-        .background(DLColor.surfaceElevated.opacity(0.6), in: Circle())
-        .contentShape(Circle())
-    }
-    .buttonStyle(.plain)
-    .disabled(!enabled)
-    .accessibilityLabel(label)
-  }
-
-  private func shiftMonth(by value: Int) {
-    guard let next = calendar.date(byAdding: .month, value: value, to: monthAnchor) else { return }
-    let nextStart = calendar.dateInterval(of: .month, for: next)?.start ?? next
-    // Never page past the current month.
-    if value > 0, nextStart > FinanceView.currentMonthStart { return }
-    withAnimation(reduceMotion ? nil : DLAnim.standard) {
-      monthAnchor = nextStart
-      transactionsExpanded = false
-    }
-    Haptics.selection()
   }
 
   // MARK: - Summary
@@ -243,7 +218,7 @@ struct FinanceView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
   }
 
-  // MARK: - Breakdown pie (item 5)
+  // MARK: - Breakdown pie
 
   private var pieChartCard: some View {
     let slices = slices(expense: pieKind == .expense)
@@ -262,7 +237,7 @@ struct FinanceView: View {
         .accessibilityLabel(L("Breakdown type"))
 
         if slices.isEmpty {
-          Text(pieKind == .expense ? L("No spending this month yet.") : L("No income this month yet."))
+          Text(pieKind == .expense ? L("No spending in this period yet.") : L("No income in this period yet."))
             .font(.dl(.subheadline))
             .foregroundStyle(DLColor.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -330,128 +305,125 @@ struct FinanceView: View {
     }
   }
 
-  // MARK: - Detailed report link (item 10)
+  // MARK: - Monthly bar chart (Year view, item 7)
 
-  private var reportLink: some View {
-    NavigationLink {
-      FinanceReportView()
-    } label: {
-      GlassCard {
-        HStack(spacing: DLSpace.md) {
-          ZStack {
-            Circle().fill(theme.accent.opacity(0.18)).frame(width: 40, height: 40)
-            Image(systemName: "chart.bar.doc.horizontal")
-              .font(.system(size: 17, weight: .semibold))
-              .foregroundStyle(theme.accent)
+  private var monthlyBarCard: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        Label(L("Income vs expense"), systemImage: "chart.bar.fill")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(theme.accent)
+
+        if txInWindow.isEmpty {
+          emptyHint(L("No transactions in this period yet."))
+        } else {
+          Chart {
+            ForEach(monthBars) { bar in
+              BarMark(
+                x: .value("Month", bar.label),
+                y: .value("Amount", bar.income)
+              )
+              .position(by: .value("Type", L("Income")))
+              .foregroundStyle(by: .value("Type", L("Income")))
+              .cornerRadius(3)
+
+              BarMark(
+                x: .value("Month", bar.label),
+                y: .value("Amount", bar.expense)
+              )
+              .position(by: .value("Type", L("Expense")))
+              .foregroundStyle(by: .value("Type", L("Expense")))
+              .cornerRadius(3)
+            }
           }
-          VStack(alignment: .leading, spacing: 2) {
-            Text(L("Detailed report"))
-              .font(.dl(.body, weight: .semibold))
-              .foregroundStyle(DLColor.textPrimary)
-            Text(L("Trends, bar chart & year calendar"))
-              .font(.dl(.caption))
-              .foregroundStyle(DLColor.textSecondary)
-              .lineLimit(1)
+          .chartForegroundStyleScale([
+            L("Income"): DLColor.success,
+            L("Expense"): expenseColor,
+          ])
+          .chartXScale(domain: monthBars.map(\.label))
+          .chartLegend(position: .bottom, spacing: DLSpace.sm)
+          .chartYAxis {
+            AxisMarks(position: .leading) { value in
+              AxisGridLine().foregroundStyle(DLColor.separator.opacity(0.4))
+              AxisValueLabel {
+                if let amount = value.as(Double.self) {
+                  Text(compactAmount(amount))
+                    .font(.dl(.caption2))
+                    .foregroundStyle(DLColor.textSecondary)
+                }
+              }
+            }
           }
-          Spacer(minLength: 0)
-          Image(systemName: "chevron.right")
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(DLColor.textTertiary)
+          .chartXAxis {
+            AxisMarks { value in
+              AxisValueLabel {
+                if let label = value.as(String.self) {
+                  Text(label)
+                    .font(.system(size: 9))
+                    .foregroundStyle(DLColor.textSecondary)
+                }
+              }
+            }
+          }
+          .frame(height: 220)
+          .animation(reduceMotion ? nil : DLAnim.standard, value: year)
         }
       }
     }
-    .buttonStyle(.plain)
   }
 
-  // MARK: - Transactions
+  // MARK: - Year calendar (Year view, item 8)
 
-  private var transactionsSection: some View {
-    let all = txInMonth
-    let shown = transactionsExpanded ? all : Array(all.prefix(collapsedTransactionLimit))
-    return VStack(alignment: .leading, spacing: DLSpace.sm) {
-      SectionLabel(L("Transactions"))
-
-      if all.isEmpty {
-        emptyState
-      } else {
-        ForEach(shown) { tx in
-          Button { editingTx = tx } label: { transactionRow(tx) }
-            .buttonStyle(.plain)
-        }
-        if all.count > collapsedTransactionLimit {
-          Button {
-            withAnimation(reduceMotion ? nil : DLAnim.standard) { transactionsExpanded.toggle() }
-            Haptics.selection()
-          } label: {
-            Text(transactionsExpanded ? L("Show less") : Lf("Show all %d", all.count))
-              .font(.dl(.subheadline, weight: .semibold))
-              .foregroundStyle(theme.accent)
-              .frame(maxWidth: .infinity)
-              .padding(.vertical, DLSpace.sm)
-              .contentShape(Rectangle())
-          }
-          .buttonStyle(.plain)
-        }
-      }
-    }
-  }
-
-  private func transactionRow(_ tx: FinanceTransaction) -> some View {
-    let tint = tx.category.map { Color(hexString: $0.colorHex) } ?? theme.accent
+  private var yearCalendarCard: some View {
+    let net = dailyNet
+    let maxAbs = max(1, net.values.map { abs($0) }.max() ?? 1)
     return GlassCard {
-      HStack(spacing: DLSpace.md) {
-        ZStack {
-          Circle().fill(tint.opacity(0.18)).frame(width: 40, height: 40)
-          Text(tx.category?.emoji ?? (tx.isExpense ? "💸" : "💰"))
-            .font(.system(size: 18))
-        }
-        VStack(alignment: .leading, spacing: 2) {
-          Text(transactionTitle(tx))
-            .font(.dl(.subheadline, weight: .semibold))
-            .foregroundStyle(DLColor.textPrimary)
-            .lineLimit(1)
-          Text(tx.date, format: .dateTime.day().month(.abbreviated).year())
-            .font(.dl(.caption2))
-            .foregroundStyle(DLColor.textTertiary)
-        }
-        Spacer(minLength: DLSpace.sm)
-        VStack(alignment: .trailing, spacing: 2) {
-          Text(CurrencyFormatter.signedVND(tx.signedAmount))
-            .font(.dl(.subheadline, weight: .bold))
-            .monospacedDigit()
-            .foregroundStyle(tx.isExpense ? expenseColor : DLColor.success)
-          if !tx.attachments.isEmpty {
-            Image(systemName: "paperclip")
-              .font(.system(size: 11))
-              .foregroundStyle(DLColor.textTertiary)
+      VStack(alignment: .leading, spacing: DLSpace.md) {
+        Label(L("Daily flow"), systemImage: "calendar")
+          .font(.dl(.headline, weight: .semibold))
+          .foregroundStyle(theme.accent)
+
+        YearActivityHeatmap(year: year, reduceMotion: reduceMotion) { day in
+          guard let value = net[calendar.startOfDay(for: day)], value != 0 else {
+            return DLColor.track.opacity(0.5)
           }
+          let frac = min(1.0, abs(value) / maxAbs)
+          let base = value < 0 ? expenseColor : DLColor.success
+          return base.opacity(0.25 + 0.65 * frac)
+        }
+
+        HStack(spacing: DLSpace.md) {
+          legendDot(DLColor.success, L("Income day"))
+          legendDot(expenseColor, L("Expense day"))
+          Spacer(minLength: 0)
         }
       }
     }
   }
 
-  private func transactionTitle(_ tx: FinanceTransaction) -> String {
-    let note = tx.note.trimmingCharacters(in: .whitespacesAndNewlines)
-    if !note.isEmpty { return note }
-    if let cat = tx.category { return L(cat.name) }
-    return tx.isExpense ? L("Expense") : L("Income")
+  private func legendDot(_ color: Color, _ label: String) -> some View {
+    HStack(spacing: 4) {
+      RoundedRectangle(cornerRadius: 2.5, style: .continuous).fill(color).frame(width: 10, height: 10)
+      Text(label)
+        .font(.dl(.caption2, weight: .medium))
+        .foregroundStyle(DLColor.textTertiary)
+    }
   }
 
-  private var emptyState: some View {
-    VStack(spacing: DLSpace.sm) {
-      Image(systemName: "creditcard")
-        .font(.system(size: 32, weight: .light))
-        .foregroundStyle(DLColor.textTertiary)
-      Text(L("No transactions this month yet"))
-        .font(.serif(.title3, weight: .semibold))
-        .foregroundStyle(DLColor.textPrimary)
-      Text(L("Tap + to record income or an expense."))
-        .font(.dl(.subheadline))
-        .foregroundStyle(DLColor.textSecondary)
-        .multilineTextAlignment(.center)
-    }
-    .frame(maxWidth: .infinity)
-    .padding(.vertical, DLSpace.xl)
+  private func emptyHint(_ text: String) -> some View {
+    Text(text)
+      .font(.dl(.subheadline))
+      .foregroundStyle(DLColor.textSecondary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.vertical, DLSpace.md)
+  }
+
+  /// Shortens đồng amounts for chart axes — "1M", "150k", "0".
+  private func compactAmount(_ value: Double) -> String {
+    let v = abs(value)
+    if v >= 1_000_000 { return String(format: "%.0fM", value / 1_000_000) }
+    if v >= 1_000 { return String(format: "%.0fk", value / 1_000) }
+    return String(format: "%.0f", value)
   }
 
   // MARK: - Seed
@@ -524,13 +496,14 @@ struct TransactionEditorSheet: View {
     Double(amountText.filter { $0.isNumber }) ?? 0
   }
 
-  /// Quick amount suggestions (item 9): the typed digits scaled by ×1.000, ×10.000,
-  /// ×100.000, so you type a couple of digits and tap to fill (e.g. "15" →
-  /// 15.000 / 150.000 / 1.500.000đ). Only shown for short input (1–3 digits).
+  /// Quick amount suggestions (round 5, item 1): the typed digits scaled by ×1,
+  /// ×10, ×100, ×1.000 and ×10.000 — five chips you can scroll and tap, always
+  /// shown for any input (e.g. "1234" → 1.234 / 12.340 / 123.400 / 1.234.000 /
+  /// 12.340.000đ). The scroll lets you reach the larger units.
   private var quickAmounts: [Double] {
     let base = Int(parsedAmount)
-    guard base >= 1, base <= 999 else { return [] }
-    return [base * 1_000, base * 10_000, base * 100_000].map(Double.init)
+    guard base >= 1 else { return [] }
+    return [1, 10, 100, 1_000, 10_000].map { Double(base * $0) }
   }
 
   var body: some View {

@@ -509,3 +509,18 @@
 "By category" = "카테고리별";
 "Tap to log income or an expense for this day." = "이 날의 수입 또는 지출을 기록하려면 탭하세요.";
 "Add income or expense" = "수입 또는 지출 추가";
+
+/* Round 5 — 재무 기간 필터, 거래 내역 & 목표 마감일 */
+"Previous" = "이전";
+"Next" = "다음";
+"All transactions" = "모든 거래";
+"View all %d" = "전체 %d개 보기";
+"No spending in this period yet." = "이 기간에 아직 지출이 없습니다.";
+"No income in this period yet." = "이 기간에 아직 수입이 없습니다.";
+"No transactions in this period yet." = "이 기간에 아직 거래가 없습니다.";
+"Tap to edit · swipe left to edit, right to delete." = "탭하여 편집 · 왼쪽으로 밀어 편집, 오른쪽으로 밀어 삭제.";
+"Tap a goal to edit, or swipe to delete or reuse." = "목표를 탭하여 편집하거나 밀어서 삭제 또는 재사용하세요.";
+"Goals due" = "마감 목표";
+"Goal" = "목표";
+"goal deadline" = "목표 마감일";
+"This day hasn't arrived yet." = "아직 오지 않은 날입니다.";

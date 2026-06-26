@@ -7,12 +7,14 @@ struct CalendarDayMark: Equatable {
   var hasNote = false       // blue
   var hasMood = false       // orange
   var hasComplete = false   // green (full Win/Mistake/Lesson/Adjustment)
+  var hasGoal = false       // purple (a goal's deadline falls on this day)
 
-  var hasContent: Bool { hasNote || hasMood || hasComplete }
+  var hasContent: Bool { hasNote || hasMood || hasComplete || hasGoal }
 
   static let noteColor = Color(hex: 0x0A84FF)      // systemBlue
   static let moodColor = Color(hex: 0xFF9F0A)      // systemOrange
   static let completeColor = Color(hex: 0x34C759)  // systemGreen
+  static let goalColor = Color(hex: 0xAF52DE)      // systemPurple
 }
 
 /// A 7-column month grid. Each day cell shows the day number and up to two dots:
@@ -95,10 +97,12 @@ struct CalendarMonthView: View {
     let isToday = calendar.isDate(day, inSameDayAs: today)
     let mark = marks[day]
     let dayNumber = calendar.component(.day, from: day)
-    // Any past/today day is tappable so you can add or edit that day; future days
-    // stay disabled (no back-filling tomorrow).
+    // Any past/today day is tappable so you can add or edit that day. Future days
+    // stay disabled (no back-filling tomorrow) UNLESS they carry a goal deadline —
+    // then they're tappable so the goal can be viewed/edited (round 5, item 9).
     let isFuture = day > today
-    let tappable = !isFuture
+    let hasContent = mark?.hasContent ?? false
+    let tappable = !isFuture || hasContent
 
     Button {
       guard tappable else { return }
@@ -116,7 +120,8 @@ struct CalendarMonthView: View {
               Circle().fill(Color.accentColor)
             }
           }
-        // Up to three dots: note (blue), mood (orange), complete-the-day (green).
+        // Up to four dots: note (blue), mood (orange), complete-the-day (green),
+        // goal deadline (purple).
         HStack(spacing: 2) {
           if mark?.hasNote == true {
             Circle().fill(CalendarDayMark.noteColor).frame(width: 6, height: 6)
@@ -127,13 +132,17 @@ struct CalendarMonthView: View {
           if mark?.hasComplete == true {
             Circle().fill(CalendarDayMark.completeColor).frame(width: 6, height: 6)
           }
+          if mark?.hasGoal == true {
+            Circle().fill(CalendarDayMark.goalColor).frame(width: 6, height: 6)
+          }
         }
         .frame(height: 6)
       }
       .frame(maxWidth: .infinity)
       .frame(height: 44)
       .contentShape(Rectangle())
-      .opacity(isFuture ? 0.35 : 1)
+      // Dim only empty future days; a future day with a goal deadline reads full.
+      .opacity(isFuture && !hasContent ? 0.35 : 1)
     }
     .buttonStyle(.plain)
     .disabled(!tappable)
@@ -148,6 +157,7 @@ struct CalendarMonthView: View {
     if mark.hasNote { parts.append(L("note")) }
     if mark.hasMood { parts.append(L("mood")) }
     if mark.hasComplete { parts.append(L("day reviewed")) }
+    if mark.hasGoal { parts.append(L("goal deadline")) }
     return parts.joined(separator: ", ")
   }
 }

@@ -8,6 +8,7 @@ import SwiftData
 struct HistoryView: View {
   @Query(sort: \Entry.day, order: .reverse) private var entries: [Entry]
   @Query private var notes: [DayNote]
+  @Query(sort: \SmartGoal.createdAt, order: .reverse) private var goals: [SmartGoal]
   @Query private var progressList: [UserProgress]
 
   @State private var query = ""
@@ -52,7 +53,20 @@ struct HistoryView: View {
       map[note.day, default: CalendarDayMark()].hasNote = true
       if note.moodRaw != nil { map[note.day, default: CalendarDayMark()].hasMood = true }
     }
+    // Goal deadlines (both active and completed) dot their due day (round 5,
+    // item 9). Not affected by the tag filter — goals have no tags.
+    for goal in goals where goal.deletedAt == nil {
+      if let deadline = goal.deadline {
+        map[calendar.startOfDay(for: deadline), default: CalendarDayMark()].hasGoal = true
+      }
+    }
     return map
+  }
+
+  /// Whether any goal carries a deadline (so the calendar is worth showing even
+  /// with no reviews or notes yet).
+  private var hasGoalDeadlines: Bool {
+    goals.contains { $0.deletedAt == nil && $0.deadline != nil }
   }
 
   /// Whether a note passes the active tag filter (for calendar dots).
@@ -110,7 +124,7 @@ struct HistoryView: View {
       ZStack {
         ThemedBackground(theme: theme)
 
-        if entries.isEmpty && activeNotes.isEmpty {
+        if entries.isEmpty && activeNotes.isEmpty && !hasGoalDeadlines {
           emptyState
         } else {
           content
@@ -281,6 +295,7 @@ struct HistoryView: View {
       legendItem(color: CalendarDayMark.noteColor, label: L("Note"))
       legendItem(color: CalendarDayMark.moodColor, label: L("Mood"))
       legendItem(color: CalendarDayMark.completeColor, label: L("Reviewed"))
+      legendItem(color: CalendarDayMark.goalColor, label: L("Goal"))
       Spacer(minLength: 0)
     }
     .frame(maxWidth: .infinity, alignment: .leading)

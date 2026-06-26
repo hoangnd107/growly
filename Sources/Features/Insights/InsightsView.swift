@@ -303,6 +303,8 @@ struct InsightsView: View {
         reportLink(emoji: "✍️", L("Writing stats")) { WritingStatsView() }
         Hairline()
         reportLink(emoji: "▦", L("Consistency")) { ConsistencyView() }
+        Hairline()
+        reportLink(emoji: "💰", L("Finance report")) { FinanceReportView() }
       }
     }
   }

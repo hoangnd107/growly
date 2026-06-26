@@ -15,9 +15,13 @@ struct DayFinanceSection: View {
 
   @State private var showAdd = false
   @State private var editingTx: FinanceTransaction?
+  @State private var showAll = false
 
   private let calendar = Calendar.current
   private let expenseColor = Color(hex: 0xE5484D)
+  /// Show at most this many of the day's transactions inline; the rest open in
+  /// the full ledger via "view all" (round 5, item 7).
+  private let dayLimit = 3
 
   private var theme: GradientTheme {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
@@ -59,9 +63,22 @@ struct DayFinanceSection: View {
             .font(.dl(.subheadline))
             .foregroundStyle(DLColor.textSecondary)
         } else {
-          ForEach(dayTransactions) { tx in
+          ForEach(dayTransactions.prefix(dayLimit)) { tx in
             Button { editingTx = tx } label: { row(tx) }
               .buttonStyle(.plain)
+          }
+          if dayTransactions.count > dayLimit {
+            Button { showAll = true } label: {
+              HStack(spacing: 4) {
+                Text(Lf("View all %d", dayTransactions.count))
+                Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold))
+              }
+              .font(.dl(.subheadline, weight: .semibold))
+              .foregroundStyle(theme.accent)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
           }
         }
 
@@ -82,6 +99,9 @@ struct DayFinanceSection: View {
     }
     .sheet(item: $editingTx) { tx in
       TransactionEditorSheet(existing: tx)
+    }
+    .sheet(isPresented: $showAll) {
+      AllTransactionsView(initialAnchor: dayStart)
     }
     .onAppear(perform: seedDefaultCategoriesIfNeeded)
   }
