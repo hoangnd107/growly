@@ -485,3 +485,27 @@
 "Salary" = "工资";
 "Bonus" = "奖金";
 "Other" = "其他";
+
+// Round 4 — color picker + finance charts/report/daily entry
+"Color" = "颜色";
+"Custom color" = "自定义颜色";
+"Expenses" = "支出";
+"Breakdown" = "明细";
+"Breakdown type" = "明细类型";
+"No spending this month yet." = "本月暂无支出。";
+"No income this month yet." = "本月暂无收入。";
+"No transactions this month yet" = "本月暂无交易";
+"Show less" = "收起";
+"Show all %d" = "查看全部 %d";
+"Detailed report" = "详细报告";
+"Trends, bar chart & year calendar" = "趋势、柱状图和年度日历";
+"Finance report" = "财务报告";
+"Net" = "净额";
+"Income vs expense" = "收入与支出";
+"No transactions in this year yet." = "本年暂无交易。";
+"Daily flow" = "每日流水";
+"Income day" = "收入日";
+"Expense day" = "支出日";
+"By category" = "按类别";
+"Tap to log income or an expense for this day." = "点按记录当天的收入或支出。";
+"Add income or expense" = "添加收入或支出";

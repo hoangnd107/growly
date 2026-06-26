@@ -24,6 +24,16 @@ extension Color {
       trait.userInterfaceStyle == .dark ? UIColor(Color(hex: darkHex)) : UIColor(Color(hex: lightHex))
     })
   }
+
+  /// Uppercased "RRGGBB" hex of this color, resolved in sRGB. Best-effort — falls
+  /// back to the app violet for colors that can't be resolved to RGB components.
+  /// Used to persist a custom color chosen via `ColorPicker`.
+  func toHexString() -> String {
+    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+    guard UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a) else { return "7E5BEF" }
+    let clamp = { (v: CGFloat) -> Int in min(255, max(0, Int((v * 255).rounded()))) }
+    return String(format: "%02X%02X%02X", clamp(r), clamp(g), clamp(b))
+  }
 }
 
 // MARK: - Semantic palette (dark-first)

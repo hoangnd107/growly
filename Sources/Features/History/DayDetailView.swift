@@ -97,7 +97,11 @@ struct DayDetailView: View {
           .onTapGesture { if canEditHabits { showHabitSheet = true } }
           .dayDetailRow()
 
-        // 6) Sleep — always shown; tap to add or edit.
+        // 6) Finances — log income/expense for this day (item 11).
+        DayFinanceSection(day: dayStart)
+          .dayDetailRow()
+
+        // 7) Sleep — always shown; tap to add or edit.
         sleepSection
 
         if let entry, entry.xpAwarded > 0 { xpCard(entry).dayDetailRow() }
@@ -612,7 +616,7 @@ struct DayDetailView: View {
         } else {
           Section {
             ForEach(activeHabits) { habit in
-              habitToggleRow(habit)
+              HabitDayToggleRow(habit: habit, day: dayStart)
                 .listRowBackground(Color.clear)
             }
           } header: {
@@ -636,45 +640,6 @@ struct DayDetailView: View {
     }
     .presentationDetents([.medium, .large])
     .presentationDragIndicator(.visible)
-  }
-
-  /// A tappable habit row: tick it to mark the habit complete for THIS day (or
-  /// untick to undo) — lets you back-fill a habit you forgot to log.
-  private func habitToggleRow(_ habit: Habit) -> some View {
-    let done = habit.isCompleted(on: dayStart, calendar: calendar)
-    return Button {
-      toggleHabit(habit)
-    } label: {
-      HStack(spacing: DLSpace.sm) {
-        Text(habit.emoji)
-        Text(habit.name)
-          .font(.dl(.subheadline, weight: .medium))
-          .foregroundStyle(DLColor.textPrimary)
-          .lineLimit(1)
-        Spacer(minLength: DLSpace.sm)
-        Text("+\(habit.xpValue)")
-          .font(.dl(.caption2, weight: .semibold))
-          .foregroundStyle(DLColor.xpGold)
-        Image(systemName: done ? "checkmark.circle.fill" : "circle")
-          .font(.system(size: 22))
-          .foregroundStyle(done ? DLColor.success : DLColor.textTertiary)
-      }
-      .contentShape(Rectangle())
-    }
-    .buttonStyle(.plain)
-    .accessibilityLabel(habit.name)
-    .accessibilityValue(done ? L("Done") : "")
-  }
-
-  /// Toggles this habit's completion for `dayStart`, creating the log if needed.
-  private func toggleHabit(_ habit: Habit) {
-    if let log = habit.logs.first(where: { calendar.isDate($0.date, inSameDayAs: dayStart) }) {
-      log.completed.toggle()
-    } else {
-      context.insert(HabitLog(date: dayStart, completed: true, habit: habit))
-    }
-    try? context.save()
-    Haptics.selection()
   }
 
   // MARK: - Sleep

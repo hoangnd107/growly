@@ -216,6 +216,8 @@ private struct TodayContent: View {
 
     weeklyReviewCard
 
+    DayFinanceSection(day: today)
+
     mediaCard
 
     completionCard
@@ -450,7 +452,7 @@ private struct TodayContent: View {
             .foregroundStyle(DLColor.textSecondary)
         } else {
           ForEach(habits) { habit in
-            habitRow(habit)
+            HabitDayToggleRow(habit: habit, day: today)
           }
         }
       }
@@ -458,33 +460,6 @@ private struct TodayContent: View {
 
     // Sleep is logged in the morning (last night's rest), so it sits at the end.
     sleepSummaryRow
-  }
-
-  private func habitRow(_ habit: Habit) -> some View {
-    let done = habit.isCompleted(on: Date())
-    return Button {
-      toggleHabit(habit)
-    } label: {
-      HStack(spacing: DLSpace.md) {
-        Text(habit.emoji)
-          .font(.system(size: 24))
-        Text(habit.name)
-          .font(.dl(.body))
-          .foregroundStyle(DLColor.textPrimary)
-        Spacer()
-        Text("+\(habit.xpValue)")
-          .font(.dl(.caption2, weight: .semibold))
-          .foregroundStyle(DLColor.xpGold)
-        Image(systemName: done ? "checkmark.circle.fill" : "circle")
-          .font(.system(size: 26))
-          .foregroundStyle(done ? DLColor.success : DLColor.textTertiary)
-      }
-      .padding(.vertical, DLSpace.sm)
-    }
-    .buttonStyle(.plain)
-    .bounceTap()
-    .accessibilityLabel(habit.name)
-    .accessibilityValue(done ? L("Done") : "")
   }
 
   // MARK: Bindings & actions
@@ -523,17 +498,6 @@ private struct TodayContent: View {
     MediaStore.delete(attachment.fileName)
     context.delete(attachment)
     try? context.save()
-  }
-
-  private func toggleHabit(_ habit: Habit) {
-    let today = Calendar.current.startOfDay(for: Date())
-    if let log = habit.logs.first(where: { Calendar.current.isDate($0.date, inSameDayAs: today) }) {
-      log.completed.toggle()
-    } else {
-      context.insert(HabitLog(date: today, completed: true, habit: habit))
-    }
-    try? context.save()
-    Haptics.selection()
   }
 
   private func saveAndComplete() {

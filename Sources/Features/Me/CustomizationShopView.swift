@@ -21,12 +21,6 @@ struct CustomizationShopView: View {
   /// Editable working copy of the mood catalog, persisted on change.
   @State private var moods: [MoodOption] = []
 
-  /// Preset colors offered when recoloring a mood.
-  private let moodPalette = ["E5484D", "F0883E", "F5C84B", "8CCF4D", "34C759", "30B0C7", "5AC8FA", "7E5BEF", "AF52DE", "FF5C8A"]
-
-  /// Preset colors offered when recoloring a habit (shown in habit analytics).
-  private let habitPalette = ["7E5BEF", "5AC8FA", "34C759", "FFC83D", "FF9F0A", "FF5C8A", "E5484D", "30B0C7", "AF52DE", "8CCF4D", "2D9CDB", "FF7849"]
-
   private var activeHabits: [Habit] {
     allHabits.filter { $0.deletedAt == nil }
   }
@@ -195,22 +189,13 @@ struct CustomizationShopView: View {
 
   private func habitColorRow(_ habit: Habit) -> some View {
     HStack(spacing: DLSpace.sm) {
-      Menu {
-        ForEach(habitPalette, id: \.self) { hex in
-          Button { setHabitColor(habit, to: hex) } label: {
-            Label {
-              Text(verbatim: "#\(hex)")
-            } icon: {
-              Image(systemName: "circle.fill").foregroundStyle(Color(hexString: hex))
-            }
-          }
+      ColorSwatchPicker(
+        hex: Binding(get: { habit.colorHex }, set: { habit.colorHex = $0 }),
+        onChange: {
+          try? context.save()
+          Haptics.selection()
         }
-      } label: {
-        Circle()
-          .fill(Color(hexString: habit.colorHex))
-          .frame(width: 26, height: 26)
-          .overlay(Circle().strokeBorder(DLColor.separator, lineWidth: 1))
-      }
+      )
       .accessibilityLabel(L("Habit color"))
 
       Text(habit.emoji.isEmpty ? "✅" : habit.emoji)
@@ -223,12 +208,6 @@ struct CustomizationShopView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(.vertical, 2)
-  }
-
-  private func setHabitColor(_ habit: Habit, to hex: String) {
-    habit.colorHex = hex
-    try? context.save()
-    Haptics.selection()
   }
 
   // MARK: Moods (rename / recolor built-ins, add custom moods — applied app-wide)
@@ -276,23 +255,17 @@ struct CustomizationShopView: View {
   @ViewBuilder
   private func moodEditorRow(index: Int, mood: MoodOption) -> some View {
     HStack(spacing: DLSpace.sm) {
-      // Color picker (preset palette).
-      Menu {
-        ForEach(moodPalette, id: \.self) { hex in
-          Button { setColor(index, to: hex) } label: {
-            Label {
-              Text(verbatim: "#\(hex)")
-            } icon: {
-              Image(systemName: "circle.fill").foregroundStyle(Color(hexString: hex))
-            }
+      // Color picker (shared presets + custom color).
+      ColorSwatchPicker(
+        hex: Binding(
+          get: { moods.indices.contains(index) ? moods[index].colorHex : "7E5BEF" },
+          set: { newHex in
+            guard moods.indices.contains(index) else { return }
+            moods[index].colorHex = newHex
           }
-        }
-      } label: {
-        Circle()
-          .fill(Color(hexString: mood.colorHex))
-          .frame(width: 26, height: 26)
-          .overlay(Circle().strokeBorder(DLColor.separator, lineWidth: 1))
-      }
+        ),
+        onChange: { Haptics.selection() }
+      )
       .accessibilityLabel(L("Mood color"))
 
       // Emoji (one grapheme).
@@ -350,12 +323,6 @@ struct CustomizationShopView: View {
         moods[index].label = newValue
       }
     )
-  }
-
-  private func setColor(_ index: Int, to hex: String) {
-    guard moods.indices.contains(index) else { return }
-    moods[index].colorHex = hex
-    Haptics.selection()
   }
 
   private func addMood() {

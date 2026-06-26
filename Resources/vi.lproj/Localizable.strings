@@ -485,3 +485,27 @@
 "Salary" = "Lương";
 "Bonus" = "Thưởng";
 "Other" = "Khác";
+
+// Round 4 — color picker + finance charts/report/daily entry
+"Color" = "Màu";
+"Custom color" = "Màu tùy chỉnh";
+"Expenses" = "Chi tiêu";
+"Breakdown" = "Phân tích";
+"Breakdown type" = "Loại phân tích";
+"No spending this month yet." = "Chưa có chi tiêu trong tháng này.";
+"No income this month yet." = "Chưa có thu nhập trong tháng này.";
+"No transactions this month yet" = "Chưa có giao dịch trong tháng này";
+"Show less" = "Thu gọn";
+"Show all %d" = "Xem tất cả %d";
+"Detailed report" = "Báo cáo chi tiết";
+"Trends, bar chart & year calendar" = "Xu hướng, biểu đồ cột & lịch năm";
+"Finance report" = "Báo cáo tài chính";
+"Net" = "Ròng";
+"Income vs expense" = "Thu nhập & chi tiêu";
+"No transactions in this year yet." = "Chưa có giao dịch trong năm này.";
+"Daily flow" = "Dòng tiền hằng ngày";
+"Income day" = "Ngày thu";
+"Expense day" = "Ngày chi";
+"By category" = "Theo danh mục";
+"Tap to log income or an expense for this day." = "Chạm để ghi thu nhập hoặc chi tiêu cho ngày này.";
+"Add income or expense" = "Thêm thu nhập hoặc chi tiêu";

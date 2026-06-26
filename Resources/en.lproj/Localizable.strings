@@ -485,3 +485,27 @@
 "Salary" = "Salary";
 "Bonus" = "Bonus";
 "Other" = "Other";
+
+// Round 4 — color picker + finance charts/report/daily entry
+"Color" = "Color";
+"Custom color" = "Custom color";
+"Expenses" = "Expenses";
+"Breakdown" = "Breakdown";
+"Breakdown type" = "Breakdown type";
+"No spending this month yet." = "No spending this month yet.";
+"No income this month yet." = "No income this month yet.";
+"No transactions this month yet" = "No transactions this month yet";
+"Show less" = "Show less";
+"Show all %d" = "Show all %d";
+"Detailed report" = "Detailed report";
+"Trends, bar chart & year calendar" = "Trends, bar chart & year calendar";
+"Finance report" = "Finance report";
+"Net" = "Net";
+"Income vs expense" = "Income vs expense";
+"No transactions in this year yet." = "No transactions in this year yet.";
+"Daily flow" = "Daily flow";
+"Income day" = "Income day";
+"Expense day" = "Expense day";
+"By category" = "By category";
+"Tap to log income or an expense for this day." = "Tap to log income or an expense for this day.";
+"Add income or expense" = "Add income or expense";

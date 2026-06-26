@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import Charts
 
 /// Personal finance hub: income/expense/balance for a selectable time window, a
 /// spending-by-category breakdown, and the transaction log. New transactions can
@@ -13,12 +14,32 @@ struct FinanceView: View {
   @Query(sort: \FinanceCategory.sortIndex) private var categories: [FinanceCategory]
   @Query private var progressList: [UserProgress]
 
-  @State private var range: StatsRange = .month
+  /// The month being viewed (start-of-month). The summary, pie chart, and
+  /// transaction list are all scoped to this month — finance is month-based
+  /// (round 4): use the chevrons to step months.
+  @State private var monthAnchor: Date = FinanceView.currentMonthStart
   @State private var showAdd = false
   @State private var editingTx: FinanceTransaction?
   @State private var showCategories = false
+  /// Expense vs income side for the breakdown pie (item 5).
+  @State private var pieKind: PieKind = .expense
+  /// Transactions list: capped at 5 by default, all when expanded (item 6).
+  @State private var transactionsExpanded = false
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  enum PieKind: String, CaseIterable, Identifiable, Hashable {
+    case expense, income
+    var id: String { rawValue }
+    var label: String { self == .expense ? L("Expenses") : L("Income") }
+  }
+
+  private static var currentMonthStart: Date {
+    Calendar.current.dateInterval(of: .month, for: Date())?.start
+      ?? Calendar.current.startOfDay(for: Date())
+  }
+
+  private var calendar: Calendar { Calendar.current }
 
   private var theme: GradientTheme {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
@@ -26,18 +47,23 @@ struct FinanceView: View {
 
   private let expenseColor = Color(hex: 0xE5484D)
 
+  /// Default transactions shown before expanding (item 6).
+  private let collapsedTransactionLimit = 5
+
   // MARK: - Derived data
 
-  private var txInRange: [FinanceTransaction] {
-    let start = range.startDate()
-    return transactions.filter { tx in
-      if let start { return tx.date >= start }
-      return true
-    }
+  /// Whether the viewed month is the current one (caps the forward chevron).
+  private var isCurrentMonth: Bool {
+    calendar.isDate(monthAnchor, equalTo: Date(), toGranularity: .month)
   }
 
-  private var totalIncome: Double { txInRange.filter { !$0.isExpense }.reduce(0) { $0 + $1.amount } }
-  private var totalExpense: Double { txInRange.filter { $0.isExpense }.reduce(0) { $0 + $1.amount } }
+  /// Transactions in the viewed month (already newest-first from the query).
+  private var txInMonth: [FinanceTransaction] {
+    transactions.filter { calendar.isDate($0.date, equalTo: monthAnchor, toGranularity: .month) }
+  }
+
+  private var totalIncome: Double { txInMonth.filter { !$0.isExpense }.reduce(0) { $0 + $1.amount } }
+  private var totalExpense: Double { txInMonth.filter { $0.isExpense }.reduce(0) { $0 + $1.amount } }
   private var balance: Double { totalIncome - totalExpense }
 
   private struct SpendSlice: Identifiable {
@@ -48,15 +74,15 @@ struct FinanceView: View {
     let amount: Double
   }
 
-  /// Expense totals per category within the range, largest first.
-  private var expenseSlices: [SpendSlice] {
+  /// Category totals for one side (expense/income) within the month, largest first.
+  private func slices(expense: Bool) -> [SpendSlice] {
     var byCategory: [UUID: Double] = [:]
     var uncategorized = 0.0
-    for tx in txInRange where tx.isExpense {
+    for tx in txInMonth where tx.isExpense == expense {
       if let cat = tx.category { byCategory[cat.id, default: 0] += tx.amount } else { uncategorized += tx.amount }
     }
     var slices: [SpendSlice] = []
-    for cat in categories where cat.isExpense {
+    for cat in categories where cat.isExpense == expense {
       if let amount = byCategory[cat.id], amount > 0 {
         slices.append(SpendSlice(name: L(cat.name), emoji: cat.emoji, color: Color(hexString: cat.colorHex), amount: amount))
       }
@@ -67,6 +93,12 @@ struct FinanceView: View {
     return slices.sorted { $0.amount > $1.amount }
   }
 
+  /// The default date for a brand-new transaction from the toolbar +: today when
+  /// viewing the current month, else noon on the 1st of the viewed month.
+  private var addDefaultDate: Date? {
+    isCurrentMonth ? nil : calendar.date(bySettingHour: 12, minute: 0, second: 0, of: monthAnchor)
+  }
+
   // MARK: - Body
 
   var body: some View {
@@ -74,25 +106,20 @@ struct FinanceView: View {
       VStack(alignment: .leading, spacing: DLSpace.lg) {
         EditorialHeader(L("FINANCES"), L("Money"))
 
-        SlidingSegmentedControl(
-          items: StatsRange.allCases,
-          label: { $0.label },
-          selection: $range,
-          accent: theme.accent
-        )
-        .accessibilityLabel(L("Time range"))
+        monthNavigator
 
         summaryCard
 
-        if !expenseSlices.isEmpty {
-          categoryBreakdownCard
-        }
+        pieChartCard
 
         transactionsSection
+
+        reportLink
       }
       .padding(.horizontal, DLSpace.lg)
       .padding(.vertical, DLSpace.xl)
-      .animation(reduceMotion ? nil : DLAnim.standard, value: range)
+      .animation(reduceMotion ? nil : DLAnim.standard, value: monthAnchor)
+      .animation(reduceMotion ? nil : DLAnim.standard, value: transactionsExpanded)
     }
     .background(ThemedBackground(theme: theme))
     .navigationBarTitleDisplayMode(.inline)
@@ -112,7 +139,7 @@ struct FinanceView: View {
       }
     }
     .sheet(isPresented: $showAdd) {
-      TransactionEditorSheet(existing: nil)
+      TransactionEditorSheet(existing: nil, defaultDate: addDefaultDate)
     }
     .sheet(item: $editingTx) { tx in
       TransactionEditorSheet(existing: tx)
@@ -121,6 +148,53 @@ struct FinanceView: View {
       FinanceCategoryManagerView()
     }
     .onAppear(perform: seedDefaultCategoriesIfNeeded)
+  }
+
+  // MARK: - Month navigator
+
+  /// "‹ June 2026 ›" — steps the viewed month; the forward chevron disables on the
+  /// current month so you can't page into the future.
+  private var monthNavigator: some View {
+    HStack(spacing: DLSpace.sm) {
+      monthChevron(systemName: "chevron.left", enabled: true, label: L("Previous month")) {
+        shiftMonth(by: -1)
+      }
+      Spacer(minLength: 0)
+      Text(monthAnchor, format: .dateTime.month(.wide).year())
+        .font(.dl(.headline, weight: .bold))
+        .foregroundStyle(DLColor.textPrimary)
+        .contentTransition(.numericText())
+      Spacer(minLength: 0)
+      monthChevron(systemName: "chevron.right", enabled: !isCurrentMonth, label: L("Next month")) {
+        shiftMonth(by: 1)
+      }
+    }
+  }
+
+  private func monthChevron(systemName: String, enabled: Bool, label: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+      Image(systemName: systemName)
+        .font(.system(size: 15, weight: .semibold))
+        .foregroundStyle(enabled ? theme.accent : DLColor.textTertiary)
+        .frame(width: 40, height: 40)
+        .background(DLColor.surfaceElevated.opacity(0.6), in: Circle())
+        .contentShape(Circle())
+    }
+    .buttonStyle(.plain)
+    .disabled(!enabled)
+    .accessibilityLabel(label)
+  }
+
+  private func shiftMonth(by value: Int) {
+    guard let next = calendar.date(byAdding: .month, value: value, to: monthAnchor) else { return }
+    let nextStart = calendar.dateInterval(of: .month, for: next)?.start ?? next
+    // Never page past the current month.
+    if value > 0, nextStart > FinanceView.currentMonthStart { return }
+    withAnimation(reduceMotion ? nil : DLAnim.standard) {
+      monthAnchor = nextStart
+      transactionsExpanded = false
+    }
+    Haptics.selection()
   }
 
   // MARK: - Summary
@@ -169,54 +243,154 @@ struct FinanceView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
   }
 
-  // MARK: - Category breakdown
+  // MARK: - Breakdown pie (item 5)
 
-  private var categoryBreakdownCard: some View {
-    let maxAmount = expenseSlices.map(\.amount).max() ?? 1
+  private var pieChartCard: some View {
+    let slices = slices(expense: pieKind == .expense)
     return GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.md) {
-        Label(L("Spending by category"), systemImage: "chart.pie.fill")
+        Label(L("Breakdown"), systemImage: "chart.pie.fill")
           .font(.dl(.headline, weight: .semibold))
           .foregroundStyle(theme.accent)
 
-        ForEach(expenseSlices) { slice in
-          VStack(alignment: .leading, spacing: DLSpace.xs) {
-            HStack(spacing: DLSpace.sm) {
-              Text(slice.emoji)
-              Text(slice.name)
-                .font(.dl(.subheadline, weight: .medium))
-                .foregroundStyle(DLColor.textPrimary)
-                .lineLimit(1)
-              Spacer(minLength: DLSpace.sm)
-              Text(CurrencyFormatter.vnd(slice.amount))
-                .font(.dl(.subheadline, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(DLColor.textSecondary)
-            }
-            GeometryReader { geo in
-              RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .fill(slice.color.opacity(0.85))
-                .frame(width: max(6, geo.size.width * CGFloat(slice.amount / maxAmount)), height: 8)
-            }
-            .frame(height: 8)
-          }
+        SlidingSegmentedControl(
+          items: PieKind.allCases,
+          label: { $0.label },
+          selection: $pieKind,
+          accent: theme.accent
+        )
+        .accessibilityLabel(L("Breakdown type"))
+
+        if slices.isEmpty {
+          Text(pieKind == .expense ? L("No spending this month yet.") : L("No income this month yet."))
+            .font(.dl(.subheadline))
+            .foregroundStyle(DLColor.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, DLSpace.md)
+        } else {
+          pie(slices)
+          pieLegend(slices)
+        }
+      }
+    }
+    .animation(reduceMotion ? nil : DLAnim.standard, value: pieKind)
+  }
+
+  private func pie(_ slices: [SpendSlice]) -> some View {
+    let total = slices.reduce(0) { $0 + $1.amount }
+    return Chart(slices) { slice in
+      SectorMark(
+        angle: .value("Amount", slice.amount),
+        innerRadius: .ratio(0.62),
+        angularInset: 1.5
+      )
+      .cornerRadius(4)
+      .foregroundStyle(slice.color)
+    }
+    .chartLegend(.hidden)
+    .frame(height: 200)
+    .overlay {
+      VStack(spacing: 2) {
+        Text(pieKind.label)
+          .font(.dl(.caption2, weight: .medium))
+          .foregroundStyle(DLColor.textTertiary)
+        Text(CurrencyFormatter.vnd(total))
+          .font(.dl(.headline, weight: .bold))
+          .monospacedDigit()
+          .foregroundStyle(pieKind == .expense ? expenseColor : DLColor.success)
+          .lineLimit(1)
+          .minimumScaleFactor(0.5)
+      }
+      .padding(.horizontal, DLSpace.lg)
+    }
+  }
+
+  private func pieLegend(_ slices: [SpendSlice]) -> some View {
+    let total = max(1, slices.reduce(0) { $0 + $1.amount })
+    return VStack(spacing: DLSpace.xs) {
+      ForEach(slices) { slice in
+        HStack(spacing: DLSpace.sm) {
+          Circle().fill(slice.color).frame(width: 10, height: 10)
+          Text(slice.emoji)
+          Text(slice.name)
+            .font(.dl(.subheadline, weight: .medium))
+            .foregroundStyle(DLColor.textPrimary)
+            .lineLimit(1)
+          Spacer(minLength: DLSpace.sm)
+          Text("\(Int((slice.amount / total * 100).rounded()))%")
+            .font(.dl(.caption2, weight: .semibold))
+            .monospacedDigit()
+            .foregroundStyle(DLColor.textTertiary)
+          Text(CurrencyFormatter.vnd(slice.amount))
+            .font(.dl(.subheadline, weight: .semibold))
+            .monospacedDigit()
+            .foregroundStyle(DLColor.textSecondary)
         }
       }
     }
   }
 
+  // MARK: - Detailed report link (item 10)
+
+  private var reportLink: some View {
+    NavigationLink {
+      FinanceReportView()
+    } label: {
+      GlassCard {
+        HStack(spacing: DLSpace.md) {
+          ZStack {
+            Circle().fill(theme.accent.opacity(0.18)).frame(width: 40, height: 40)
+            Image(systemName: "chart.bar.doc.horizontal")
+              .font(.system(size: 17, weight: .semibold))
+              .foregroundStyle(theme.accent)
+          }
+          VStack(alignment: .leading, spacing: 2) {
+            Text(L("Detailed report"))
+              .font(.dl(.body, weight: .semibold))
+              .foregroundStyle(DLColor.textPrimary)
+            Text(L("Trends, bar chart & year calendar"))
+              .font(.dl(.caption))
+              .foregroundStyle(DLColor.textSecondary)
+              .lineLimit(1)
+          }
+          Spacer(minLength: 0)
+          Image(systemName: "chevron.right")
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(DLColor.textTertiary)
+        }
+      }
+    }
+    .buttonStyle(.plain)
+  }
+
   // MARK: - Transactions
 
   private var transactionsSection: some View {
-    VStack(alignment: .leading, spacing: DLSpace.sm) {
+    let all = txInMonth
+    let shown = transactionsExpanded ? all : Array(all.prefix(collapsedTransactionLimit))
+    return VStack(alignment: .leading, spacing: DLSpace.sm) {
       SectionLabel(L("Transactions"))
 
-      if txInRange.isEmpty {
+      if all.isEmpty {
         emptyState
       } else {
-        ForEach(txInRange) { tx in
+        ForEach(shown) { tx in
           Button { editingTx = tx } label: { transactionRow(tx) }
             .buttonStyle(.plain)
+        }
+        if all.count > collapsedTransactionLimit {
+          Button {
+            withAnimation(reduceMotion ? nil : DLAnim.standard) { transactionsExpanded.toggle() }
+            Haptics.selection()
+          } label: {
+            Text(transactionsExpanded ? L("Show less") : Lf("Show all %d", all.count))
+              .font(.dl(.subheadline, weight: .semibold))
+              .foregroundStyle(theme.accent)
+              .frame(maxWidth: .infinity)
+              .padding(.vertical, DLSpace.sm)
+              .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
         }
       }
     }
@@ -268,7 +442,7 @@ struct FinanceView: View {
       Image(systemName: "creditcard")
         .font(.system(size: 32, weight: .light))
         .foregroundStyle(DLColor.textTertiary)
-      Text(L("No transactions in this range"))
+      Text(L("No transactions this month yet"))
         .font(.serif(.title3, weight: .semibold))
         .foregroundStyle(DLColor.textPrimary)
       Text(L("Tap + to record income or an expense."))
@@ -297,8 +471,11 @@ struct FinanceView: View {
 /// date, note, and attached media (camera photo/video, or library). For a NEW
 /// transaction the model is inserted on appear so media can attach immediately; an
 /// empty new transaction is deleted again on cancel.
-private struct TransactionEditorSheet: View {
+struct TransactionEditorSheet: View {
   let existing: FinanceTransaction?
+  /// For a NEW transaction, the date it should default to (e.g. the day being
+  /// edited in Today / Progress). Ignored when editing an existing one.
+  var defaultDate: Date? = nil
 
   @Environment(\.modelContext) private var context
   @Environment(\.dismiss) private var dismiss
@@ -347,6 +524,15 @@ private struct TransactionEditorSheet: View {
     Double(amountText.filter { $0.isNumber }) ?? 0
   }
 
+  /// Quick amount suggestions (item 9): the typed digits scaled by ×1.000, ×10.000,
+  /// ×100.000, so you type a couple of digits and tap to fill (e.g. "15" →
+  /// 15.000 / 150.000 / 1.500.000đ). Only shown for short input (1–3 digits).
+  private var quickAmounts: [Double] {
+    let base = Int(parsedAmount)
+    guard base >= 1, base <= 999 else { return [] }
+    return [base * 1_000, base * 10_000, base * 100_000].map(Double.init)
+  }
+
   var body: some View {
     Group {
       if let tx {
@@ -368,11 +554,12 @@ private struct TransactionEditorSheet: View {
       note = existing.note
       selectedCategoryID = existing.category?.id
     } else {
-      let fresh = FinanceTransaction(amount: 0, isExpense: true, date: Date())
+      let start = defaultDate ?? Date()
+      let fresh = FinanceTransaction(amount: 0, isExpense: true, date: start)
       context.insert(fresh)
       tx = fresh
       isExpense = true
-      date = Date()
+      date = start
       selectedCategoryID = categoriesForType.first?.id
     }
   }
@@ -476,6 +663,28 @@ private struct TransactionEditorSheet: View {
             .font(.dl(.subheadline, weight: .medium))
             .foregroundStyle(DLColor.textTertiary)
             .monospacedDigit()
+        }
+        if !quickAmounts.isEmpty {
+          ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DLSpace.sm) {
+              ForEach(quickAmounts, id: \.self) { amount in
+                Button {
+                  amountText = String(Int(amount))
+                  Haptics.selection()
+                } label: {
+                  Text(CurrencyFormatter.vnd(amount))
+                    .font(.dl(.caption, weight: .semibold))
+                    .monospacedDigit()
+                    .padding(.horizontal, DLSpace.sm)
+                    .padding(.vertical, 6)
+                    .background(theme.accent.opacity(0.12), in: Capsule())
+                    .foregroundStyle(theme.accent)
+                }
+                .buttonStyle(.plain)
+              }
+            }
+            .padding(.vertical, 2)
+          }
         }
       }
     }
@@ -620,8 +829,6 @@ private struct FinanceCategoryManagerView: View {
     progressList.first?.gradientTheme ?? GradientThemeCatalog.theme(id: "teal")
   }
 
-  private let palette = ["7E5BEF", "5AC8FA", "34C759", "FFC83D", "FF9F0A", "FF5C8A", "E5484D", "30B0C7", "AF52DE", "8CCF4D"]
-
   private var expenseCategories: [FinanceCategory] { categories.filter { $0.isExpense } }
   private var incomeCategories: [FinanceCategory] { categories.filter { !$0.isExpense } }
 
@@ -649,7 +856,7 @@ private struct FinanceCategoryManagerView: View {
   private func section(_ title: String, items: [FinanceCategory], isExpense: Bool) -> some View {
     Section {
       ForEach(items) { category in
-        CategoryRow(category: category, palette: palette)
+        CategoryRow(category: category)
           .listRowBackground(Color.clear)
       }
       .onDelete { offsets in delete(offsets, in: items) }
@@ -674,7 +881,7 @@ private struct FinanceCategoryManagerView: View {
     let category = FinanceCategory(
       name: isExpense ? L("New category") : L("New source"),
       emoji: isExpense ? "🏷️" : "💵",
-      colorHex: palette.first ?? "7E5BEF",
+      colorHex: ColorPaletteOption.presets.first ?? "7E5BEF",
       isExpense: isExpense,
       sortIndex: nextIndex
     )
@@ -696,25 +903,12 @@ private struct FinanceCategoryManagerView: View {
 private struct CategoryRow: View {
   @Environment(\.modelContext) private var context
   @Bindable var category: FinanceCategory
-  let palette: [String]
 
   var body: some View {
     HStack(spacing: DLSpace.sm) {
-      Menu {
-        ForEach(palette, id: \.self) { hex in
-          Button { setColor(hex) } label: {
-            Label {
-              Text(verbatim: "#\(hex)")
-            } icon: {
-              Image(systemName: "circle.fill").foregroundStyle(Color(hexString: hex))
-            }
-          }
-        }
-      } label: {
-        Circle()
-          .fill(Color(hexString: category.colorHex))
-          .frame(width: 24, height: 24)
-          .overlay(Circle().strokeBorder(DLColor.separator, lineWidth: 1))
+      ColorSwatchPicker(hex: $category.colorHex) {
+        try? context.save()
+        Haptics.selection()
       }
       .accessibilityLabel(L("Category color"))
 
@@ -737,11 +931,5 @@ private struct CategoryRow: View {
         .onSubmit { try? context.save() }
     }
     .padding(.vertical, 2)
-  }
-
-  private func setColor(_ hex: String) {
-    category.colorHex = hex
-    try? context.save()
-    Haptics.selection()
   }
 }

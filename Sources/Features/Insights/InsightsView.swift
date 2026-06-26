@@ -233,14 +233,15 @@ struct InsightsView: View {
   }
 
   private func insightRow(_ insight: Insight) -> some View {
-    HStack(alignment: .top, spacing: DLSpace.sm) {
+    let tint = tint(for: insight)
+    return HStack(alignment: .top, spacing: DLSpace.sm) {
       ZStack {
         Circle()
-          .fill(tint(for: insight.tone).opacity(0.18))
+          .fill(tint.opacity(0.18))
           .frame(width: 40, height: 40)
         Image(systemName: insight.icon)
           .font(.system(size: 17, weight: .semibold))
-          .foregroundStyle(tint(for: insight.tone))
+          .foregroundStyle(tint)
       }
       .accessibilityHidden(true)
 
@@ -260,11 +261,25 @@ struct InsightsView: View {
     .accessibilityLabel("\(L(insight.title)). \(L(insight.message))")
   }
 
-  private func tint(for tone: InsightTone) -> Color {
-    switch tone {
-    case .positive: return DLColor.success
-    case .suggestion: return DLColor.warning
-    case .neutral: return theme.accent
+  /// A distinct icon color per insight, keyed by its (unique) icon so each row
+  /// reads as its own thing rather than collapsing to three tone colors. Unknown
+  /// icons fall back to the tone-based hue.
+  private func tint(for insight: Insight) -> Color {
+    switch insight.icon {
+    case "calendar": return Color(hex: 0x4C5FD5)         // indigo — consistency
+    case "sparkles": return DLColor.xpGold               // gold — best day
+    case "checkmark.seal.fill": return DLColor.success   // green — habits lift
+    case "bed.double.fill": return Color(hex: 0x5AC8FA)  // sky — sleep matters
+    case "moon.zzz.fill": return Color(hex: 0xAF52DE)    // purple — average sleep
+    case "arrow.up.right": return DLColor.success        // green — trending up
+    case "arrow.down.right": return DLColor.streakEnd    // red — trending down
+    case "wand.and.stars": return Color(hex: 0x30B0C7)   // teal — building picture
+    default:
+      switch insight.tone {
+      case .positive: return DLColor.success
+      case .suggestion: return DLColor.warning
+      case .neutral: return theme.accent
+      }
     }
   }
 

@@ -485,3 +485,27 @@
 "Salary" = "급여";
 "Bonus" = "보너스";
 "Other" = "기타";
+
+// Round 4 — color picker + finance charts/report/daily entry
+"Color" = "색상";
+"Custom color" = "사용자 지정 색상";
+"Expenses" = "지출";
+"Breakdown" = "분석";
+"Breakdown type" = "분석 유형";
+"No spending this month yet." = "이번 달 지출이 아직 없습니다.";
+"No income this month yet." = "이번 달 수입이 아직 없습니다.";
+"No transactions this month yet" = "이번 달 거래가 아직 없습니다";
+"Show less" = "간략히";
+"Show all %d" = "전체 %d개 보기";
+"Detailed report" = "상세 보고서";
+"Trends, bar chart & year calendar" = "추세, 막대 차트 및 연간 달력";
+"Finance report" = "재무 보고서";
+"Net" = "순액";
+"Income vs expense" = "수입 대 지출";
+"No transactions in this year yet." = "올해 거래가 아직 없습니다.";
+"Daily flow" = "일일 흐름";
+"Income day" = "수입일";
+"Expense day" = "지출일";
+"By category" = "카테고리별";
+"Tap to log income or an expense for this day." = "이 날의 수입 또는 지출을 기록하려면 탭하세요.";
+"Add income or expense" = "수입 또는 지출 추가";

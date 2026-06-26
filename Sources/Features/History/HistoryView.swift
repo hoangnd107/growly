@@ -15,12 +15,9 @@ struct HistoryView: View {
   @State private var visibleMonth = Calendar.current.startOfDay(for: Date())
   @State private var selectedDay: DaySelection?
   @State private var showMonthPicker = false
-  /// A4: the per-day mood list under the calendar — month-scoped vs. all history.
-  @State private var moodListAllMonths = false
-  /// A4: collapse the daily-mood list; in all-time mode page it 30 days at a time.
+  /// Collapse/expand the per-day mood list. The list is always scoped to the
+  /// visible month (the all-time time filter was removed — round 4, item 3).
   @State private var moodListExpanded = true
-  @State private var moodListVisibleCount = 30
-  private let moodListPageSize = 30
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -444,8 +441,7 @@ struct HistoryView: View {
     var id: Date { day }
   }
 
-  /// Days (most recent first) that have a mood and/or a note, scoped to the
-  /// visible month or all history depending on the toggle.
+  /// Days (most recent first) that have a mood and/or a note in the visible month.
   private var moodDayRows: [MoodDayRow] {
     var moodByDay: [Date: Int] = [:]
     var noteByDay: [Date: Bool] = [:]
@@ -456,19 +452,11 @@ struct HistoryView: View {
       noteByDay[note.day] = true
       if let mood = note.moodRaw, moodByDay[note.day] == nil { moodByDay[note.day] = mood }
     }
-    var days = Set(moodByDay.keys).union(noteByDay.keys)
-    if !moodListAllMonths {
-      days = days.filter { calendar.isDate($0, equalTo: visibleMonth, toGranularity: .month) }
-    }
+    let days = Set(moodByDay.keys).union(noteByDay.keys)
+      .filter { calendar.isDate($0, equalTo: visibleMonth, toGranularity: .month) }
     return days.sorted(by: >).map { day in
       MoodDayRow(day: day, moodValue: moodByDay[day] ?? 0, hasNote: noteByDay[day] ?? false)
     }
-  }
-
-  /// Rows actually rendered: in all-time mode, capped to `moodListVisibleCount`
-  /// (a load-more window — the 30 most recent first); a month always shows whole.
-  private var visibleMoodDayRows: [MoodDayRow] {
-    moodListAllMonths ? Array(moodDayRows.prefix(moodListVisibleCount)) : moodDayRows
   }
 
   private var moodDayListCard: some View {
@@ -493,22 +481,6 @@ struct HistoryView: View {
           .buttonStyle(.plain)
           .accessibilityHint(moodListExpanded ? L("Expanded. Tap to collapse.") : L("Collapsed. Tap to expand."))
           Spacer()
-          Button {
-            withAnimation(reduceMotion ? nil : DLAnim.standard) {
-              moodListAllMonths.toggle()
-              moodListVisibleCount = moodListPageSize
-            }
-            Haptics.selection()
-          } label: {
-            Text(moodListAllMonths ? L("All time") : L("This month"))
-              .font(.dl(.caption, weight: .semibold))
-              .padding(.horizontal, DLSpace.sm)
-              .padding(.vertical, 5)
-              .background(theme.accent.opacity(0.14), in: Capsule())
-              .foregroundStyle(theme.accent)
-          }
-          .buttonStyle(.plain)
-          .accessibilityLabel(moodListAllMonths ? L("Showing all history. Tap to show this month.") : L("Showing this month. Tap to show all history."))
         }
 
         if moodListExpanded {
@@ -519,31 +491,14 @@ struct HistoryView: View {
               .frame(maxWidth: .infinity, alignment: .leading)
               .padding(.vertical, DLSpace.xs)
           } else {
-            ForEach(visibleMoodDayRows) { row in
+            ForEach(moodDayRows) { row in
               Button { open(day: row.day) } label: { moodDayRowView(row) }
                 .buttonStyle(.plain)
-            }
-            if moodListAllMonths, moodDayRows.count > visibleMoodDayRows.count {
-              Button {
-                withAnimation(reduceMotion ? nil : DLAnim.standard) {
-                  moodListVisibleCount += moodListPageSize
-                }
-                Haptics.selection()
-              } label: {
-                Text(L("Show more days"))
-                  .font(.dl(.caption, weight: .semibold))
-                  .foregroundStyle(theme.accent)
-                  .frame(maxWidth: .infinity)
-                  .padding(.vertical, DLSpace.sm)
-                  .contentShape(Rectangle())
-              }
-              .buttonStyle(.plain)
             }
           }
         }
       }
     }
-    .animation(reduceMotion ? nil : DLAnim.standard, value: moodListAllMonths)
     .animation(reduceMotion ? nil : DLAnim.standard, value: moodListExpanded)
   }
 
