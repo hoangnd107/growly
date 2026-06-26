@@ -113,6 +113,28 @@ struct BackupGoal: Codable {
   var colorHex: String?
 }
 
+struct BackupFinanceCategory: Codable {
+  /// Preserved so restored transactions can be re-linked to their category.
+  var id: UUID
+  var name: String
+  var emoji: String
+  var colorHex: String
+  var isExpense: Bool
+  var sortIndex: Int
+  var createdAt: Date
+}
+
+struct BackupFinanceTransaction: Codable {
+  var amount: Double
+  var isExpense: Bool
+  var date: Date
+  var note: String
+  var createdAt: Date
+  /// The owning `FinanceCategory.id`, or nil when uncategorized.
+  var categoryID: UUID?
+  var attachments: [BackupAttachment]
+}
+
 struct BackupFile: Codable {
   var version: Int
   var exportedAt: Date
@@ -124,6 +146,8 @@ struct BackupFile: Codable {
   var xp: [BackupXP]
   var sleeps: [BackupSleep]?
   var goals: [BackupGoal]?
+  var financeCategories: [BackupFinanceCategory]?
+  var financeTransactions: [BackupFinanceTransaction]?
 }
 
 // MARK: - Service
@@ -169,6 +193,8 @@ enum BackupService {
       let xp = try context.fetch(FetchDescriptor<XPTransaction>())
       let sleeps = try context.fetch(FetchDescriptor<SleepLog>())
       let goals = try context.fetch(FetchDescriptor<SmartGoal>())
+      let financeCategories = try context.fetch(FetchDescriptor<FinanceCategory>())
+      let financeTransactions = try context.fetch(FetchDescriptor<FinanceTransaction>())
       let progress = try context.fetch(FetchDescriptor<UserProgress>()).first
 
       let file = BackupFile(
@@ -181,7 +207,9 @@ enum BackupService {
         badges: badges.map { BackupBadge(badgeID: $0.badgeID, earnedAt: $0.earnedAt) },
         xp: xp.map { BackupXP(date: $0.date, amount: $0.amount, reasonRaw: $0.reasonRaw, multiplier: $0.multiplier) },
         sleeps: sleeps.map { BackupSleep(date: $0.date, bedTime: $0.bedTime, wakeTime: $0.wakeTime, quality: $0.quality, note: $0.note) },
-        goals: goals.map { BackupGoal(title: $0.title, detail: $0.detail, unit: $0.unit, targetValue: $0.targetValue, currentValue: $0.currentValue, deadline: $0.deadline, createdAt: $0.createdAt, isCompleted: $0.isCompleted, colorHex: $0.colorHex) }
+        goals: goals.map { BackupGoal(title: $0.title, detail: $0.detail, unit: $0.unit, targetValue: $0.targetValue, currentValue: $0.currentValue, deadline: $0.deadline, createdAt: $0.createdAt, isCompleted: $0.isCompleted, colorHex: $0.colorHex) },
+        financeCategories: financeCategories.map(snapshot(financeCategory:)),
+        financeTransactions: financeTransactions.map(snapshot(financeTransaction:))
       )
 
       try encoder.encode(file).write(to: fileURL, options: .atomic)
@@ -260,6 +288,29 @@ enum BackupService {
       context.insert(goal)
     }
 
+    // Finance: categories first so transactions can be re-linked by their id.
+    var financeCategoryByID: [UUID: FinanceCategory] = [:]
+    for c in file.financeCategories ?? [] {
+      let category = FinanceCategory(name: c.name, emoji: c.emoji, colorHex: c.colorHex, isExpense: c.isExpense, sortIndex: c.sortIndex)
+      category.id = c.id
+      category.createdAt = c.createdAt
+      context.insert(category)
+      financeCategoryByID[c.id] = category
+    }
+    for t in file.financeTransactions ?? [] {
+      let tx = FinanceTransaction(
+        amount: t.amount, isExpense: t.isExpense, date: t.date, note: t.note,
+        category: t.categoryID.flatMap { financeCategoryByID[$0] }
+      )
+      tx.createdAt = t.createdAt
+      context.insert(tx)
+      for a in t.attachments {
+        let media = MediaAttachment(fileName: a.fileName, type: MediaType(rawValue: a.type) ?? .image, order: a.order, createdAt: a.createdAt)
+        media.transaction = tx
+        context.insert(media)
+      }
+    }
+
     let progress = UserProgress()
     if let p = file.progress { apply(p, to: progress) }
     context.insert(progress)
@@ -300,6 +351,21 @@ enum BackupService {
 
   private static func snapshot(attachment m: MediaAttachment) -> BackupAttachment {
     BackupAttachment(fileName: m.fileName, type: m.typeRaw, order: m.order, createdAt: m.createdAt)
+  }
+
+  private static func snapshot(financeCategory c: FinanceCategory) -> BackupFinanceCategory {
+    BackupFinanceCategory(
+      id: c.id, name: c.name, emoji: c.emoji, colorHex: c.colorHex,
+      isExpense: c.isExpense, sortIndex: c.sortIndex, createdAt: c.createdAt
+    )
+  }
+
+  private static func snapshot(financeTransaction t: FinanceTransaction) -> BackupFinanceTransaction {
+    BackupFinanceTransaction(
+      amount: t.amount, isExpense: t.isExpense, date: t.date, note: t.note,
+      createdAt: t.createdAt, categoryID: t.category?.id,
+      attachments: t.attachments.map(snapshot(attachment:))
+    )
   }
 
   private static func snapshot(progress p: UserProgress) -> BackupProgress {
@@ -352,6 +418,8 @@ enum BackupService {
     deleteAll(XPTransaction.self)
     deleteAll(SleepLog.self)
     deleteAll(SmartGoal.self)
+    deleteAll(FinanceTransaction.self)
+    deleteAll(FinanceCategory.self)
     deleteAll(UserProgress.self)
   }
 }

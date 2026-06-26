@@ -11,6 +11,7 @@ enum ResetService {
     case habits
     case sleep
     case goals
+    case finance
     case badges
     case progress
     case everything
@@ -24,6 +25,7 @@ enum ResetService {
       case .habits: return L("Habits")
       case .sleep: return L("Sleep logs")
       case .goals: return L("Goals")
+      case .finance: return L("Finances")
       case .badges: return L("Badges")
       case .progress: return L("XP & streak")
       case .everything: return L("Everything")
@@ -37,6 +39,7 @@ enum ResetService {
       case .habits: return "checkmark.circle"
       case .sleep: return "bed.double"
       case .goals: return "target"
+      case .finance: return "creditcard"
       case .badges: return "rosette"
       case .progress: return "bolt"
       case .everything: return "trash"
@@ -59,6 +62,10 @@ enum ResetService {
       deleteAll(SleepLog.self, context: context)
     case .goals:
       deleteAll(SmartGoal.self, context: context)
+    case .finance:
+      deleteMediaFiles(for: FetchDescriptor<FinanceTransaction>(), context: context) { $0.attachments }
+      deleteAll(FinanceTransaction.self, context: context)
+      deleteAll(FinanceCategory.self, context: context)
     case .badges:
       deleteAll(BadgeRecord.self, context: context)
     case .progress:
