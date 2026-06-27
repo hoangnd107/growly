@@ -29,7 +29,20 @@ struct BulkLogSheet: View {
     }
   }
 
+  /// Whether the selected days get the value set, or cleared (round 8, item 1).
+  enum BulkAction: String, CaseIterable, Identifiable {
+    case add, remove
+    var id: String { rawValue }
+    var label: String {
+      switch self {
+      case .add: return L("Add")
+      case .remove: return L("Remove")
+      }
+    }
+  }
+
   @State private var kind: Kind = .habit
+  @State private var action: BulkAction = .add
   @State private var selectedHabitID: UUID?
   @State private var moodValue = 3
   @State private var energyLevel = 3
@@ -68,6 +81,7 @@ struct BulkLogSheet: View {
         ScrollView {
           VStack(spacing: DLSpace.md) {
             kindPicker
+            actionPicker
             itemCard
             calendarCard
           }
@@ -91,6 +105,7 @@ struct BulkLogSheet: View {
           .presentationDragIndicator(.visible)
       }
       .onChange(of: kind) { _, _ in selectedDays.removeAll() }
+      .onChange(of: action) { _, _ in selectedDays.removeAll() }
       .onChange(of: selectedHabitID) { _, _ in selectedDays.removeAll() }
       .onAppear { if selectedHabitID == nil { selectedHabitID = habits.first?.id } }
     }
@@ -108,6 +123,18 @@ struct BulkLogSheet: View {
     .accessibilityLabel(L("What to log"))
   }
 
+  // MARK: - Action picker (Add / Remove)
+
+  private var actionPicker: some View {
+    SlidingSegmentedControl(
+      items: BulkAction.allCases,
+      label: { $0.label },
+      selection: $action,
+      accent: theme.accent
+    )
+    .accessibilityLabel(L("Action"))
+  }
+
   // MARK: - Item selector
 
   @ViewBuilder
@@ -115,12 +142,32 @@ struct BulkLogSheet: View {
     GlassCard {
       VStack(alignment: .leading, spacing: DLSpace.sm) {
         switch kind {
-        case .habit: habitSelector
-        case .mood: moodSelector
-        case .energy: energySelector
+        case .habit:
+          // A habit is still chosen when clearing — you pick which one to un-mark.
+          habitSelector
+        case .mood:
+          if action == .add { moodSelector } else { removeHint }
+        case .energy:
+          if action == .add { energySelector } else { removeHint }
         }
       }
     }
+  }
+
+  /// Shown for mood/energy in Remove mode, where no target value is needed — the
+  /// day's logged value is simply cleared.
+  private var removeHint: some View {
+    HStack(spacing: DLSpace.sm) {
+      Image(systemName: "eraser.line.dashed")
+        .font(.system(size: 18))
+        .foregroundStyle(theme.accent)
+      Text(L("The value logged on the selected days will be removed."))
+        .font(.dl(.subheadline))
+        .foregroundStyle(DLColor.textSecondary)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.vertical, DLSpace.xs)
   }
 
   @ViewBuilder
@@ -313,7 +360,7 @@ struct BulkLogSheet: View {
         }
         .buttonStyle(.plain)
       }
-      PrimaryButton(applyTitle, systemImage: "checkmark.circle.fill", isEnabled: canApply) {
+      PrimaryButton(applyTitle, systemImage: applyIcon, isEnabled: canApply) {
         apply()
       }
     }
@@ -321,8 +368,17 @@ struct BulkLogSheet: View {
     .background(.ultraThinMaterial)
   }
 
+  private var applyIcon: String {
+    action == .add ? "checkmark.circle.fill" : "trash.fill"
+  }
+
   private var applyTitle: String {
-    selectedDays.isEmpty ? L("Select days to fill") : Lf("Apply to %d days", selectedDays.count)
+    if selectedDays.isEmpty {
+      return action == .add ? L("Select days to fill") : L("Select days to clear")
+    }
+    return action == .add
+      ? Lf("Apply to %d days", selectedDays.count)
+      : Lf("Clear %d days", selectedDays.count)
   }
 
   // MARK: - Already-logged indicator
@@ -436,22 +492,42 @@ struct BulkLogSheet: View {
       for day in days {
         let target = calendar.startOfDay(for: day)
         if let log = habit.logs.first(where: { calendar.isDate($0.date, inSameDayAs: target) }) {
-          log.completed = true
-        } else {
+          // Add → mark done; Remove → un-mark (mirrors the day toggle).
+          log.completed = (action == .add)
+        } else if action == .add {
           context.insert(HabitLog(date: target, completed: true, habit: habit))
         }
+        // Remove with no log: nothing to do.
       }
     case .mood:
       for day in days {
-        let entry = ensureEntry(for: day)
-        entry.moodRaw = moodValue
-        entry.updatedAt = Date()
+        switch action {
+        case .add:
+          let entry = ensureEntry(for: day)
+          entry.moodRaw = moodValue
+          entry.updatedAt = Date()
+        case .remove:
+          if let entry = existingEntry(for: day) {
+            entry.moodRaw = Entry.neutralMood
+            entry.updatedAt = Date()
+            deleteIfEmpty(entry)
+          }
+        }
       }
     case .energy:
       for day in days {
-        let entry = ensureEntry(for: day)
-        entry.energy = energyLevel
-        entry.updatedAt = Date()
+        switch action {
+        case .add:
+          let entry = ensureEntry(for: day)
+          entry.energy = energyLevel
+          entry.updatedAt = Date()
+        case .remove:
+          if let entry = existingEntry(for: day) {
+            entry.energy = Entry.neutralEnergy
+            entry.updatedAt = Date()
+            deleteIfEmpty(entry)
+          }
+        }
       }
     }
     try? context.save()
@@ -459,16 +535,39 @@ struct BulkLogSheet: View {
     dismiss()
   }
 
+  /// The existing Entry for `day`, if any.
+  private func existingEntry(for day: Date) -> Entry? {
+    let target = calendar.startOfDay(for: day)
+    return entries.first { calendar.isDate($0.day, inSameDayAs: target) }
+  }
+
   /// Finds (or inserts) the Entry for `day`, so a mood/energy can be set on a day
   /// that never had a reflection.
   private func ensureEntry(for day: Date) -> Entry {
-    let target = calendar.startOfDay(for: day)
-    if let existing = entries.first(where: { calendar.isDate($0.day, inSameDayAs: target) }) {
-      return existing
-    }
-    let new = Entry(day: target)
+    if let existing = existingEntry(for: day) { return existing }
+    let new = Entry(day: calendar.startOfDay(for: day))
     context.insert(new)
     return new
+  }
+
+  /// After clearing a mood/energy, drop the Entry entirely if it now holds nothing
+  /// — so a day that only ever carried a bulk-logged value disappears cleanly
+  /// (rather than lingering as an empty neutral reflection). Days that still hold a
+  /// real review or the other value are kept untouched.
+  private func deleteIfEmpty(_ entry: Entry) {
+    guard isEntryEmpty(entry) else { return }
+    context.delete(entry)
+  }
+
+  private func isEntryEmpty(_ entry: Entry) -> Bool {
+    func blank(_ s: String) -> Bool {
+      s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    return blank(entry.win) && blank(entry.mistake) && blank(entry.lesson)
+      && blank(entry.adjustment) && blank(entry.morningIntention)
+      && entry.tags.isEmpty && entry.attachments.isEmpty && entry.photo == nil
+      && !entry.adjustmentDone
+      && entry.moodRaw == Entry.neutralMood && entry.energy == Entry.neutralEnergy
   }
 }
 

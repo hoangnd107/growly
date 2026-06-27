@@ -557,3 +557,10 @@
 "Last 90 days" = "最近 90 天";
 "Last year" = "最近一年";
 "All sleep" = "全部睡眠";
+
+/* Round 8 — bulk log clear action */
+"Remove" = "移除";
+"Action" = "操作";
+"Select days to clear" = "选择要清除的日期";
+"Clear %d days" = "清除 %d 天";
+"The value logged on the selected days will be removed." = "所选日期记录的数值将被移除。";

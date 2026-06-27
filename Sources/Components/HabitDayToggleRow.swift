@@ -6,9 +6,11 @@ import SwiftData
 /// The checkmark is driven by **optimistic local state** so it flips the instant
 /// you tap — instead of waiting for the SwiftData write and the resulting `@Query`
 /// refresh to propagate back, which made ticking a habit feel laggy. The model is
-/// updated and saved right after, in the same run loop, but the UI no longer waits
-/// on it. View identity is stable (keyed by `habit.id` in the enclosing `ForEach`),
-/// so the local state survives the parent's re-render.
+/// mutated right after; persistence is left to the context's autosave rather than a
+/// synchronous `save()` on the tap path (round 8, item 2) — the same approach the
+/// reflection/note editors use to keep typing smooth. View identity is stable
+/// (keyed by `habit.id` in the enclosing `ForEach`), so the local state survives
+/// the parent's re-render.
 struct HabitDayToggleRow: View {
   @Environment(\.modelContext) private var context
   let habit: Habit
@@ -57,6 +59,7 @@ struct HabitDayToggleRow: View {
     } else {
       context.insert(HabitLog(date: target, completed: done, habit: habit))
     }
-    try? context.save()
+    // No explicit save: the context autosaves, keeping the tap off the disk-write
+    // path. The optimistic `done` state already reflects the change instantly.
   }
 }

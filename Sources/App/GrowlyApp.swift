@@ -4,7 +4,11 @@ import UIKit
 
 @main
 struct GrowlyApp: App {
-  init() { AppAppearance.apply() }
+  init() {
+    AppAppearance.apply()
+    // Prime the Taptic Engine so the first tap is as instant as the rest.
+    Haptics.warmUp()
+  }
 
   var body: some Scene {
     WindowGroup {

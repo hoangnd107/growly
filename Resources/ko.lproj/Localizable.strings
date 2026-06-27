@@ -557,3 +557,10 @@
 "Last 90 days" = "최근 90일";
 "Last year" = "최근 1년";
 "All sleep" = "전체 수면";
+
+/* Round 8 — bulk log clear action */
+"Remove" = "제거";
+"Action" = "동작";
+"Select days to clear" = "지울 날짜 선택";
+"Clear %d days" = "%d일 지우기";
+"The value logged on the selected days will be removed." = "선택한 날짜에 기록된 값이 제거됩니다.";

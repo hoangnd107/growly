@@ -557,3 +557,10 @@
 "Last 90 days" = "90 ngày qua";
 "Last year" = "Năm qua";
 "All sleep" = "Tất cả giấc ngủ";
+
+/* Round 8 — bulk log clear action */
+"Remove" = "Xoá";
+"Action" = "Hành động";
+"Select days to clear" = "Chọn ngày để xoá";
+"Clear %d days" = "Xoá %d ngày";
+"The value logged on the selected days will be removed." = "Giá trị đã ghi trong các ngày được chọn sẽ bị xoá.";

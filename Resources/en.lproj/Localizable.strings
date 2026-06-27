@@ -557,3 +557,10 @@
 "Last 90 days" = "Last 90 days";
 "Last year" = "Last year";
 "All sleep" = "All sleep";
+
+/* Round 8 — bulk log clear action */
+"Remove" = "Remove";
+"Action" = "Action";
+"Select days to clear" = "Select days to clear";
+"Clear %d days" = "Clear %d days";
+"The value logged on the selected days will be removed." = "The value logged on the selected days will be removed.";

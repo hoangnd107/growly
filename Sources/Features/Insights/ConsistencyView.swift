@@ -22,18 +22,26 @@ struct ConsistencyView: View {
 
   // MARK: Derived data
 
-  /// The set of review days: Entry.day, normalized to start-of-day. Notes are
+  /// Only **completed** reviews count toward consistency: a day is "done" when all
+  /// four WMLA reflection fields are filled (`Entry.isComplete`). A day with just a
+  /// mood/energy logged (e.g. via bulk log) creates an Entry but is *not* a review,
+  /// so it must not light a cell here (round 8, item 4).
+  private var completeEntries: [Entry] {
+    entries.filter { $0.isComplete }
+  }
+
+  /// The set of completed-review days, normalized to start-of-day. Notes are
   /// tracked separately in Writing stats.
   private var activeDays: Set<Date> {
     var days = Set<Date>()
-    days.reserveCapacity(entries.count)
-    for entry in entries { days.insert(calendar.startOfDay(for: entry.day)) }
+    days.reserveCapacity(completeEntries.count)
+    for entry in completeEntries { days.insert(calendar.startOfDay(for: entry.day)) }
     return days
   }
 
   private var streakStats: StreakStats {
     StreakStats.compute(
-      entries: entries,
+      entries: completeEntries,
       notes: [],
       frozenDays: progress?.streakFreezeDates ?? [],
       weekStartsMonday: progress?.weekStartsMonday ?? true

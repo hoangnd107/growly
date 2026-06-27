@@ -5,6 +5,11 @@ import SwiftData
 /// plus mood/energy, optional photo, tags, and the next-morning fields.
 @Model
 final class Entry {
+  /// The neutral mood/energy a day carries when nothing has been logged — also the
+  /// value a bulk "clear" resets to before an otherwise-empty Entry is discarded.
+  static let neutralMood = 3
+  static let neutralEnergy = 3
+
   var id: UUID
   /// The day this entry belongs to (normalized to start of day).
   var day: Date
